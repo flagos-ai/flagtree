@@ -12,10 +12,6 @@ flagtree_submodules = {
     "flir":
     tools.Module(name="flir", url="https://github.com/FlagTree/flir.git",
                  dst_path=os.path.join(flagtree_submodule_dir, "flir")),
-    "ascend":
-    tools.Module(name="ascend", url="https://gitcode.com/FlagTree/triton-ascend.git",
-                 dst_path=os.path.join(flagtree_submodule_dir, "triton_ascend"),
-                 spec_submodule="third_party/ascendnpu-ir" if ascend.ascend_npuir_commit is None else None),
 }
 
 
