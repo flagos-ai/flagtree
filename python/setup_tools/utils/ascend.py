@@ -17,7 +17,7 @@ submodules = (Module(name="ascendnpu-ir", url="https://gitcode.com/Ascend/Ascend
                      commit_id=ascend_npuir_commit, dst_path=os.path.join(flagtree_submodule_dir,
                                                                           "ascend/third_party/ascendnpu-ir")), )
 
-
+'''
 def get_backend_cmake_args(*args, **kargs):
     build_ext = kargs['build_ext']
     src_ext_path = build_ext.get_ext_fullpath("triton-adapter-opt")
@@ -32,8 +32,8 @@ def install_extension(*args, **kargs):
     python_root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     dst_ext_path = os.path.join(python_root_dir, "triton/backends/ascend/triton-adapter-opt")
     shutil.copy(src_ext_path, dst_ext_path)
-
-
+'''
+'''
 def create_symlink_for_triton(link_map):
     for target, source in link_map.items():
         target_path = Path(os.path.join(flagtree_root_dir, "python", target))
@@ -99,8 +99,8 @@ def get_package_dir():
     create_symlink_for_triton(package_dict)
     raise RuntimeError("will Fixed")
     return package_dict
-
-
+'''
+'''
 def get_extra_install_packages():
     return [
         "triton/triton_patch",
@@ -108,12 +108,12 @@ def get_extra_install_packages():
         "triton/triton_patch/compiler",
         "triton/triton_patch/runtime",
     ]
-
+'''
 
 def is_compile_ascend_npu_ir():
     return os.getenv("ASCEND_NPU_IR_COMPILE", "1") == "1"
 
-
+'''
 def precompile_hook(*args, **kargs):
     third_party_base_dir = Path(kargs['third_party_base_dir'])
     ascend_path = Path(third_party_base_dir) / "ascend"
@@ -163,3 +163,4 @@ def precompile_hook(*args, **kargs):
     except Exception as e:
         print(f"[ERROR]: Unknown error: {str(e)}")
     return False
+'''
