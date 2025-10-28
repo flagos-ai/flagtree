@@ -42,7 +42,7 @@ def get_backend_cmake_args(*args, **kargs):
     handle_plugin_backend(editable)
     try:
         cmake_args = activated_module.get_backend_cmake_args(*args, **kargs)
-    except Exception as e:
+    except Exception:
         cmake_args = []
     if editable:
         cmake_args += ["-DEDITABLE_MODE=ON"]
@@ -328,8 +328,8 @@ def handle_plugin_backend(editable):
             dst_build_plugin_path = dst_build_plugin_dir + "/" + flagtree_backend + "TritonPlugin.so"
             shutil.copy(src_build_plugin_path, dst_build_plugin_path)
         src_install_plugin_path = str(
-                os.getenv("HOME")) + "/.flagtree/" + flagtree_backend + "/" + flagtree_backend + "TritonPlugin.so"
-        dst_install_plugin_dir = os.path.dirname(os.path.abspath(__file__))+"/../triton/_C"
+            os.getenv("HOME")) + "/.flagtree/" + flagtree_backend + "/" + flagtree_backend + "TritonPlugin.so"
+        dst_install_plugin_dir = os.path.dirname(os.path.abspath(__file__)) + "/../triton/_C"
         if not os.path.exists(dst_install_plugin_dir):
             os.makedirs(dst_install_plugin_dir)
         shutil.copy(src_install_plugin_path, dst_install_plugin_dir)
