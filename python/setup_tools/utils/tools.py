@@ -150,7 +150,7 @@ class DownloadManager:
                 if has_specialization_commit:
                     repo.git.checkout(module.commit_id)
                 if has_specialization_submodule:
-                    submodule = repo.submodules[has_specialization_submodule]
+                    submodule = repo.submodules[module.spec_submodule]
                     submodule.update(init=True, recursive=False)
                 return True
             except Exception:
