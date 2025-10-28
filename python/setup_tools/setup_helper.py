@@ -35,6 +35,7 @@ def install_extension(*args, **kargs):
 
 def get_backend_cmake_args(*args, **kargs):
     if "editable_wheel" in sys.argv:
+        print("editabla_mode ON")
         editable = True
     else:
         editable = False
@@ -42,11 +43,11 @@ def get_backend_cmake_args(*args, **kargs):
     handle_plugin_backend(editable)
     try:
         cmake_args = activated_module.get_backend_cmake_args(*args, **kargs)
-        if "editable_wheel" in sys.argv:
-            cmake_args += ["-DEDITABLE_MODE=ON"]
-        return cmake_args
-    except Exception:
-        return []
+    except Exception as e:
+        cmake_args = []
+    if editable:
+        cmake_args += ["-DEDITABLE_MODE=ON"]
+    return cmake_args
 
 
 def get_device_name():
