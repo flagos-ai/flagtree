@@ -1,0 +1,89 @@
+module {
+  func.func @bmm_kernel(%arg0: memref<?xi8>, %arg1: memref<?xi8>, %arg2: memref<?xf32> {tt.divisibility = 16 : i32, tt.tensor_kind = 0 : i32}, %arg3: memref<?xf32> {tt.divisibility = 16 : i32, tt.tensor_kind = 0 : i32}, %arg4: memref<?xf32> {tt.divisibility = 16 : i32, tt.tensor_kind = 1 : i32}, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32, %arg10: i32, %arg11: i32, %arg12: i32, %arg13: i32) attributes {SyncBlockLockArgIdx = 0 : i64, WorkspaceArgIdx = 1 : i64, global_kernel = "local", mix_mode = "mix"} {
+    %c64 = arith.constant 64 : index
+    %c1 = arith.constant 1 : index
+    %c0 = arith.constant 0 : index
+    %c64_i32 = arith.constant 64 : i32
+    %c63_i32 = arith.constant 63 : i32
+    %c1_i32 = arith.constant 1 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %cst = arith.constant 0.000000e+00 : f32
+    %0 = tensor.empty() : tensor<64x64xf32>
+    %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<64x64xf32>) -> tensor<64x64xf32>
+    %2 = arith.muli %arg13, %arg5 : i32
+    %3 = arith.muli %2, %arg7 : i32
+    %4 = arith.muli %arg13, %arg7 : i32
+    %5 = arith.muli %4, %arg6 : i32
+    %6 = arith.muli %2, %arg6 : i32
+    %7 = arith.index_cast %6 : i32 to index
+    %8 = arith.muli %arg11, %c64_i32 : i32
+    %9 = arith.muli %arg12, %c64_i32 : i32
+    %10 = arith.index_cast %8 : i32 to index
+    %11 = arith.index_cast %arg6 : i32 to index
+    %12 = arith.muli %10, %11 : index
+    %13 = arith.addi %7, %12 : index
+    %14 = arith.index_cast %9 : i32 to index
+    %15 = arith.addi %13, %14 : index
+    %reinterpret_cast = memref.reinterpret_cast %arg4 to offset: [%15], sizes: [64, 64], strides: [%11, 1] : memref<?xf32> to memref<64x64xf32, strided<[?, 1], offset: ?>>
+    %16 = arith.addi %arg7, %c63_i32 : i32
+    %17 = arith.divsi %16, %c64_i32 : i32
+    %18 = arith.muli %arg6, %c64_i32 : i32
+    %19 = arith.index_cast %3 : i32 to index
+    %20 = arith.index_cast %arg7 : i32 to index
+    %21 = arith.muli %10, %20 : index
+    %22 = arith.addi %19, %21 : index
+    %23 = arith.index_cast %5 : i32 to index
+    %24:3 = scf.for %arg14 = %c0_i32 to %17 step %c1_i32 iter_args(%arg15 = %1, %arg16 = %22, %arg17 = %23) -> (tensor<64x64xf32>, index, index)  : i32 {
+      %36 = arith.addi %arg17, %14 : index
+      %reinterpret_cast_0 = memref.reinterpret_cast %arg3 to offset: [%36], sizes: [64, 64], strides: [%11, %c1] : memref<?xf32> to memref<64x64xf32, strided<[?, ?], offset: ?>>
+      %reinterpret_cast_1 = memref.reinterpret_cast %arg2 to offset: [%arg16], sizes: [64, 64], strides: [%20, %c1] : memref<?xf32> to memref<64x64xf32, strided<[?, ?], offset: ?>>
+      %37 = arith.muli %arg14, %c64_i32 : i32
+      %38 = arith.subi %arg7, %37 : i32
+      %alloc = memref.alloc() : memref<64x64xf32>
+      %39 = arith.index_cast %38 : i32 to index
+      %40 = arith.maxsi %39, %c0 : index
+      %41 = arith.minsi %40, %c64 : index
+      %42 = arith.cmpi slt, %41, %c64 : index
+      scf.if %42 {
+        linalg.fill ins(%cst : f32) outs(%alloc : memref<64x64xf32>)
+      }
+      %subview_2 = memref.subview %reinterpret_cast_1[0, 0] [64, %41] [1, 1] : memref<64x64xf32, strided<[?, ?], offset: ?>> to memref<64x?xf32, strided<[?, ?], offset: ?>>
+      %subview_3 = memref.subview %alloc[0, 0] [64, %41] [1, 1] : memref<64x64xf32> to memref<64x?xf32, strided<[64, 1]>>
+      memref.copy %subview_2, %subview_3 : memref<64x?xf32, strided<[?, ?], offset: ?>> to memref<64x?xf32, strided<[64, 1]>>
+      annotation.mark %subview_3 {MayImplicitTransposeWithLastAxis} : memref<64x?xf32, strided<[64, 1]>>
+      %43 = bufferization.to_tensor %alloc restrict writable : memref<64x64xf32>
+      annotation.mark %43 {MayImplicitTransposeWithLastAxis} : tensor<64x64xf32>
+      %alloc_4 = memref.alloc() : memref<64x64xf32>
+      scf.if %42 {
+        linalg.fill ins(%cst : f32) outs(%alloc_4 : memref<64x64xf32>)
+      }
+      %subview_5 = memref.subview %reinterpret_cast_0[0, 0] [%41, 64] [1, 1] : memref<64x64xf32, strided<[?, ?], offset: ?>> to memref<?x64xf32, strided<[?, ?], offset: ?>>
+      %subview_6 = memref.subview %alloc_4[0, 0] [%41, 64] [1, 1] : memref<64x64xf32> to memref<?x64xf32, strided<[64, 1]>>
+      memref.copy %subview_5, %subview_6 : memref<?x64xf32, strided<[?, ?], offset: ?>> to memref<?x64xf32, strided<[64, 1]>>
+      annotation.mark %subview_6 {MayImplicitTransposeWithLastAxis} : memref<?x64xf32, strided<[64, 1]>>
+      %44 = bufferization.to_tensor %alloc_4 restrict writable : memref<64x64xf32>
+      annotation.mark %44 {MayImplicitTransposeWithLastAxis} : tensor<64x64xf32>
+      %45 = linalg.matmul {input_precison = "ieee"} ins(%43, %44 : tensor<64x64xf32>, tensor<64x64xf32>) outs(%arg15 : tensor<64x64xf32>) -> tensor<64x64xf32>
+      %46 = arith.addi %arg16, %c64 : index
+      %47 = arith.index_cast %18 : i32 to index
+      %48 = arith.addi %arg17, %47 : index
+      scf.yield %45, %46, %48 : tensor<64x64xf32>, index, index
+    }
+    %25 = arith.addi %10, %c64 : index
+    %26 = arith.index_cast %arg5 : i32 to index
+    %27 = arith.maxsi %10, %26 : index
+    %28 = arith.minsi %25, %27 : index
+    %29 = arith.subi %28, %10 : index
+    %30 = arith.addi %14, %c64 : index
+    %31 = arith.maxsi %14, %11 : index
+    %32 = arith.minsi %30, %31 : index
+    %33 = arith.subi %32, %14 : index
+    %34 = arith.minsi %29, %c64 : index
+    %35 = arith.minsi %33, %c64 : index
+    %extracted_slice = tensor.extract_slice %24#0[0, 0] [%34, %35] [1, 1] : tensor<64x64xf32> to tensor<?x?xf32>
+    %subview = memref.subview %reinterpret_cast[0, 0] [%34, %35] [1, 1] : memref<64x64xf32, strided<[?, 1], offset: ?>> to memref<?x?xf32, strided<[?, 1], offset: ?>>
+    bufferization.materialize_in_destination %extracted_slice in writable %subview : (tensor<?x?xf32>, memref<?x?xf32, strided<[?, 1], offset: ?>>) -> ()
+    return
+  }
+}
+
