@@ -1,4 +1,8 @@
 set(LLVM_TARGET_DEFINITIONS Combine.td)
+set(BACKEND_SPEC_TD ${BACKEND_SPEC_INCLUDE_DIR}/../lib/Dialect/Triton/Transforms/Combine.td)
+if(EXISTS ${BACKEND_SPEC_TD})
+  set(LLVM_TARGET_DEFINITIONS ${BACKEND_SPEC_TD})
+endif()
 mlir_tablegen(TritonCombine.inc -gen-rewriters)
 add_public_tablegen_target(TritonCombineIncGen)
 
