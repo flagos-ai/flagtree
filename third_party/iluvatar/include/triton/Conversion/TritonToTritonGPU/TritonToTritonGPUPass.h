@@ -19,10 +19,6 @@ constexpr static char AttrTargetName[] = "triton_gpu.target";
 
 constexpr static char AttrNumThreadsPerWarp[] = "triton_gpu.threads-per-warp";
 
-#ifdef FLAGTREE_SPEC_Conversion_TritonToTritonGPU_TritonToTritonGPUPass_AttrNumStagesForDot
-constexpr static char AttrNumStagesForDot[] = "triton_gpu.dot.num-stages";
-#endif
-
 // Create the pass with numWarps passed from cl::opt.
 std::unique_ptr<OperationPass<ModuleOp>> createConvertTritonToTritonGPUPass();
 
@@ -37,6 +33,10 @@ std::unique_ptr<OperationPass<ModuleOp>> createConvertTritonToTritonGPUPass(
 std::unique_ptr<OperationPass<ModuleOp>>
 createConvertTritonToTritonGPUPass(const std::string &target, int numWarps,
                                    int threadsPerWarp = 32, int numCTAs = 1);
+#endif
+
+#ifdef FLAGTREE_SPEC_Conversion_TritonToTritonGPU_TritonToTritonGPUPass_ConvertTritonToTritonGPU_setAttrNumStagesForDot
+void ConvertTritonToTritonGPU_setAttrNumStagesForDot(ModuleOp& mod, IntegerType i32_ty, int numStages);
 #endif
 
 } // namespace triton

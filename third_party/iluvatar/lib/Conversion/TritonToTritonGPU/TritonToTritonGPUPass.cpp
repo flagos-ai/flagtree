@@ -838,10 +838,8 @@ public:
     mod->setAttr(AttrTargetName,
                  StringAttr::get(context, this->target.getValue()));
 
-#ifdef FLAGTREE_SPEC_Conversion_TritonToTritonGPU_TritonToTritonGPUPass_ConvertTritonToTritonGPU_runOnOperation
-    mod->setAttr(
-        AttrNumStagesForDot,
-        IntegerAttr::get(i32_ty, llvm::APInt(32, numStages.getValue())));
+#ifdef FLAGTREE_SPEC_Conversion_TritonToTritonGPU_TritonToTritonGPUPass_ConvertTritonToTritonGPU_setAttrNumStagesForDot
+    ConvertTritonToTritonGPU_setAttrNumStagesForDot(mod, i32_ty, numStages.getValue());
 #endif
 
     if (failed(applyPartialConversion(mod, target, std::move(patterns))))
