@@ -195,6 +195,9 @@ bool isMfmaToDotShortcut(RankedTensorType &srcTy, RankedTensorType &dstTy);
 bool isMmaToDotShortcut(RankedTensorType srcTy, RankedTensorType dstTy);
 
 bool isMmaToMmaShortcut(RankedTensorType srcTy, RankedTensorType dstTy);
+#ifdef FLAGTREE_SPEC_Analysis_Utility_isMmaToMmaShortcut
+bool isMmaToMmaShortcut(Attribute srcEncoding, Attribute dstEncoding);
+#endif
 
 // Return true if the src and dst layout match.
 bool matchMmaV3AndDotOperandLayout(RankedTensorType srcTy,

@@ -619,14 +619,6 @@ static bool isMmaToMmaShortcut(Attribute srcEncoding, Attribute dstEncoding) {
          src.getWarpsPerCTA()[1] == 1 && dst.getVersionMajor() == 3 &&
          dst.getWarpsPerCTA()[1] == 1;
 }
-#else
-static bool isMmaToMmaShortcut(Attribute srcEncoding, Attribute dstEncoding) {
-  auto src = dyn_cast<IluvatarMmaEncodingAttr>(srcEncoding);
-  auto dst = dyn_cast<IluvatarMmaEncodingAttr>(dstEncoding);
-  if (!src || !dst)
-    return false;
-  return src.getVersionMinor() == 0 && dst.getVersionMinor() > 0;
-}
 #endif
 
 bool isMmaToMmaShortcut(RankedTensorType srcTy, RankedTensorType dstTy) {

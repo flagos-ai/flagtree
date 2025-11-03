@@ -167,6 +167,14 @@ bool supportMMA(Value value, int version) {
          elemTy.isInteger(8);
 }
 
+bool isMmaToMmaShortcut(Attribute srcEncoding, Attribute dstEncoding) {
+  auto src = dyn_cast<IluvatarMmaEncodingAttr>(srcEncoding);
+  auto dst = dyn_cast<IluvatarMmaEncodingAttr>(dstEncoding);
+  if (!src || !dst)
+    return false;
+  return src.getVersionMinor() == 0 && dst.getVersionMinor() > 0;
+}
+
 bool isMmaToDotShortcut(RankedTensorType srcTy, RankedTensorType dstTy) {
   // dot_op<opIdx=0, parent=#mma> = #mma
   // when #mma = MmaEncoding<version=2, warpsPerCTA=[..., 1]>
