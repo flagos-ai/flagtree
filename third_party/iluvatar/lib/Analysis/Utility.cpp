@@ -12,10 +12,10 @@
 #include "mlir/Support/LLVM.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Utility.h"
+#include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #ifdef __NVIDIA__
 #include "triton/Dialect/TritonNvidiaGPU/IR/Dialect.h"
 #endif
-#include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #include "triton/Tools/Sys/GetEnv.hpp"
 
 namespace mlir {
@@ -608,7 +608,7 @@ bool isMfmaToDotShortcut(RankedTensorType &srcTy, RankedTensorType &dstTy) {
          (srcTy.getElementType().isF16() || srcTy.getElementType().isBF16());
 }
 
-#ifdef FLAGTREE_SPEC_Analysis_Utility_isMmaToMmaShortcut
+#ifndef FLAGTREE_SPEC_Analysis_Utility_isMmaToMmaShortcut
 static bool isMmaToMmaShortcut(Attribute srcEncoding, Attribute dstEncoding) {
   auto src = dyn_cast<NvidiaMmaEncodingAttr>(srcEncoding);
   auto dst = dyn_cast<NvidiaMmaEncodingAttr>(dstEncoding);
@@ -618,6 +618,14 @@ static bool isMmaToMmaShortcut(Attribute srcEncoding, Attribute dstEncoding) {
   return src && dst && src.getVersionMajor() == 3 &&
          src.getWarpsPerCTA()[1] == 1 && dst.getVersionMajor() == 3 &&
          dst.getWarpsPerCTA()[1] == 1;
+}
+#else
+static bool isMmaToMmaShortcut(Attribute srcEncoding, Attribute dstEncoding) {
+  auto src = dyn_cast<IluvatarMmaEncodingAttr>(srcEncoding);
+  auto dst = dyn_cast<IluvatarMmaEncodingAttr>(dstEncoding);
+  if (!src || !dst)
+    return false;
+  return src.getVersionMinor() == 0 && dst.getVersionMinor() > 0;
 }
 #endif
 
