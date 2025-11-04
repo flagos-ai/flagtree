@@ -22,7 +22,7 @@ namespace mlir::triton {
 //===----------------------------------------------------------------------===//
 
 /// This lattice value represents known information on the axes of a lattice.
-#ifndef FLAGTREE_SPEC_AxisInfo_CorexFlag
+#ifndef FLAGTREE_SPEC_AxisInfo
 class AxisInfo {
 public:
   typedef SmallVector<int64_t> DimVectorT;

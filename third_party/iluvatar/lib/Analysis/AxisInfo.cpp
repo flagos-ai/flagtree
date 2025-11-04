@@ -13,7 +13,7 @@
 
 namespace mlir::triton {
 
-#ifndef FLAGTREE_SPEC_AxisInfo_class
+#ifndef FLAGTREE_SPEC_AxisInfo_classes
 
 namespace {
 
@@ -1266,7 +1266,7 @@ unsigned ModuleAxisInfoAnalysis::getMaskAlignment(Value mask) {
   return alignment;
 }
 
-#ifndef FLAGTREE_SPEC_AxisInfo_class
+#ifndef FLAGTREE_SPEC_AxisInfo_classes
 void ModuleAxisInfoAnalysis::initialize(FunctionOpInterface funcOp) {
   std::unique_ptr<DataFlowSolver> solver = createDataFlowSolver();
   AxisInfoAnalysis *analysis = solver->load<AxisInfoAnalysis>();

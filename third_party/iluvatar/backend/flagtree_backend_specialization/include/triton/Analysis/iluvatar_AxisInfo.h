@@ -5,8 +5,8 @@
 #include "mlir/Support/LLVM.h"
 #include "llvm/Support/raw_ostream.h"
 
-#define FLAGTREE_SPEC_AxisInfo_CorexFlag
-#define FLAGTREE_SPEC_AxisInfo_class
+#define FLAGTREE_SPEC_AxisInfo
+#define FLAGTREE_SPEC_AxisInfo_classes
 #define FLAGTREE_SPEC_AxisInfo_AxisInfo_functions
 #define FLAGTREE_SPEC_AxisInfo_ModuleAxisInfoAnalysis_update
 
