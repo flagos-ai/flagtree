@@ -8,7 +8,7 @@
 #include "triton/Analysis/Utility.h"
 #include "triton/Dialect/Triton/IR/Utility.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
-#ifdef FLAGTREE_SPEC_Dialect_TritonGPU_IR_Dialect_head
+#ifdef FLAGTREE_SPEC_Dialect_TritonGPU_IR_plugin
 #include "triton/Dialect/TritonGPU/IR/TritonGPUAttrDefsPlugin.h"
 #endif
 #include "triton/Tools/StrUtil.h"
