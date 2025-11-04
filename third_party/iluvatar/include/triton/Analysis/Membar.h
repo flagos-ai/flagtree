@@ -45,10 +45,12 @@ struct BlockInfo {
     syncWriteIntervals.clear();
   }
 
-#ifdef FLAGTREE_SPEC_BlockInfo_Function
+#ifdef FLAGTREE_SPEC_BlockInfo_erase
   // type: 0 all | 1 del W from other R |2 del R from other W
   void erase(BlockInfo &other, int type = 0);
+#endif
 
+#ifdef FLAGTREE_SPEC_BlockInfo_printIntervals
   // for debug
   void printIntervals();
 #endif
