@@ -641,7 +641,7 @@ private:
   }
 
 #ifdef FLAGTREE_SPEC_Analysis_Allocation_AllocationAnalysis_dump
-  void dump() const { AllocationAnalysis_dump(bufferRange); }
+  void dump() const { Allocation::dump(bufferRange); }
 #endif
 
 private:

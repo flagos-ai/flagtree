@@ -145,7 +145,7 @@ public:
   /// Returns the size of total shared memory allocated
   size_t getSharedMemorySize() const { return sharedMemorySize; }
 
-public:
+private:
   /// A class that represents a shared memory buffer
   struct BufferT {
     /// Explicit: triton_gpu.local_alloc
@@ -184,6 +184,10 @@ public:
   using AliasBufferMapT = llvm::MapVector<Value, llvm::SetVector<BufferT *>>;
   /// BufferId -> Buffer
   using BufferSetT = std::map<BufferId, BufferT>;
+
+public:
+  friend class AllocationAnalysis;
+  static void dump(llvm::MapVector<BufferT *, Interval<size_t>> bufferRange);
 
 private:
   template <BufferT::BufferKind Kind, typename KeyType, typename... Args>
@@ -262,11 +266,6 @@ public:
 private:
   FuncOffsetMapT sharedMemoryValue;
 };
-
-namespace triton {
-void AllocationAnalysis_dump(
-    llvm::MapVector<Allocation::BufferT *, Interval<size_t>> bufferRange);
-} // namespace triton
 
 } // namespace mlir
 

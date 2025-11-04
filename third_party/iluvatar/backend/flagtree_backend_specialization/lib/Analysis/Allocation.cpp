@@ -147,8 +147,10 @@ unsigned getScratchValueSizeElems(const SmallVector<unsigned> &smemShape) {
                          std::multiplies<>());
 }
 
-void AllocationAnalysis_dump(
-    llvm::MapVector<Allocation::BufferT *, Interval<size_t>> bufferRange) {
+} // namespace triton
+
+void Allocation::dump(
+    llvm::MapVector<BufferT *, Interval<size_t>> bufferRange) {
   llvm::outs() << "DUMP: "
                << "\n";
   for (auto bufferIter : bufferRange) {
@@ -166,5 +168,4 @@ void AllocationAnalysis_dump(
   }
 }
 
-} // namespace triton
 } // namespace mlir
