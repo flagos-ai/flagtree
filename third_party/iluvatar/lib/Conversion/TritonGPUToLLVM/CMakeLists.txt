@@ -4,10 +4,9 @@ else()
     set(NVGPUIR "NVGPUIR")
 endif()
 
-if(NOT FLAGTREE_BACKEND STREQUAL "iluvatar")
-  set(_EXTRA_LINK_LIBS TritonNvidiaGPUTransforms)
-else()
-  set(_EXTRA_LINK_LIBS FlagTree_${FLAGTREE_BACKEND}_TritonConversionTritonGPUToLLVM)
+set(_EXTRA_LINK_LIBS FlagTree_${FLAGTREE_BACKEND}_TritonConversionTritonGPUToLLVM)
+if(NOT TARGET ${_EXTRA_LINK_LIBS})
+  set(_EXTRA_LINK_LIBS "")
 endif()
 
 add_triton_library(TritonGPUToLLVM

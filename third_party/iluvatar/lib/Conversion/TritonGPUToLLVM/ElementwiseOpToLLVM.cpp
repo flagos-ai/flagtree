@@ -4,9 +4,13 @@
 #include "triton/Conversion/TritonGPUToLLVM/ElementwiseOpToLLVMBase.h"
 #include "triton/Conversion/TritonGPUToLLVM/PatternTritonGPUOpToLLVM.h"
 #include "triton/Conversion/TritonGPUToLLVM/TargetInfoBase.h"
-#include "triton/Conversion/TritonGPUToLLVM/TypeConverter.h"
 #include "triton/Conversion/TritonGPUToLLVM/Utility.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
+
+#include "flagtree_spec.h"
+#ifdef FLAGTREE_SPEC_ElementwiseOpConversionBase_head
+#include "triton/Conversion/TritonGPUToLLVM/TypeConverter.h"
+#endif
 
 using namespace mlir::triton::gpu;
 
@@ -168,7 +172,6 @@ struct AddPtrOpConversion : public ConvertOpToLLVMPattern<AddPtrOp> {
     auto typeConverter = getTypeConverter();
     auto resultTensorTy = dyn_cast<RankedTensorType>(resultTy);
     if (resultTensorTy) {
-      // auto ptrs = unpackLLElements(loc, adaptor.getPtr(), rewriter);
       unsigned elems = getTotalElemsPerThread(resultTy);
       Type elemTy = typeConverter->convertType(
           cast<PointerType>(resultTensorTy.getElementType()).getPointeeType());

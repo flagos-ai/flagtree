@@ -1,7 +1,12 @@
-if(NOT FLAGTREE_BACKEND STREQUAL "iluvatar")
-  set(_EXTRA_LINK_LIBS TritonNvidiaGPUIR)
+if (FLAGTREE_BACKEND)
+    set(NVGPUIR "")
 else()
-  set(_EXTRA_LINK_LIBS FlagTree_${FLAGTREE_BACKEND}_TritonAnalysis)
+    set(NVGPUIR "TritonNvidiaGPUIR")
+endif()
+
+set(_EXTRA_LINK_LIBS FlagTree_${FLAGTREE_BACKEND}_TritonAnalysis)
+if(NOT TARGET ${_EXTRA_LINK_LIBS})
+  set(_EXTRA_LINK_LIBS "")
 endif()
 
 add_triton_library(TritonAnalysis
@@ -20,5 +25,6 @@ add_triton_library(TritonAnalysis
   MLIRLLVMDialect
   TritonIR
   TritonGPUIR
+  ${NVGPUIR}
   ${_EXTRA_LINK_LIBS}
 )
