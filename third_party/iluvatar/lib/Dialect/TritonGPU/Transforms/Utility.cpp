@@ -290,16 +290,13 @@ std::string GraphLayoutMarker::getColor(const Type &type) const {
 }
 // -------------------------------------------------------------------------- //
 
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_Utility_static_inferDstEncoding
 static std::optional<Attribute> inferDstEncoding(triton::ReduceOp op,
                                                  Attribute encoding) {
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_Utility_static_inferDstEncoding
   return triton::gpu::SliceEncodingAttr::get(op->getContext(), op.getAxis(),
                                              encoding);
-#else
-  return triton::gpu::SliceEncodingAttr::get(op->getContext(), op.getAxis(),
-                                             encoding, op.getNoWarpReduce());
-#endif
 }
+#endif
 
 static std::optional<Attribute> inferDstEncoding(triton::ExpandDimsOp op,
                                                  Attribute encoding) {
@@ -345,17 +342,13 @@ static std::optional<Attribute> inferSrcEncoding(triton::ReduceOp op,
   return sliceEncoding.getParent();
 }
 
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_Utility_static_inferSrcEncoding
 static std::optional<Attribute> inferSrcEncoding(triton::ExpandDimsOp op,
                                                  Attribute encoding) {
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_Utility_static_inferSrcEncoding
   return triton::gpu::SliceEncodingAttr::get(op->getContext(), op.getAxis(),
                                              encoding);
-#else
-  return triton::gpu::SliceEncodingAttr::get(op->getContext(), op.getAxis(),
-                                             encoding, false);
-  // FIXME: Shall we support noWarpReduce filed for ExpandDimsOp?
-#endif
 }
+#endif
 
 static std::optional<Attribute> inferSrcEncoding(JoinOp op, Attribute dstEnc) {
   // Split is the inverse of join.
