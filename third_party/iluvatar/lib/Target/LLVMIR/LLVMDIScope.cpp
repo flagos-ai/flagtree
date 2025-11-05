@@ -90,11 +90,10 @@ struct LLVMDIScopePass : public LLVMDIScopeBase<LLVMDIScopePass> {
       distinctId = mlir::DistinctAttr::create(mlir::UnitAttr::get(context));
       if (!compileUnitAttr) {
         compileUnitAttr = LLVM::DICompileUnitAttr::get(
-#ifndef FLAGTREE_SPEC_Target_LLVMIR_LLVMDIScope_LLVMDIScopePass_setSubprogramAttr
-            distinctId, llvm::dwarf::DW_LANG_C, fileAttr,
-#else
-            context, distinctId, llvm::dwarf::DW_LANG_C, fileAttr,
+#ifdef FLAGTREE_SPEC_Target_LLVMIR_LLVMDIScope_LLVMDIScopePass_getDISubprogramAttrWithContext
+            context,
 #endif
+            distinctId, llvm::dwarf::DW_LANG_C, fileAttr,
             StringAttr::get(context, "triton"),
             /*isOptimized=*/true, LLVM::DIEmissionKind::LineTablesOnly);
       }
