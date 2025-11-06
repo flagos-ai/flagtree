@@ -105,6 +105,9 @@ class NPUDriver(DriverBase):
     def __init__(self):
         self.utils = NPUUtils()
         self.launcher_cls = NPULauncher
+        # flagtree backend specialization
+        from triton.backends.ascend import flagtree_backend_specialization
+        self.flagtree_backend_specialization = flagtree_backend_specialization
         super().__init__()
 
     @classmethod
