@@ -1,9 +1,13 @@
-if(FLAGTREE_BACKEND STREQUAL "iluvatar")
-  set(_EXTRA_LINK_LIBS FlagTree_${FLAGTREE_BACKEND}_TritonDialectTritonGPUTransforms)
-  set(_EXTRA_LINK_CPP "")
+set(_EXTRA_LINK_LIBS FlagTree_${FLAGTREE_BACKEND}_TritonDialectTritonGPUTransforms)
+if(NOT TARGET ${_EXTRA_LINK_LIBS})
+  set(_EXTRA_LINK_LIBS "")
+endif()
+if(IS_COMPILE_TritonNvidiaGPU)
+  set(_TMA_LINK_CPP "Pipeliner/TMAStoresPipeline.cpp")
+  set(_NVIDIA_LINK_LIBS "TritonNvidiaGPUIR")
 else()
-  set(_EXTRA_LINK_LIBS "TritonNvidiaGPUIR")
-  set(_EXTRA_LINK_CPP "Pipeliner/TMAStoresPipeline.cpp")
+  set(_TMA_LINK_CPP "")
+  set(_NVIDIA_LINK_LIBS "")
 endif()
 
 add_triton_library(TritonGPUTransforms
@@ -18,7 +22,7 @@ add_triton_library(TritonGPUTransforms
   Pipeliner/OuterLoopPipeline.cpp
   Pipeliner/PipelineExpander.cpp
   Pipeliner/SoftwarePipeliner.cpp
-  ${_EXTRA_LINK_CPP}
+  ${_TMA_LINK_CPP}
   Pipeliner/PipeliningUtility.cpp
   Prefetch.cpp
   RemoveLayoutConversions.cpp
@@ -34,6 +38,7 @@ add_triton_library(TritonGPUTransforms
   TritonAnalysis
   TritonIR
   TritonGPUIR
+  ${_NVIDIA_LINK_LIBS}
   ${_EXTRA_LINK_LIBS}
   MLIRTransformUtils
 )
