@@ -1,7 +1,3 @@
-#include "flagtree_spec.h"
-
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_RemoveLayoutConversions_cpp
-
 #include <memory>
 
 #include "mlir/Analysis/SliceAnalysis.h"
@@ -84,6 +80,56 @@ public:
   }
 };
 
+#ifdef __ILUVATAR__
+// convert(slice<{parent=#mma, noWarpReduce=true}>, blocked) ->
+// convert(slice<{parent=#mma, noWarpReduce=true}>, slice<{parent=#mma,
+// noWarpReduce=false}>) + convert(slice<{parent=#mma, noWarpReduce=false}>,
+// blocked) this is a heuristic to accommodate some pattern seen in fused
+// attention kernels.
+// TODO: replace this by something more generic, i.e. layout-aware CSE
+class SliceMMAConvert : public mlir::RewritePattern {
+public:
+  SliceMMAConvert(mlir::MLIRContext *context)
+      : mlir::RewritePattern(triton::gpu::ConvertLayoutOp::getOperationName(),
+                             1, context) {}
+
+  LogicalResult
+  matchAndRewrite(mlir::Operation *op,
+                  mlir::PatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto dstOp = cast<triton::gpu::ConvertLayoutOp>(op);
+    Value src = dstOp.getSrc();
+    Value dst = dstOp.getResult();
+    auto srcTy = src.getType().cast<RankedTensorType>();
+    auto dstTy = dst.getType().cast<RankedTensorType>();
+    auto srcLayout =
+        srcTy.getEncoding().dyn_cast<triton::gpu::SliceEncodingAttr>();
+    auto dstLayout =
+        dstTy.getEncoding().dyn_cast<triton::gpu::BlockedEncodingAttr>();
+    if (!srcLayout || !dstLayout)
+      return mlir::failure();
+    auto srcMmaLayout =
+        srcLayout.getParent().dyn_cast<triton::gpu::IluvatarMmaEncodingAttr>();
+    if (!srcMmaLayout)
+      return mlir::failure();
+    auto srcNoWarpReduce = srcLayout.getNoWarpReduce();
+    if (!srcNoWarpReduce)
+      return mlir::failure();
+
+    Attribute reduceEncoding = triton::gpu::SliceEncodingAttr::get(
+        dstOp.getContext(), srcLayout.getDim(), srcMmaLayout, false);
+    auto newSrc = rewriter.create<triton::gpu::ConvertLayoutOp>(
+        loc,
+        RankedTensorType::get(srcTy.getShape(), srcTy.getElementType(),
+                              reduceEncoding),
+        src);
+    rewriter.replaceOpWithNewOp<triton::gpu::ConvertLayoutOp>(op, dstTy,
+                                                              newSrc);
+    return mlir::success();
+  }
+};
+#endif
+
 // The current algorithm works by analyzing the IR and doing a one-shot rewrite
 // based on the analysis. The algorithm is as follows.
 //
@@ -138,6 +184,9 @@ public:
   void rewriteConditionOp(scf::ConditionOp conditionOp);
   void rewriteReduceToScalar(Operation *reduceOp);
   void rewriteAssertOp(AssertOp assertOp);
+#ifdef __ILUVATAR__
+  bool rewriteStoreOp(Operation *storeOp);
+#endif
   Operation *cloneElementwise(OpBuilder &rewriter, Operation *op,
                               Attribute encoding);
   // Map the original value to the rewritten one.
@@ -242,12 +291,20 @@ bool hasConvertToMMATransisitiveUse(Operation *op, Attribute encoding) {
         if (auto mmaLayout = dyn_cast<NvidiaMmaEncodingAttr>(dstEncoding))
           return (mmaLayout.getVersionMajor() > 1) ? true
                                                    : mmaLayout == encoding;
+#ifdef __ILUVATAR__
+        if (isa<triton::gpu::IluvatarMmaEncodingAttr>(dstEncoding))
+          return true;
+#endif
         if (isa<triton::gpu::AMDMfmaEncodingAttr,
                 triton::gpu::AMDWmmaEncodingAttr>(dstEncoding))
           return true;
         if (isa<triton::gpu::DotOperandEncodingAttr>(dstEncoding)) {
           if (auto mmaLayout = dyn_cast<NvidiaMmaEncodingAttr>(encoding)) {
             return mmaLayout.getVersionMajor() > 1;
+#ifdef __ILUVATAR__
+          } else if (isa<triton::gpu::IluvatarMmaEncodingAttr>(encoding)) {
+            return true;
+#endif
           } else {
             assert((mlir::isa<triton::gpu::AMDMfmaEncodingAttr,
                               triton::gpu::AMDWmmaEncodingAttr>(encoding)));
@@ -291,7 +348,11 @@ bool hasConvertToMMATransisitiveUse(Operation *op, Attribute encoding) {
 bool isLayoutAnchor(Operation *op) {
   if (isa<LoadOp, StoreOp>(op))
     return isExpensiveLoadOrStore(op);
+#ifndef __ILUVATAR__
   if (isa<DotOp, nvidia_gpu::DotAsyncOp, AtomicRMWOp, AtomicCASOp>(op))
+#else
+  if (isa<DotOp, AtomicRMWOp, AtomicCASOp>(op))
+#endif
     return true;
 
   // Heuristic: Mark permuting reshape as a layout anchor.  Its dst can be
@@ -302,12 +363,21 @@ bool isLayoutAnchor(Operation *op) {
   if (auto reshape = dyn_cast<ReshapeOp>(op))
     return reshape.getAllowReorder();
 
+#ifndef __ILUVATAR__
   return false;
+#else
+  if (auto reduceOp = dyn_cast<ReduceOp>(op)) {
+    if (reduceOp.getNoWarpReduce() == true)
+      return true;
+  }
+  return isMmaConvertLayout(op);
+#endif
 }
 
 void LayoutPropagation::initAnchorLayout() {
   auto maybeAddAnchor = [&](Value v) {
     if (auto tensorType = dyn_cast<RankedTensorType>(v.getType())) {
+#ifndef __ILUVATAR__
       // Workaround, don't popagate MMA layout unless there is a convert
       // back to mma further down to avoid generating reduction with MMA
       // layout that may have lower performance.
@@ -318,6 +388,7 @@ void LayoutPropagation::initAnchorLayout() {
                                           tensorType.getEncoding())) {
         return;
       }
+#endif
       layouts.insert({v, LayoutInfo(tensorType.getEncoding())});
     }
   };
@@ -367,6 +438,25 @@ SmallVector<Value> LayoutPropagation::propagateToUsers(Value value,
   SmallVector<Value> changed;
   for (OpOperand &use : value.getUses()) {
     Operation *user = use.getOwner();
+#ifdef __ILUVATAR__
+    assert(info.encodings.size() >= 1 &&
+           "we should have at least one encoding.");
+    bool skip = false;
+    for (auto encoding : info.encodings) {
+      auto dstEncoding = inferDstEncoding(user, encoding);
+      if (auto sliceLayout = dyn_cast<SliceEncodingAttr>(encoding)) {
+        if (sliceLayout.getNoWarpReduce() && encoding == dstEncoding) {
+          Operation *defOp = value.getDefiningOp();
+          if (defOp && dyn_cast<scf::ForOp>(defOp)) {
+            skip = true;
+            break;
+          }
+        }
+      }
+    }
+    if (skip)
+      continue;
+#endif
     if (auto forOp = dyn_cast<scf::ForOp>(user)) {
       Value arg = forOp.getTiedLoopRegionIterArg(&use);
       Value result = forOp.getTiedLoopResult(&use);
@@ -408,7 +498,11 @@ SmallVector<Value> LayoutPropagation::propagateToUsers(Value value,
     if (user->hasTrait<OpTrait::SameOperandsAndResultEncoding>() ||
         user->hasTrait<OpTrait::Elementwise>() ||
         isa<ReduceOp, ExpandDimsOp, ReshapeOp, TransOp, JoinOp, SplitOp,
+#ifndef __ILUVATAR__
             ConvertLayoutOp, nvidia_gpu::DotWaitOp>(user)) {
+#else
+            ConvertLayoutOp>(user)) {
+#endif
       setEncoding(user->getResults(), info, changed, user);
       continue;
     }
@@ -519,6 +613,13 @@ void LayoutPropagation::rewriteRegion(Region &region) {
       } else if (auto assertOp = dyn_cast<AssertOp>(&op)) {
         rewriteAssertOp(assertOp);
       } else {
+#ifdef __ILUVATAR__
+        bool changed = false;
+        if (auto storeOp = dyn_cast<triton::StoreOp>(&op))
+          changed = rewriteStoreOp(storeOp);
+        if (changed)
+          continue;
+#endif
         // If we don't need to rewrite the op we still need to remap the
         // operands.
         for (OpOperand &operand : op.getOpOperands()) {
@@ -791,6 +892,50 @@ void LayoutPropagation::rewriteAssertOp(AssertOp assertOp) {
   assertOp->setOperand(0, newOperand);
 }
 
+#ifdef __ILUVATAR__
+bool LayoutPropagation::rewriteStoreOp(Operation *storeOp) {
+  IRMapping mapping;
+  Value value = storeOp->getOperand(1);
+  if (!value.getDefiningOp())
+    return false;
+  Attribute srcEncoding;
+  auto cvt = dyn_cast<ConvertLayoutOp>(value.getDefiningOp());
+  if (!cvt)
+    return false;
+  auto it = layouts.find(value);
+  if (it == layouts.end())
+    return false;
+  srcEncoding = it->second.encodings[0];
+  auto tensorType = cvt->getResult(0).getType().cast<RankedTensorType>();
+  unsigned bitWidth = tensorType.getElementType().getIntOrFloatBitWidth();
+  if (!srcEncoding || !isa<IluvatarMmaEncodingAttr>(srcEncoding) ||
+      (dyn_cast<IluvatarMmaEncodingAttr>(srcEncoding).getVersionMinor() == 0 &&
+       bitWidth == 16))
+    return false;
+
+  OpBuilder rewriter(storeOp);
+  for (Value arg : storeOp->getOperands()) {
+    if (arg.getDefiningOp() == cvt) {
+      // mapping.map(arg, cvt.getOperand());
+      auto src = getValueAs(arg, srcEncoding);
+      mapping.map(arg, src);
+    } else {
+      auto oldType = arg.getType().cast<RankedTensorType>();
+      auto newType = RankedTensorType::get(
+          oldType.getShape(), oldType.getElementType(), srcEncoding);
+      auto cvtI = rewriter.create<ConvertLayoutOp>(arg.getLoc(), newType, arg);
+      if (Operation *argOp = arg.getDefiningOp())
+        cvtI->moveAfter(argOp);
+      mapping.map(arg, cvtI);
+    }
+  }
+  rewriter.setInsertionPoint(storeOp);
+  Operation *newOp = rewriter.clone(*storeOp, mapping);
+  opToDelete.insert(storeOp);
+  return true;
+}
+#endif
+
 Operation *LayoutPropagation::rewriteOp(Operation *op) {
   opToDelete.insert(op);
   if (auto forOp = dyn_cast<scf::ForOp>(op))
@@ -827,7 +972,11 @@ Operation *LayoutPropagation::rewriteOp(Operation *op) {
   if (op->hasTrait<OpTrait::SameOperandsAndResultEncoding>() ||
       op->hasTrait<OpTrait::Elementwise>() ||
       isa<ReduceOp, ExpandDimsOp, ReshapeOp, TransOp, JoinOp, SplitOp,
+#ifndef __ILUVATAR__
           ConvertLayoutOp, nvidia_gpu::DotWaitOp>(op)) {
+#else
+          ConvertLayoutOp>(op)) {
+#endif
     Operation *newOp = cloneElementwise(rewriter, op, encoding);
     for (auto [oldResult, newResult] :
          llvm::zip(op->getResults(), newOp->getResults())) {
@@ -1146,6 +1295,16 @@ void LayoutRematerialization::hoistConvertOnTopOfExtOrBroadcast(
   if (mlir::isa<DotOperandEncodingAttr>(targetType.getEncoding()))
     return;
 
+#ifdef __ILUVATAR__
+  auto srcType = convertOp.getOperand().getType().cast<RankedTensorType>();
+  auto srcSliceLayout = srcType.getEncoding().dyn_cast<SliceEncodingAttr>();
+  auto tgtSliceLayout = targetType.getEncoding().dyn_cast<SliceEncodingAttr>();
+  if (srcSliceLayout && tgtSliceLayout) {
+    if (srcSliceLayout.getNoWarpReduce() || tgtSliceLayout.getNoWarpReduce())
+      return;
+  }
+#endif
+
   auto isExtOrBroadcastOp = [](Operation *op) {
     if (isa<arith::ExtSIOp, arith::ExtUIOp, arith::ExtFOp, BroadcastOp,
             ExpandDimsOp>(op)) {
@@ -1296,6 +1455,9 @@ public:
 
     RewritePatternSet decomposePatterns(context);
     decomposePatterns.add<ConvertDotConvert>(context);
+#ifdef __ILUVATAR__
+    decomposePatterns.add<SliceMMAConvert>(context);
+#endif
     if (applyPatternsAndFoldGreedily(m, std::move(decomposePatterns))
             .failed()) {
       signalPassFailure();
@@ -1325,5 +1487,3 @@ public:
 } // namespace gpu
 } // namespace triton
 } // namespace mlir
-
-#endif
