@@ -27,11 +27,10 @@ DEFINE_LOAD_FUNC(remapOffset)
 
 namespace mlir {
 
-SmallVector<Value> 
-emitBaseIndexForLayoutImpl_result(Location loc,
-                                  RewriterBase &rewriter,
-                                  const Attribute &layout,
-                                  RankedTensorType type) {
+SmallVector<Value> emitBaseIndexForLayoutImpl_result(Location loc,
+                                                     RewriterBase &rewriter,
+                                                     const Attribute &layout,
+                                                     RankedTensorType type) {
   SmallVector<Value> result;
   if (auto mmaLayout = mlir::dyn_cast<IluvatarMmaEncodingAttr>(layout)) {
     if (mmaLayout.isVolta()) {
@@ -56,9 +55,8 @@ Value getSwizzledSharedPtrs_ret(Location loc, RewriterBase &rewriter,
                                 RankedTensorType srcTy, ArrayRef<Value> idx,
                                 triton::gpu::SharedEncodingAttr resSharedLayout,
                                 Type resElemTy, SharedMemoryObject smemObj,
-                                Type dstPtrTy, Value dstPtrBase,
-                                Value idxRow, Value idxCol,
-                                ArrayRef<unsigned> outOrder,
+                                Type dstPtrTy, Value dstPtrBase, Value idxRow,
+                                Value idxCol, ArrayRef<unsigned> outOrder,
                                 unsigned perPhase, Value strideRow,
                                 Value strideCol) {
   bool isRow = outOrder[0] == 1;
@@ -75,7 +73,8 @@ Value getSwizzledSharedPtrs_ret(Location loc, RewriterBase &rewriter,
   return gep(dstPtrTy, resElemTy, dstPtrBase, off);
 }
 
-unsigned storeDistributedToShared_outVec(triton::gpu::SharedEncodingAttr layout){
+unsigned
+storeDistributedToShared_outVec(triton::gpu::SharedEncodingAttr layout) {
   return layout.getVec();
 }
 

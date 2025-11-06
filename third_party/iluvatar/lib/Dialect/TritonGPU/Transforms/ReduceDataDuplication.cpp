@@ -46,17 +46,6 @@ public:
           dyn_cast<triton::gpu::DotOperandEncodingAttr>(dstType.getEncoding());
       if (!dstDotOp)
         return;
-#ifdef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_ReduceDataDuplication_TritonGPUReduceDataDuplicationPass_runOnOperation
-      if (auto srcMmaEncoding =
-              dyn_cast<triton::gpu::IluvatarMmaEncodingAttr>(srcEncoding)) {
-
-        if (srcMmaEncoding.getVersionMajor() == 1 ||
-            srcMmaEncoding.getVersionMajor() == 2 ||
-            (srcMmaEncoding.getWarpsPerCTA()[1] == 1 &&
-             dstDotOp.getParent() == srcMmaEncoding))
-          return;
-      }
-#endif
       if (auto srcMmaEncoding =
               dyn_cast<triton::gpu::NvidiaMmaEncodingAttr>(srcEncoding)) {
 

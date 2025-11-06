@@ -1152,6 +1152,7 @@ createAsyncOps(scf::ForOp &forOp, CoarseSchedule &schedule,
   }
   createTMABarrierAndWait(forOp, asyncLoads, insertIdx, extractIdx, phase,
                           numBuffers, schedule, barriers, loadToInfo);
+
   // Create a cluster for the prefetches. It may end up being empty, but this
   // is OK.
   CoarseSchedule::Cluster prefetchCluster = schedule.clusters.newAtBack();
@@ -1179,7 +1180,7 @@ createAsyncOps(scf::ForOp &forOp, CoarseSchedule &schedule,
 static void invalidateBarriers(OpBuilder &builder,
                                SmallVector<Value> &barriers) {
   for (Value barrier : barriers) {
-    int numBarriers = barrier.getType().cast<tt::MemDescType>().getShape()[0];
+    int numBarriers = cast<tt::MemDescType>(barrier.getType()).getShape()[0];
     for (int i = 0; i < numBarriers; i++) {
       Value idx = builder.create<arith::ConstantIntOp>(barrier.getLoc(), i, 32);
       tt::MemDescType barrierTy = tt::MemDescType::get(

@@ -201,7 +201,7 @@ public:
   }
 };
 
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_FuseTransHopper
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_disable_FuseTransHopper
 // Rewrite
 //
 //   dot(alloc(trans() #shared1) ->
@@ -333,7 +333,7 @@ public:
     patterns.add<SwizzleShmemConvert>(context);
     if (this->hoistLayoutConversion.getValue())
       patterns.add<HoistLayoutConversion>(context);
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_TritonGPUOptimizeDotOperandsPass
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_disable_FuseTransHopper
     patterns.add<FuseTransHopper>(context);
 #endif
     patterns.add<MMAV3UseRegOperand>(context);

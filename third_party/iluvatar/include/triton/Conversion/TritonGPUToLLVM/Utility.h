@@ -455,11 +455,10 @@ using ::mlir::triton::gpu::NvidiaMmaEncodingAttr;
 using ::mlir::triton::gpu::SliceEncodingAttr;
 
 #ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_emitBaseIndexForLayoutImpl
-SmallVector<Value>
-emitBaseIndexForLayoutImpl_result(Location loc,
-                                  RewriterBase &rewriter,
-                                  const Attribute &layout,
-                                  RankedTensorType type);
+SmallVector<Value> emitBaseIndexForLayoutImpl_result(Location loc,
+                                                     RewriterBase &rewriter,
+                                                     const Attribute &layout,
+                                                     RankedTensorType type);
 #endif
 
 #ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_emitOffsetForLayout
@@ -473,15 +472,15 @@ Value getSwizzledSharedPtrs_ret(Location loc, RewriterBase &rewriter,
                                 RankedTensorType srcTy, ArrayRef<Value> idx,
                                 triton::gpu::SharedEncodingAttr resSharedLayout,
                                 Type resElemTy, SharedMemoryObject smemObj,
-                                Type dstPtrTy, Value dstPtrBase,
-                                Value idxRow, Value idxCol,
-                                ArrayRef<unsigned> outOrder,
+                                Type dstPtrTy, Value dstPtrBase, Value idxRow,
+                                Value idxCol, ArrayRef<unsigned> outOrder,
                                 unsigned perPhase, Value strideRow,
                                 Value strideCol);
 #endif
 
 #ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_storeDistributedToShared
-unsigned storeDistributedToShared_outVec(triton::gpu::SharedEncodingAttr layout);
+unsigned
+storeDistributedToShared_outVec(triton::gpu::SharedEncodingAttr layout);
 #endif
 
 inline Value dot(RewriterBase &rewriter, Location loc, ArrayRef<Value> offsets,
@@ -1407,8 +1406,9 @@ inline DenseMap<unsigned, Value> getSwizzledSharedPtrs(
 #ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_getSwizzledSharedPtrs
     // corex swizzle
     ret[elemIdx] = getSwizzledSharedPtrs_ret(
-        loc, rewriter, srcTy, idx, resSharedLayout, resElemTy, smemObj, dstPtrTy,
-        dstPtrBase, idxRow, idxCol, outOrder, perPhase, strideRow, strideCol);
+        loc, rewriter, srcTy, idx, resSharedLayout, resElemTy, smemObj,
+        dstPtrTy, dstPtrBase, idxRow, idxCol, outOrder, perPhase, strideRow,
+        strideCol);
 #else
     // extract dynamic/static offset for immediate offsetting
     unsigned immedateOffCol = 0;

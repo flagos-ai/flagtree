@@ -1203,7 +1203,11 @@ createAsyncOps(scf::ForOp &forOp, CoarseSchedule &schedule,
 static void invalidateBarriers(OpBuilder &builder,
                                SmallVector<Value> &barriers) {
   for (Value barrier : barriers) {
+#ifndef __ILUVATAR__
+    int numBarriers = cast<tt::MemDescType>(barrier.getType()).getShape()[0];
+#else
     int numBarriers = barrier.getType().cast<tt::MemDescType>().getShape()[0];
+#endif
     for (int i = 0; i < numBarriers; i++) {
       Value idx = builder.create<arith::ConstantIntOp>(barrier.getLoc(), i, 32);
       tt::MemDescType barrierTy = tt::MemDescType::get(
