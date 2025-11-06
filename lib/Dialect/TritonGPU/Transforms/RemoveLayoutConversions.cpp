@@ -1210,10 +1210,10 @@ void LayoutRematerialization::hoistConvertOnTopOfExtOrBroadcast(
   newExtOrBroadcast->setOperand(0, newConvertOp.getResult());
   auto oldExtOrBroadcastType =
       cast<RankedTensorType>(extOrBroadcatOp->getResult(0).getType());
-  Type newExtOrBroadcasrType = RankedTensorType::get(
+  Type newExtOrBroadcastType = RankedTensorType::get(
       oldExtOrBroadcastType.getShape(), oldExtOrBroadcastType.getElementType(),
       dstEncoding);
-  newExtOrBroadcast->getResult(0).setType(newExtOrBroadcasrType);
+  newExtOrBroadcast->getResult(0).setType(newExtOrBroadcastType);
   IRMapping mapping;
   mapping.map(extOrBroadcatOp->getResult(0), newExtOrBroadcast->getResult(0));
   slice.remove(extOrBroadcatOp->getResult(0));
