@@ -1,7 +1,3 @@
-#include "flagtree_spec.h"
-
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_cpp
-
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
@@ -201,7 +197,7 @@ public:
   }
 };
 
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_FuseTransHopper
+#ifndef __ILUVATAR__
 // Rewrite
 //
 //   dot(alloc(trans() #shared1) ->
@@ -333,7 +329,7 @@ public:
     patterns.add<SwizzleShmemConvert>(context);
     if (this->hoistLayoutConversion.getValue())
       patterns.add<HoistLayoutConversion>(context);
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_TritonGPUOptimizeDotOperandsPass
+#ifndef __ILUVATAR__
     patterns.add<FuseTransHopper>(context);
 #endif
     patterns.add<MMAV3UseRegOperand>(context);
@@ -346,5 +342,3 @@ public:
 } // namespace gpu
 } // namespace triton
 } // namespace mlir
-
-#endif

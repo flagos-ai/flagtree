@@ -1,7 +1,3 @@
-#include "flagtree_spec.h"
-
-#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_Pipeliner_MatmulLoopPipeline_cpp
-
 #include "PipelineExpander.h"
 #include "PipeliningUtility.h"
 #include "Schedule.h"
@@ -258,9 +254,16 @@ static void createAsyncCopy(scf::ForOp &forOp, tt::LoadOp loadOp, Value alloc,
       allocTy.getEncoding(), /*mutableMemory=*/true);
   auto view =
       builder.create<ttg::MemDescSubviewOp>(loc, subviewTy, alloc, copyOffsets);
+#ifndef __ILUVATAR__
   Operation *copy = builder.create<ttg::AsyncCopyGlobalToLocalOp>(
       loc, src, view, mask, other, loadOp.getCache(), loadOp.getEvict(),
       loadOp.getIsVolatile());
+#else
+  Operation *copy = builder.create<ttg::AsyncCopyGlobalToLocalOp>(
+      loc, src, view, mask, other, loadOp.getCache(), loadOp.getEvict(),
+      loadOp.getIsVolatile(), loadOp.getInputStride(), loadOp.getInputStride(),
+      loadOp.getInputStride());
+#endif
   Operation *commmit =
       builder.create<ttg::AsyncCommitGroupOp>(loc, copy->getResult(0));
   Operation *wait =
@@ -317,6 +320,7 @@ static void createAsyncCopy(scf::ForOp &forOp, tt::LoadOp loadOp, Value alloc,
   loadOp.erase();
 }
 
+#ifndef __ILUVATAR__
 static void createTMAAsyncCopy(
     scf::ForOp &forOp, tt::ExperimentalDescriptorLoadOp loadOp, Value alloc,
     Value insertIdx, Value extractIdx, Value barrier, Operation *waitOp,
@@ -374,6 +378,7 @@ static void createTMAAsyncCopy(
   }
   loadOp.erase();
 }
+#endif
 
 // If all the transitive uses of the given value have are used by a convert to
 // the same dot operand encoding, return true and get the shared encoding that
@@ -928,6 +933,7 @@ static Value createAlloc(scf::ForOp &forOp, Operation *loadOp,
   return alloc;
 }
 
+#ifndef __ILUVATAR__
 // Create an allocation to hold the mbarriers.
 static Value createBarrierAlloc(scf::ForOp &forOp, unsigned distance) {
   OpBuilder builder(forOp);
@@ -953,6 +959,7 @@ static Value createBarrierAlloc(scf::ForOp &forOp, unsigned distance) {
   }
   return barrierAlloc;
 }
+#endif
 
 struct AsyncLoad {
   AsyncLoad(Operation *loadOp, Value alloc) : loadOp(loadOp), alloc(alloc) {}
@@ -963,6 +970,7 @@ struct AsyncLoad {
   bool isTMALoad = false;
 };
 
+#ifndef __ILUVATAR__
 // Create barriers and wait ops for the async loads. Barriers may be shared by
 // multiple loads is the schedule allows it.
 static void createTMABarrierAndWait(
@@ -1063,6 +1071,7 @@ static void createTMABarrierAndWait(
     }
   }
 }
+#endif
 
 // Convert load ops into their asyn version and apply multi-buffering based on
 // the required number of buffers.
@@ -1074,11 +1083,21 @@ createAsyncOps(scf::ForOp &forOp, CoarseSchedule &schedule,
   // TODO pawel: we could do more fine-grained allocation here and
   // allocate only the number of buffers that specific loads need.
   // Instead, we allocate the maximum number of buffers needed by any load.
+#ifndef __ILUVATAR__
   int numBuffers =
       llvm::max_element(llvm::make_second_range(loadToInfo), [](auto &lhs,
                                                                 auto &rhs) {
         return lhs.distToUse < rhs.distToUse;
       })->distToUse;
+#else
+  int numBuffers = std::max_element(llvm::make_second_range(loadToInfo).begin(),
+                                    llvm::make_second_range(loadToInfo).end(),
+                                    [](auto &lhs, auto &rhs) {
+                                      return lhs.distToUse < rhs.distToUse;
+                                    })
+                       ->distToUse;
+  numBuffers++;
+#endif
   bool hasMMAV3 =
       llvm::any_of(loadToInfo, [](auto &kv) { return kv.second.loadIsMMAV3; });
   if (hasMMAV3) {
@@ -1150,8 +1169,10 @@ createAsyncOps(scf::ForOp &forOp, CoarseSchedule &schedule,
     Value nextPhase = builder.create<arith::XOrIOp>(loc, phase, one);
     phase = builder.create<arith::SelectOp>(loc, cndExt, phase, nextPhase);
   }
+#ifndef __ILUVATAR__
   createTMABarrierAndWait(forOp, asyncLoads, insertIdx, extractIdx, phase,
                           numBuffers, schedule, barriers, loadToInfo);
+#endif
   // Create a cluster for the prefetches. It may end up being empty, but this
   // is OK.
   CoarseSchedule::Cluster prefetchCluster = schedule.clusters.newAtBack();
@@ -1160,11 +1181,13 @@ createAsyncOps(scf::ForOp &forOp, CoarseSchedule &schedule,
     if (auto loadOp = dyn_cast<tt::LoadOp>(asyncLoad.loadOp)) {
       createAsyncCopy(forOp, loadOp, asyncLoad.alloc, insertIdx, extractIdx,
                       schedule, prefetchCluster, loadToInfo, numStages);
+#ifndef __ILUVATAR__
     } else {
       auto descLoad = cast<tt::ExperimentalDescriptorLoadOp>(asyncLoad.loadOp);
       createTMAAsyncCopy(forOp, descLoad, asyncLoad.alloc, insertIdx,
                          extractIdx, asyncLoad.barrier, asyncLoad.waitOp, phase,
                          schedule, loadToInfo, numStages);
+#endif
     }
   }
   SmallVector<Value> newYieldOperands = {insertIdx, extractIdx};
@@ -1176,6 +1199,7 @@ createAsyncOps(scf::ForOp &forOp, CoarseSchedule &schedule,
   return allocs;
 }
 
+#ifndef __ILUVATAR__
 static void invalidateBarriers(OpBuilder &builder,
                                SmallVector<Value> &barriers) {
   for (Value barrier : barriers) {
@@ -1192,6 +1216,7 @@ static void invalidateBarriers(OpBuilder &builder,
     }
   }
 }
+#endif
 
 bool mlir::triton::preProcessLoopAndGetSchedule(
     scf::ForOp &forOp, int numStages, mlir::triton::PipeliningOption &options) {
@@ -1265,8 +1290,10 @@ bool mlir::triton::preProcessLoopAndGetSchedule(
   OpBuilder builder(forOp);
   builder.setInsertionPointAfter(forOp);
   builder.create<ttg::AsyncWaitOp>(forOp.getLoc(), ValueRange({}), 0);
+#ifndef __ILUVATAR__
   // Invalidate any mbarrier create
   invalidateBarriers(builder, barriers);
+#endif
   // Explicitly deallocate allocated tensors after the wait op
   for (auto alloc : allocs)
     builder.create<ttg::LocalDeallocOp>(forOp.getLoc(), alloc);
@@ -1413,6 +1440,7 @@ void mlir::triton::updateWaits(ModuleOp module) {
 //
 // Specifically, this function finds all dot_async ops that elements of `values`
 // depend on.  Then it adds the MemDesc operands of those dots to the wait.
+#ifndef __ILUVATAR__
 static void threadValuesThroughWait(ttng::DotWaitOp wait,
                                     MutableArrayRef<Value> values) {
   IRRewriter builder(wait.getContext());
@@ -1771,5 +1799,4 @@ void triton::asyncLaunchDots(scf::ForOp forOp) {
       builder.create<ttng::DotWaitOp>(forOp.getLoc(), ArrayRef<Value>{}, 0);
   threadValuesThroughWait(dotWaitAfterLoop, waitOperands);
 }
-
 #endif
