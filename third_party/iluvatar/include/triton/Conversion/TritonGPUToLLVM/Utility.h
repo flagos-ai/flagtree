@@ -1174,7 +1174,7 @@ emitBaseIndexForLayoutImpl(Location loc, RewriterBase &rewriter,
     if (mmaLayout.isAmpere() || mmaLayout.isHopper())
       result = emitBaseIndexWithinCTAForMmaLayoutV2V3(loc, rewriter, mmaLayout,
                                                       type);
-#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_emitBaseIndexForLayoutImpl // ??
+#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_emitBaseIndexForLayoutImpl
   } else if (mlir::dyn_cast<IluvatarMmaEncodingAttr>(layout)) {
     result = emitBaseIndexForLayoutImpl_result(loc, rewriter, layout, type);
 #endif
@@ -1246,7 +1246,7 @@ emitOffsetForLayout(Attribute layout, RankedTensorType type) {
     if (mmaLayout.isHopper())
       return emitOffsetForMmaLayoutV3(mmaLayout, type);
   }
-#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_emitOffsetForLayout // ??
+#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_emitOffsetForLayout
   if (auto mmaLayout = dyn_cast<IluvatarMmaEncodingAttr>(layout))
     return emitOffsetForLayout_return(mmaLayout, type);
 #endif
@@ -1404,7 +1404,7 @@ inline DenseMap<unsigned, Value> getSwizzledSharedPtrs(
     }
     // compute phase = (row // perPhase) % maxPhase
     Value phase = urem(udiv(idxRow, i32_val(perPhase)), i32_val(maxPhase));
-#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_getSwizzledSharedPtrs // NO
+#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_getSwizzledSharedPtrs
     // corex swizzle
     ret[elemIdx] = getSwizzledSharedPtrs_ret(
         loc, rewriter, srcTy, idx, resSharedLayout, resElemTy, smemObj, dstPtrTy,
@@ -1560,7 +1560,7 @@ inline void storeDistributedToShared(Value src, ArrayRef<Value> inVals,
   unsigned outVec = dstSharedLayout.getMaxPhase() == 1
                         ? dstTy.getShape()[inOrd[0]]
                         : dstSharedLayout.getVec();
-#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_storeDistributedToShared // YES
+#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_Utility_storeDistributedToShared
   outVec = storeDistributedToShared_outVec(dstSharedLayout);
 #endif
   unsigned minVec = std::min(outVec, inVec);
