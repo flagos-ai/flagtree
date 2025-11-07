@@ -47,4 +47,8 @@ __all__  = [
     'get_triton_max_tensor_numel',
     'is_block_shape_check_power_of_two',
     'get_language_utils_BITWIDTH_DICT'
+    # testing
+    'is_do_bench_npu',
+    'ext_do_bench_npu',
+    'patch_triton_language'
 ]
