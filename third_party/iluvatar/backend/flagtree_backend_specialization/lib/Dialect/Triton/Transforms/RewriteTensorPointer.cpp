@@ -13,8 +13,6 @@ using namespace mlir;
 #define GEN_PASS_CLASSES
 #include "triton/Dialect/Triton/Transforms/Passes.h.inc"
 
-#include "flagtree_spec.h"
-
 namespace {
 
 /// An additional struct to record the meta information of operations
