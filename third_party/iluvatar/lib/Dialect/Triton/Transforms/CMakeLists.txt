@@ -6,9 +6,14 @@ endif()
 mlir_tablegen(TritonCombine.inc -gen-rewriters)
 add_public_tablegen_target(TritonCombineIncGen)
 
-if(NOT FLAGTREE_BACKEND STREQUAL "iluvatar")
-  set(_EXTRA_LINK_LIBS ExpressionRestructing.cpp)
+if(IS_COMPILE_TritonNvidiaGPU)
+  set(_EXPRESSION_LINK_CPP "ExpressionRestructing.cpp")
 else()
+  set(_EXPRESSION_LINK_CPP "")
+endif()
+
+set(_EXTRA_LINK_LIBS FlagTree_${FLAGTREE_BACKEND}_TritonDialectTritonTransforms)
+if(NOT TARGET ${_EXTRA_LINK_LIBS})
   set(_EXTRA_LINK_LIBS "")
 endif()
 
@@ -16,7 +21,7 @@ add_triton_library(TritonTransforms
   Combine.cpp
   ReorderBroadcast.cpp
   RewriteTensorPointer.cpp
-  ${_EXTRA_LINK_LIBS}
+  ${_EXPRESSION_LINK_CPP}
 
   DEPENDS
   TritonTransformsIncGen
@@ -26,4 +31,5 @@ add_triton_library(TritonTransforms
   MLIRPass
   MLIRTransformUtils
   TritonIR
+  ${_EXTRA_LINK_LIBS}
 )
