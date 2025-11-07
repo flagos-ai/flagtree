@@ -1,6 +1,7 @@
 from .triton.compiler.compiler import *
 from .triton.compiler.errors import *
 from .triton.compiler.code_generator import *
+from .triton.runtime.jit import *
 
 __all__  = [
     # compiler.compiler
@@ -19,5 +20,16 @@ __all__  = [
     'set_bind_sub_block_when_parallel',
     'check_override_bind_sub_block',
     'forop_setattr_for_bind_sub_block',
-    'need_repr_in_CodeGenerator_CompilationError'
+    'need_repr_in_CodeGenerator_CompilationError',
+    # runtime.jit
+    'is_set_stream_in_kwargs',
+    'is_stream_option_deprecated',
+    'ignore_params_in_JITFunction_run',
+    'set_stream_from_kwargs',
+    'check_grid_size',
+    'explicit_load_kernel_library',
+    'is_JITFunction_spec_attr',
+    'get_JITFunction_spec_attr',
+    'maps_line_numbers_to_comment_hints',
+    'attach_line_number_to_comment_mapping'
 ]
