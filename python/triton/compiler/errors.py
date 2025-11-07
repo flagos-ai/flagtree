@@ -52,5 +52,5 @@ class UnsupportedLanguageConstruct(CompilationError):
 
 
 # flagtree backend specialization
-from triton.runtime.driver import flagtree_backend_specialization
-MLIRCompilationError = flagtree_backend_specialization("ext_MLIRCompilationError")
+from triton.runtime.driver import flagtree_backend_class_specialization
+MLIRCompilationError = flagtree_backend_class_specialization("MLIRCompilationError")

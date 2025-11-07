@@ -12,8 +12,6 @@ __all__  = [
     'set_CompiledKernel_metadata_stream',
     'handle_compile_error',
     'is_CompiledKernel_getattribute_need_init_handles',
-    # compiler.errors
-    'ext_MLIRCompilationError',
     # compiler.code_generator
     'anno_CodeGenerator_visit_Assign',
     'ext_CodeGenerator_visit_Assign_hint_anno',

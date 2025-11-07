@@ -18,6 +18,3 @@ class MLIRCompilationError(TritonError):
         return message.split("Stack dump without symbol names")[0]
     def format_line_delim(self, keyword):
         return f"///------------------{keyword}------------------\n"
-
-def ext_MLIRCompilationError():
-    return MLIRCompilationError

@@ -78,3 +78,12 @@ def flagtree_backend_func_specialization(function_name: str):
             func = getattr(flagtree_backend_specialization, function_name)
             return func
     return None
+
+# flagtree backend class specialization
+def flagtree_backend_class_specialization(class_name: str):
+    if hasattr(driver.active, "flagtree_backend_specialization"):
+        flagtree_backend_specialization = driver.active.flagtree_backend_specialization
+        if hasattr(flagtree_backend_specialization, class_name):
+            cls = getattr(flagtree_backend_specialization, class_name)
+            return cls
+    return None
