@@ -8,6 +8,8 @@
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #include "llvm/Support/ErrorHandling.h"
 
+#include "triton/../../../backend/flagtree_backend_specialization/include/flagtree_spec.h"
+
 using namespace mlir;
 namespace ttg = mlir::triton::gpu;
 
@@ -64,6 +66,7 @@ LogicalResult OpTrait::impl::verifySameOperandsAndResultEncoding(
   return verifySameOperandsEncoding(op, allowTensorPointerType);
 }
 
+#ifndef FLAGTREE_SPEC_Dialect_Triton_IR_TRAITS_verifyTensorSize
 LogicalResult OpTrait::impl::verifyTensorSize(Operation *op) {
   for (auto opType : op->getOperandTypes()) {
     if (auto tensorType = dyn_cast<RankedTensorType>(opType)) {
@@ -74,10 +77,10 @@ LogicalResult OpTrait::impl::verifyTensorSize(Operation *op) {
         return op->emitError("Maximum allowed number of elements is ")
                << maxTensorNumElements << ", but " << *op
                << " has more than that";
-      // if ((numElements & (numElements - 1)) != 0)
-      //   return op->emitError("Number of elements must be power-of-two, but ")
-      //          << *op << " doesn't follow the rule (" << numElements << ")"
-      //          << " elements";
+      if ((numElements & (numElements - 1)) != 0)
+        return op->emitError("Number of elements must be power-of-two, but ")
+               << *op << " doesn't follow the rule (" << numElements << ")"
+               << " elements";
     }
   }
   for (auto opType : op->getResultTypes()) {
@@ -89,14 +92,15 @@ LogicalResult OpTrait::impl::verifyTensorSize(Operation *op) {
         return op->emitError("Maximum allowed number of elements is ")
                << maxTensorNumElements << ", but " << *op
                << " has more than that";
-      // if ((numElements & (numElements - 1)) != 0)
-      //   return op->emitError("Number of elements must be power-of-two, but ")
-      //          << *op << " doesn't follow the rule (" << numElements << ")"
-      //          << " elements";
+      if ((numElements & (numElements - 1)) != 0)
+        return op->emitError("Number of elements must be power-of-two, but ")
+               << *op << " doesn't follow the rule (" << numElements << ")"
+               << " elements";
     }
   }
   return success();
 }
+#endif
 
 // Check that the Triton layouts on op's operands and return types are valid.
 // For example, we check that the number of warps per block in a Triton GPU
