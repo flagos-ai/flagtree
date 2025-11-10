@@ -20,7 +20,7 @@
 
 #include "triton/../../../backend/flagtree_backend_specialization/include/flagtree_spec.h"
 #ifdef FLAGTREE_SPEC_Dialect_Triton_IR_OpInterfaces_head
-#include "triton/Dialect/Triton/IR/OpInterfaces.h"
+#include "triton/../../../backend/flagtree_backend_specialization/include/triton/Dialect/Triton/IR/OpInterfaces.h"
 #endif
 
 #define GET_OP_CLASSES
