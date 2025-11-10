@@ -14,9 +14,8 @@
 #include "mlir/Transforms/InliningUtils.h"
 #include "triton/Dialect/Triton/IR/Dialect.cpp.inc"
 #include "triton/Dialect/Triton/IR/TritonTypeInterfaces.cpp.inc"
-#include "triton/Dialect/Triton/IR/OpInterfaces.cpp.inc"
 
-#ifdef FLAGTREE_SPEC_Dialect_Triton_IR_OpInterfaces_head
+#ifdef FLAGTREE_SPEC_Dialect_Triton_IR_OpInterfaces_inc
 #include "triton/Dialect/Triton/IR/OpInterfaces.cpp.inc"
 #endif
 
