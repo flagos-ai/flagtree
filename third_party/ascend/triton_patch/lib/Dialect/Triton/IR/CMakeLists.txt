@@ -17,5 +17,6 @@ add_triton_library(Patched_TritonIR
   MLIRArithDialect
   MLIRMathDialect
   MLIRSCFDialect
-  ${_EXTRA_LINK_LIBS}
+  FlagTree_${FLAGTREE_BACKEND}_TritonDialectTritonIR
+  # TODO: ${_EXTRA_LINK_LIBS} is error!
 )
