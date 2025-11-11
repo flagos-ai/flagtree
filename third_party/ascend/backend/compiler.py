@@ -70,6 +70,9 @@ def ttir_to_linalg(mod, metadata, opt, *, named_ops=False):
     pm.enable_debug()
     # Add pass here.
     ascend.passes.convert.add_triton_to_linalg_pipeline(pm)
+    ascend.passes.convert.add_triton_to_llvm(pm)
+    ascend.passes.convert.add_triton_to_hfusion(pm)
+    ascend.passes.convert.add_triton_to_hivm(pm)
     pm.run(mod)
     return str(mod)
     '''
