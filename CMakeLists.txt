@@ -99,6 +99,12 @@ if(TRITON_BUILD_UT)
 endif()
 
 # Compiler flags
+## flagtree spec include dir
+set(BACKEND_SPEC_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/${FLAGTREE_BACKEND}/backend/flagtree_backend_specialization/include)
+if(FLAGTREE_BACKEND AND EXISTS ${BACKEND_SPEC_INCLUDE_DIR})
+  include_directories(${BACKEND_SPEC_INCLUDE_DIR})
+endif()
+## flagtree third_party include dir
 set(BACKEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/${FLAGTREE_BACKEND}/include)
 if(FLAGTREE_BACKEND AND EXISTS "${BACKEND_INCLUDE_DIR}")
   include_directories(${BACKEND_INCLUDE_DIR})
