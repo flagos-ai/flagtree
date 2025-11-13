@@ -1,4 +1,4 @@
-name: Cambricon-Build-And-Test
+name: Hcu-Build-And-Test
 
 on:
   push:
@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cambricon-build-and-test:
-    runs-on: cambricon
+  hcu-build-and-test:
+    runs-on: hcu
     if: ${{ github.repository == 'FlagTree/flagtree' || github.repository == 'flagos-ai/flagtree' }}
     steps:
       - name: Setup environment
@@ -52,10 +52,16 @@ jobs:
         if: success()
         run: echo "Checkout completed successfully"
 
-      - name: FlagTree Build on Cambricon
+      - name: FlagTree Build on Hcu
         shell: bash
         run: |
           pip uninstall -y triton
-          export FLAGTREE_BACKEND=cambricon
+          export FLAGTREE_BACKEND=hcu
           cd python
-          MAX_JOBS=8 python3 -m pip install . --no-build-isolation
+          MAX_JOBS=32 python3 -m pip install . --no-build-isolation
+
+      - name: FlagTree Test on Hcu
+        shell: bash
+        run: |
+          cd third_party/hcu/python/test/unit
+          sh flagtree_test.sh
