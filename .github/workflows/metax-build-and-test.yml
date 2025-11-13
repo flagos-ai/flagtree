@@ -49,6 +49,7 @@ jobs:
       - name: FlagTree Build on Metax
         shell: bash
         run: |
+          set -x
           pip uninstall -y triton
           source ~/env.sh
           export FLAGTREE_BACKEND=metax
@@ -58,4 +59,5 @@ jobs:
       - name: FlagTree Test on Metax
         shell: bash
         run: |
+          set -x
           python3.10 -m pytest -s third_party/metax/python/test/unit
