@@ -63,7 +63,7 @@ jobs:
           python3 third_party/ascend/examples/tutorials/02-fused-softmax.py
           python3 third_party/ascend/examples/tutorials/03-layer-norm.py
           #python3 third_party/ascend/examples/tutorials/04-fused-attention.py
-          python3 third_party/ascend/examples/tutorials/05-matrix-multiplication-flagtree.py
+          python3 third_party/ascend/examples/tutorials/05-matrix-multiplication.py
           python3 third_party/ascend/examples/tutorials/06-demo-autotune.py
           python3 third_party/ascend/examples/tutorials/07-profiler.py
           python3 third_party/ascend/examples/tutorials/08-demo-libentry.py
