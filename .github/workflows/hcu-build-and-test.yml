@@ -13,7 +13,7 @@ concurrency:
 jobs:
   hcu-build-and-test:
     runs-on: hcu
-    if: ${{ github.repository == 'FlagTree/flagtree' }}
+    if: ${{ github.repository == 'FlagTree/flagtree' || github.repository == 'flagos-ai/flagtree' }}
     steps:
       - name: Setup environment
         shell: bash
@@ -55,6 +55,7 @@ jobs:
       - name: FlagTree Build on Hcu
         shell: bash
         run: |
+          set -x
           pip uninstall -y triton
           export FLAGTREE_BACKEND=hcu
           cd python
@@ -63,5 +64,6 @@ jobs:
       - name: FlagTree Test on Hcu
         shell: bash
         run: |
+          set -x
           cd third_party/hcu/python/test/unit
           sh flagtree_test.sh
