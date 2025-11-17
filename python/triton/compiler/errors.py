@@ -49,8 +49,3 @@ class CompileTimeAssertionFailure(CompilationError):
 
 class UnsupportedLanguageConstruct(CompilationError):
     pass
-
-
-# flagtree backend specialization
-from triton.runtime.driver import flagtree_backend_class_specialization
-MLIRCompilationError = flagtree_backend_class_specialization("MLIRCompilationError")

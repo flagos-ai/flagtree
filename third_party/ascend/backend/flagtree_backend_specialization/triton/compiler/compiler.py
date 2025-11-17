@@ -18,7 +18,7 @@ def set_CompiledKernel_metadata_stream(compiled_kernel, stream):
     return compiled_kernel.metadata.stream
 
 def handle_compile_error(e, ext):
-    from triton.compiler.errors import MLIRCompilationError
+    from .errors import MLIRCompilationError
     if (ext == "ttadapter"):
         stage_name = "ConvertTritonIRToLinalgIR"
     elif (ext == "npubin"):

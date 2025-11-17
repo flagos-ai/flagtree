@@ -80,13 +80,3 @@ def flagtree_backend_func_specialization(function_name: str):
             return func
         raise RuntimeError(f"{function_name} not found in flagtree_backend_specialization")
     raise RuntimeError(f"flagtree_backend_specialization not found in {driver.active}")
-
-# flagtree backend class specialization
-def flagtree_backend_class_specialization(class_name: str):
-    if hasattr(driver.active, "flagtree_backend_specialization"):
-        flagtree_backend_specialization = driver.active.flagtree_backend_specialization
-        if hasattr(flagtree_backend_specialization, class_name):
-            cls = getattr(flagtree_backend_specialization, class_name)
-            return cls
-        raise RuntimeError(f"{class_name} not found in flagtree_backend_specialization")
-    raise RuntimeError(f"flagtree_backend_specialization not found in {driver.active}")

@@ -9,7 +9,7 @@ def get_spec_default_Autotuner_configs():
     return Config({})
 
 def ext_Autotuner_do_bench_MLIRCompilationError(exception_types):
-    from triton.compiler.errors import MLIRCompilationError
+    from ..compiler.errors import MLIRCompilationError
     return (MLIRCompilationError)
 
 def _profile(autotuner, *args, config, **meta):
