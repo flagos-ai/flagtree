@@ -516,6 +516,205 @@ def get_max_simd_tflops(dtype, clock_rate, device=None):
     return tflops
 
 
-# flagtree backend specialization
-from triton.runtime.driver import flagtree_backend_specialization
-flagtree_backend_specialization('patch_triton_language')
+# Patch the triton language API here because triton's __init__.py
+# import testing in the last stages.
+from .language.tensor_descriptor import (
+    tensor_descriptor,
+    tensor_descriptor_type,
+)
+
+from .language.core_ext import (
+    dot,
+    cast,
+    gather,
+    get_element,
+    insert_slice,
+    extract_slice,
+    trans,
+    __add__,
+    __radd__,
+    __sub__,
+    __rsub__,
+    __mul__,
+    __rmul__,
+    __lshift__,
+    __rshift__,
+    parallel,
+    compile_hint,
+    make_tensor_descriptor,
+    load_tensor_descriptor,
+    store_tensor_descriptor,
+    multibuffer,
+    sync_block_all,
+    sync_block_set,
+    sync_block_wait,
+    dtype_to_ir,
+    sort
+)
+from .language.standard_ext import flip, sigmoid, softmax, isfinited, finitef, rint, atan2
+from .language.math_ext import (
+    umulhi,
+    exp,
+    exp2,
+    log,
+    log2,
+    cos,
+    sin,
+    sqrt,
+    sqrt_rn,
+    rsqrt,
+    div_rn,
+    erf,
+    tanh,
+    floor,
+    ceil,
+    _check_dtype,
+    fma,
+)
+from .language.semantic_ext import (
+    arange,
+    floordiv,
+    atom_red_typechecking_impl,
+    atomic_cas,
+    atomic_max,
+    atomic_min,
+    _load_legacy,
+    maximum,
+    minimum,
+    mod,
+    invert,
+    logical_and,
+    logical_or,
+    not_,
+    and_,
+    or_,
+    xor_,
+    minus,
+    dot_scaled,
+)
+from . import language
+
+language.cast = cast
+language.dot = dot
+language.flip = flip
+language.sigmoid = sigmoid
+language.softmax = softmax
+language.gather = gather
+language.insert_slice = insert_slice
+language.extract_slice = extract_slice
+language.get_element = get_element
+language.tensor.__add__ = __add__
+language.tensor.__radd__ = __radd__
+language.tensor.__sub__ = __sub__
+language.tensor.__rsub__ = __rsub__
+language.tensor.__mul__ = __mul__
+language.tensor.__rmul__ = __rmul__
+language.tensor.__lshift__ = __lshift__
+language.tensor.__rshift__ = __rshift__
+language.trans = trans
+language.parallel = parallel
+language.compile_hint = compile_hint
+language.sort = sort
+language.multibuffer = multibuffer
+language.sync_block_all = sync_block_all
+language.sync_block_set = sync_block_set
+language.sync_block_wait = sync_block_wait
+language.make_tensor_descriptor = make_tensor_descriptor
+language.tensor_descriptor = tensor_descriptor
+language.tensor_descriptor_type = tensor_descriptor_type
+language.load_tensor_descriptor = load_tensor_descriptor
+language.store_tensor_descriptor = store_tensor_descriptor
+
+language.semantic.arange = arange
+language.semantic.floordiv = floordiv
+language.semantic.atom_red_typechecking_impl = atom_red_typechecking_impl
+language.semantic.atomic_cas = atomic_cas
+language.semantic.atomic_max = atomic_max
+language.semantic.atomic_min = atomic_min
+language.semantic._load_legacy = _load_legacy
+language.semantic.maximum = maximum
+language.semantic.minimum = minimum
+language.semantic.invert = invert
+language.semantic.logical_and = logical_and
+language.semantic.logical_or = logical_or
+language.semantic.mod = mod
+language.semantic.not_ = not_
+language.semantic.and_ = and_
+language.semantic.or_ = or_
+language.semantic.xor_ = xor_
+language.semantic.minus = minus
+language.semantic.dot_scaled = dot_scaled
+
+language.umulhi = umulhi
+language.exp = exp
+language.exp2 = exp2
+language.log = log
+language.log2 = log2
+language.cos = cos
+language.sin = sin
+language.sqrt = sqrt
+language.sqrt_rn = sqrt_rn
+language.rsqrt = rsqrt
+language.div_rn = div_rn
+language.erf = erf
+language.tanh = tanh
+language.floor = floor
+language.ceil = ceil
+language.core.dtype.to_ir = dtype_to_ir
+language.fma = fma
+language.math.umulhi = umulhi
+language.math.exp = exp
+language.math.exp2 = exp2
+language.math.log = log
+language.math.log2 = log2
+language.math.cos = cos
+language.math.sin = sin
+language.math.sqrt = sqrt
+language.math.sqrt_rn = sqrt_rn
+language.math.rsqrt = rsqrt
+language.math.div_rn = div_rn
+language.math.erf = erf
+language.math.tanh = tanh
+language.math.floor = floor
+language.math.ceil = ceil
+language.math._check_dtype = _check_dtype
+language.math.fma = fma
+language.math.isnan = language.extra.ascend.libdevice.isnan
+language.math.isinf = language.extra.ascend.libdevice.isinf
+language.math.reciprocal = language.extra.ascend.libdevice.reciprocal
+language.math.log1p = language.extra.ascend.libdevice.log1p
+language.math.relu = language.extra.ascend.libdevice.relu
+language.math.tan = language.extra.ascend.libdevice.tan
+language.math.atan = language.extra.ascend.libdevice.atan
+language.math.tanh = language.extra.ascend.libdevice.tanh
+language.math.ilogb = language.extra.ascend.libdevice.ilogb
+language.math.ldexp = language.extra.ascend.libdevice.ldexp
+language.math.pow = language.extra.ascend.libdevice.pow
+language.math.flip = language.extra.ascend.libdevice.flip
+language.math.atan2 = language.extra.ascend.libdevice.atan2
+language.math.div_rz = language.extra.ascend.libdevice.div_rz
+language.math.fmod = language.extra.ascend.libdevice.fmod
+language.math.trunc = language.extra.ascend.libdevice.trunc
+language.math.round = language.extra.ascend.libdevice.round
+language.math.finitef = finitef
+language.math.isfinited = isfinited
+language.math.rint = rint
+language.math.atan2 = atan2
+language.extra.ascend.libdevice.umulhi = language.math.umulhi
+language.extra.ascend.libdevice.exp = language.math.exp
+language.extra.ascend.libdevice.exp2 = language.math.exp2
+language.extra.ascend.libdevice.log = language.math.log
+language.extra.ascend.libdevice.log2 = language.math.log2
+language.extra.ascend.libdevice.cos = language.math.cos
+language.extra.ascend.libdevice.sin = language.math.sin
+language.extra.ascend.libdevice.sqrt = language.math.sqrt
+language.extra.ascend.libdevice.sqrt_rn = language.math.sqrt_rn
+language.extra.ascend.libdevice.rsqrt = language.math.rsqrt
+language.extra.ascend.libdevice.div_rn = language.math.div_rn
+language.extra.ascend.libdevice.erf = language.math.erf
+language.extra.ascend.libdevice.tanh = language.math.tanh
+language.extra.ascend.libdevice.floor = language.math.floor
+language.extra.ascend.libdevice.ceil = language.math.ceil
+language.extra.ascend.libdevice.fdiv = language.math.fdiv
+language.extra.ascend.libdevice.fma = language.math.fma
+language.extra.ascend.libdevice.abs = language.math.abs
