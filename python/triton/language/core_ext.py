@@ -20,7 +20,7 @@ from triton.language.core import (
     mul,
 )
 from typing import Optional
-from . import semantic_ext as semantic
+from . import semantic
 from .tensor_descriptor import tensor_descriptor, tensor_descriptor_base
 
 
@@ -319,7 +319,7 @@ def sort(ptr, dim=-1, descending=False, _builder=None):
         semantic.compile_hint(ret, "overflow_mode", constexpr("saturate"), _builder)
     return ret
 
-    
+
 @builtin
 def multibuffer(src: tensor, size, _builder=None):
     """
@@ -475,4 +475,4 @@ def dtype_to_ir(self, builder: ir.builder) -> ir.type:
     elif self.name == 'fp64':
         return builder.get_double_ty()
     raise ValueError(f'fail to convert {self} to ir type')
-    
+

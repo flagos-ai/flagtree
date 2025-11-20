@@ -88,7 +88,17 @@ __all__  = [
     "dot_scaled_rhs_bitcast_to_fp_type",
     "check_dot_scaled_dimension",
     "check_dot_scaled_pack_size",
-    "set_dot_scaled_lhs_scale_handle"
+    "set_dot_scaled_lhs_scale_handle",
+    "ext_semantic_gather",
+    "ext_semantic_insert_slice",
+    "ext_semantic_extract_slice",
+    "ext_semantic_get_element",
+    "ext_semantic_compile_hint",
+    "ext_semantic_custom_op",
+    "ext_semantic_sort",
+    "ext_semantic_scalar_constant",
+    "ext_semantic_make_scalar",
+    "ext_semantic_make_tensor_descriptor",
     # testing
     'is_do_bench_npu',
     'ext_do_bench_npu',

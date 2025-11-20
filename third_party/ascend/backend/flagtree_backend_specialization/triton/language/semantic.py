@@ -1,7 +1,15 @@
+from typing import List
 import triton.language as tl
+from triton._C.libtriton import ir
 from triton.language import cast
-from triton.language.semantic import to_tensor, bitcast
+from triton.language.semantic import to_tensor, bitcast, wrap_tensor
 from triton.language._utils import TRITON_MAX_TENSOR_NUMEL
+from triton.language.tensor_descriptor import (
+    _unwrap_if_constexpr,
+    _unwrap_shape,
+    block_type,
+    tensor_descriptor
+)
 
 def is_arange_check_power_of_two():
     return False
@@ -21,10 +29,10 @@ def check_unsupported_fp8_fp64(src_sca_ty, dst_sca_ty):
                          "Source scalar type is " + str(src_sca_ty) + " and destination type is " + str(dst_sca_ty))
 
 def ext_dot_lhs_supported_type():
-    return (tl.int1)
+    return (tl.int1,)
 
 def ext_dot_rhs_supported_type():
-    return (tl.int1)
+    return (tl.int1,)
 
 def dot_check_hf32_input_precision(input_precision, ir, lhs, rhs, ret_scalar_ty):
     if (input_precision == getattr(ir.INPUT_PRECISION, "HF32")):
@@ -182,3 +190,201 @@ def check_dot_scaled_pack_size(PACKED_A, K, lhs_format, lhs, rhs):
 
 def set_dot_scaled_lhs_scale_handle(lhs_scale, lhs_scale_is_none):
     return None if lhs_scale_is_none else lhs_scale.handle
+
+def ext_semantic_gather(src: tl.tensor, index: tl.tensor, axis: int, builder: ir.builder) -> tl.tensor:
+    assert index.dtype.is_int(), "index must be an integer tensor"
+    if not src.dtype.is_floating():
+        raise ValueError(f"Expected dtype fp16/fp32/bf16, but got {src.dtype}")
+
+    rank = len(src.type.shape)
+    assert len(index.type.shape) == rank, "source and index tensors must have the same rank"
+
+    assert -rank <= axis < rank, f"gather axis {axis} must be < source rank ({rank})"
+    if axis < 0:
+        axis += rank
+
+    for d in range(rank):
+        if d == axis:
+            continue
+        assert index.type.shape[d] == src.type.shape[d], f"index dim {axis} must match the corresponding source dim"
+
+    gather = builder.create_gather(src.handle, index.handle, axis)
+    return wrap_tensor(gather, src.type.scalar, index.type.shape)
+
+def ext_semantic_insert_slice(ful: tl.tensor, sub: tl.tensor, offsets: List[tl.tensor], sizes: List[int], strides: List[int], builder: ir.builder) -> tl.tensor:
+    assert(len(ful.shape) == len(offsets))
+    assert(len(ful.shape) == len(sizes))
+    assert(len(ful.shape) == len(strides))
+    assert(all([s>=1 for s in sizes]))
+    assert(all([s>=0 for s in strides]))
+    new_offsets = [o.handle for o in offsets]
+    ret_type = tl.block_type(ful.type.scalar, ful.shape)
+    out = builder.create_insert_slice(ful.handle, sub.handle, new_offsets, sizes, strides)
+    return tl.tensor(out, ret_type)
+
+def ext_semantic_extract_slice(ful: tl.tensor, offsets: List[tl.tensor], sizes: List[int], strides: List[int], builder: ir.builder) -> tl.tensor:
+    assert(len(ful.shape) == len(offsets))
+    assert(len(ful.shape) == len(sizes))
+    assert(len(ful.shape) == len(strides))
+    assert(all([s>=1 for s in sizes]))
+    assert(all([s>=0 for s in strides]))
+    new_offsets = [o.handle for o in offsets]
+    ret_type = tl.block_type(ful.type.scalar, sizes)
+    out = builder.create_extract_slice(ful.handle, new_offsets, sizes, strides)
+    return tl.tensor(out, ret_type)
+
+def ext_semantic_get_element(src: tl.tensor, indice: List[tl.tensor], builder: ir.builder):
+    if len(src.shape) != len(indice):
+        raise ValueError("Indice's rank must be equal to src tensor's rank")
+
+    new_indice = [i.handle for i in indice]
+    result = builder.create_extract_scalar(src.handle, new_indice)
+    return wrap_tensor(result, src.type.scalar, None)
+
+def ext_semantic_compile_hint(ptr: tl.tensor, hint_name: str, hint_val, builder: ir.builder):
+    if not hint_val:
+        hint_val = builder.get_unit_attr()
+    elif isinstance(hint_val, bool):
+        hint_val = builder.get_bool_attr(hint_val)
+    elif isinstance(hint_val, int):
+        hint_val = builder.get_int32_attr(hint_val)
+    elif isinstance(hint_val, tl.constexpr):
+        hint_val = builder.get_str_attr(hint_val.value)
+    elif isinstance(hint_val, list):
+        # only support i64 array attr for now
+        hint_val = builder.get_i64_array_attr(hint_val)
+    else:
+        raise ValueError(f"Unsupported hint value type: {type(hint_val)}")
+    builder.create_annotation(ptr.handle, hint_name, hint_val)
+
+def ext_semantic_custom_op(builder: ir.builder, op_name: str, **kwargs):
+    if op_name == "sync_block_all":
+        return builder.create_custom_op_for_inter_core_sync(op_name, kwargs["mode"], kwargs["event_id"])
+
+    elif op_name == "sync_block_set":
+        return builder.create_custom_op_for_inter_core_sync(op_name, kwargs["sender"], kwargs["event_id"])
+
+    elif op_name == "sync_block_wait":
+        return builder.create_custom_op_for_inter_core_sync(op_name, kwargs["sender"], kwargs["event_id"])
+
+    raise ValueError(f"Unsupported custom op: {op_name}")
+
+def ext_semantic_sort(ptr: tl.tensor, dim: int, descending, builder: ir.builder):
+    """
+    Triton sort 操作
+
+    参数：
+        ptr: tl.tensor，输入张量
+        dim: int，排序维度，必须是尾轴（最后一维）
+        descending: bool 或 constexpr，是否降序
+        builder: ir.builder，底层 IR 构建器
+    返回：
+        values: tl.tensor，排序后的值（类型与输入一致）
+    """
+
+    allowed_types = {tl.int8, tl.int16, tl.bfloat16, tl.float16, tl.float32}
+    base_ty = ptr.type.scalar if hasattr(ptr.type, "scalar") else ptr.type
+    if base_ty not in allowed_types:
+        raise TypeError(
+            f"tt.sort only supports int8, int16, bfloat16, float16, float32, "
+            f"but got {ptr.type}"
+        )
+
+    shape = getattr(ptr, "shape", None)
+    if shape is None or shape == ():
+        shape = getattr(getattr(ptr, "type", None), "shape", None)
+
+    rank = None
+    if shape is not None:
+        try:
+            rank = len(shape)
+        except Exception:
+            rank = len(list(shape))
+
+    if rank is not None:
+        if rank < 1:
+            raise ValueError("tt.sort requires tensor rank >= 1")
+        last_dim = rank - 1
+        norm_dim = dim if dim >= 0 else dim + rank
+        if norm_dim != last_dim:
+            raise ValueError(
+                f"tt.sort only supports sorting along the last dimension "
+                f"(dim={last_dim} or -1) for shape {tuple(shape)}, but got dim={dim}"
+            )
+        dim = last_dim
+    else:
+        if dim != -1:
+            raise ValueError(
+                "tt.sort only supports the last dimension; when rank is unknown "
+                "you must pass dim=-1"
+            )
+
+    if hasattr(descending, "value"):
+        descending = bool(descending.value)
+    else:
+        descending = bool(descending)
+
+    sorted_vals = builder.create_sort(ptr.handle, dim, descending)
+
+    values = tl.tensor(sorted_vals, type=ptr.type)
+
+    return values
+
+def ext_semantic_scalar_constant(value, dtype: tl.dtype, builder: ir.builder) -> tl.tensor:
+    if dtype is None:
+        raise ValueError("dtype must be specified when value is not a tensor")
+    if value == 0:
+        value = builder.get_null_value(dtype.to_ir(builder))
+    else:
+        get_value_fn = getattr(builder, f"get_{dtype.name}")
+        value = get_value_fn(value)
+    return tl.tensor(value, dtype)
+
+def ext_semantic_make_scalar(value, dtype: tl.dtype, builder: ir.builder) -> tl.tensor:
+    if isinstance(value, tl.tensor):
+        assert value.numel.value == 1, "only accepts size-1 tensor"
+        return cast(value, dtype, builder)
+    return ext_semantic_scalar_constant(value, dtype, builder)
+
+def ext_semantic_make_tensor_descriptor(
+    base: tl.tensor,
+    shape: List[tl.tensor],
+    strides: List[tl.tensor],
+    block_shape: List[tl.constexpr],
+    builder: ir.builder
+) -> tensor_descriptor:
+    ndim = len(shape)
+    if not (1 <= ndim <= 5):
+        raise ValueError(f"Expected 1 <= ndim <= 5 but got {ndim} dimensions")
+    if len(strides) != ndim:
+        raise ValueError(f"Expected {ndim} strides but got {len(strides)}")
+    if len(block_shape) != ndim:
+        raise ValueError(f"Expected block_shape to have {ndim} dimensions but got {len(strides)}")
+    assert isinstance(base.dtype, tl.pointer_type)
+    primitive_bitwidth = base.dtype.element_ty.primitive_bitwidth
+    if primitive_bitwidth == 1:
+        raise ValueError("int1 type is not supported for make_tensor_descriptor yet")
+    elem_size = primitive_bitwidth // 8
+    contig_dim_size = _unwrap_if_constexpr(block_shape[-1])
+    if contig_dim_size * elem_size < 16:
+        raise ValueError(
+            f"Descriptor block shape must have at least 16 bytes in the last dimension, but got {contig_dim_size} * {elem_size} = {contig_dim_size * elem_size} bytes"
+        )
+
+    strides[-1] = _unwrap_if_constexpr(strides[-1])
+    if strides[-1] != 1:
+        raise ValueError(f"Tensor descriptor last dim must be 1 but got {strides[-1]}")
+
+    shape = [ext_semantic_make_scalar(x, tl.int32, builder) for x in shape]
+    strides = [ext_semantic_make_scalar(x, tl.int64, builder) for x in strides]
+
+    block_shape = _unwrap_shape(block_shape)
+
+    assert isinstance(base.type, tl.pointer_type)
+    desc_block_type = block_type(base.type.element_ty, block_shape)
+    base_handle = base.handle
+    is_signed_int = base.type.element_ty.is_int_signed()
+
+    handle = builder.create_make_tensor_descriptor(base_handle, [s.handle for s in shape],
+                                                    [s.handle for s in strides], block_shape, is_signed_int)
+    return tensor_descriptor(handle, shape, strides, desc_block_type)
