@@ -47,12 +47,6 @@ include(CTest)
 if (FLAGTREE_BACKEND STREQUAL "ascend")
   set(TRITON_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
   set(PATCHED_TRITON_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ascend/triton_patch")
-  set(PATCHED_TRITON_LIBRARIES
-    "TritonIR"
-  )
-  set(PATCHED_TRITON_DEPENDS
-    "TritonTableGen"
-  )
 endif()
 
 if(NOT WIN32)
