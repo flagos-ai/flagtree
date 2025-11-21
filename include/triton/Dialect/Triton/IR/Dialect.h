@@ -1,4 +1,3 @@
-// TODO: When upgrading to Triton 3.4.0, remove this file and use the upstream Triton file.
 #ifndef TRITON_DIALECT_TRITON_IR_DIALECT_H_
 #define TRITON_DIALECT_TRITON_IR_DIALECT_H_
 

@@ -16,7 +16,6 @@ mlir_tablegen(Dialect.h.inc -gen-dialect-decls)
 mlir_tablegen(Dialect.cpp.inc -gen-dialect-defs)
 add_mlir_doc(TritonDialect TritonDialect dialects/ -gen-dialect-doc)
 
-# TODO(ascend): When upgrading to Triton 3.4.0, enable the commented line below and remove the current line.
 set(LLVM_TARGET_DEFINITIONS TritonTypes.td)
 set(BACKEND_SPEC_TD ${BACKEND_SPEC_INCLUDE_DIR}/triton/Dialect/Triton/IR/TritonTypes.td)
 if(EXISTS ${BACKEND_SPEC_TD})
@@ -33,7 +32,6 @@ set(LLVM_TARGET_DEFINITIONS TritonTypeInterfaces.td)
 mlir_tablegen(TritonTypeInterfaces.h.inc -gen-type-interface-decls)
 mlir_tablegen(TritonTypeInterfaces.cpp.inc -gen-type-interface-defs)
 
-# TODO(ascend): When upgrading to Triton 3.4.0, enable the commented line below and remove the current line.
 set(BACKEND_SPEC_TD ${BACKEND_SPEC_INCLUDE_DIR}/triton/Dialect/Triton/IR/TritonOpInterfaces.td)
 if(EXISTS ${BACKEND_SPEC_TD})
   set(LLVM_TARGET_DEFINITIONS ${BACKEND_SPEC_TD})
