@@ -15,7 +15,9 @@
 #include <atomic>
 #include <limits>
 
+#if __has_include("flagtree_spec.h")
 #include "flagtree_spec.h"
+#endif
 
 namespace mlir {
 

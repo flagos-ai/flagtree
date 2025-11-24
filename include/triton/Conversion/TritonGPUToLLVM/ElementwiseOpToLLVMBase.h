@@ -8,7 +8,9 @@
 #include "triton/Conversion/TritonGPUToLLVM/PatternTritonGPUOpToLLVM.h"
 #include "triton/Conversion/TritonGPUToLLVM/Utility.h"
 
+#if __has_include("flagtree_spec.h")
 #include "flagtree_spec.h"
+#endif
 
 using namespace mlir;
 using namespace mlir::triton;

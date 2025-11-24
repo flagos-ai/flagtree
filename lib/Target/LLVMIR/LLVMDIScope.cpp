@@ -1,4 +1,6 @@
+#if __has_include("flagtree_spec.h")
 #include "flagtree_spec.h"
+#endif
 
 #ifndef FLAGTREE_SPEC_Target_LLVMIR_LLVMDIScope_cpp
 

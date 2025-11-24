@@ -3,7 +3,9 @@
 
 #include "mlir/Pass/Pass.h"
 
+#if __has_include("flagtree_spec.h")
 #include "flagtree_spec.h"
+#endif
 
 namespace mlir {
 namespace triton {

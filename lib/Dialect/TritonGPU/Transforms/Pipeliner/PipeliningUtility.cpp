@@ -8,7 +8,9 @@
 #include "triton/Dialect/TritonGPU/Transforms/Passes.h"
 #include "triton/Dialect/TritonGPU/Transforms/Utility.h"
 
+#if __has_include("flagtree_spec.h")
 #include "flagtree_spec.h"
+#endif
 
 using namespace mlir;
 namespace tt = mlir::triton;

@@ -17,7 +17,9 @@
 #include "triton/Dialect/TritonNvidiaGPU/IR/Dialect.h"
 #endif
 
+#if __has_include("flagtree_spec.h")
 #include "flagtree_spec.h"
+#endif
 
 #include "triton/Tools/LinearLayout.h"
 #include "triton/Tools/StrUtil.h"

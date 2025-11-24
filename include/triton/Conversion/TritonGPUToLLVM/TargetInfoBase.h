@@ -3,7 +3,9 @@
 
 #include "triton/Conversion/MLIRTypes.h"
 
+#if __has_include("flagtree_spec.h")
 #include "flagtree_spec.h"
+#endif
 
 namespace mlir::triton {
 class TargetInfoBase {

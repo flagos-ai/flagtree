@@ -20,7 +20,9 @@
 #define GET_OP_CLASSES
 #include "triton/Dialect/Triton/IR/Ops.h.inc"
 
+#if __has_include("flagtree_spec.h")
 #include "flagtree_spec.h"
+#endif
 
 namespace mlir {
 namespace triton {
