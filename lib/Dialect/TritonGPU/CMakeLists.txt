@@ -1,5 +1,2 @@
 add_subdirectory(IR)
 add_subdirectory(Transforms)
-if(IS_COMPILE_TritonNvidiaGPU)
-  add_subdirectory(TritonNvidiaGPU)
-endif()
