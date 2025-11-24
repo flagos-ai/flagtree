@@ -4,6 +4,8 @@
 #include "triton/Dialect/TritonGPU/IR/Attributes.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 
+#include "flagtree_spec.h"
+
 using namespace mlir;
 using namespace mlir::triton;
 
@@ -81,6 +83,9 @@ template void decomposeTensorCoreToDotLayoutConversion<
 template void
     decomposeTensorCoreToDotLayoutConversion<triton::gpu::AMDMfmaEncodingAttr>(
         ModuleOp, ShortcutFn);
+#ifdef FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_DecomposeUnsupportedConversions
+FLAGTREE_SPEC_Conversion_TritonGPUToLLVM_DecomposeUnsupportedConversions;
+#endif
 
 void decomposeBlockedToDotLayoutConversion(ModuleOp module) {
   int numWarps = triton::gpu::TritonGPUDialect::getNumWarps(module);

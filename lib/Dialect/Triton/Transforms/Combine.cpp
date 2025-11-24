@@ -1,3 +1,7 @@
+#include "flagtree_spec.h"
+
+#ifndef FLAGTREE_SPEC_Dialect_Triton_Transforms_Combine_cpp
+
 #include <memory>
 
 #include "mlir/IR/BuiltinAttributes.h"
@@ -253,3 +257,5 @@ std::unique_ptr<mlir::Pass> createCombineOpsPass() {
 }
 
 } // namespace mlir::triton
+
+#endif

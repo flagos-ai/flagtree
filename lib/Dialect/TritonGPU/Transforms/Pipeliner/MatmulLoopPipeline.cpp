@@ -1,3 +1,7 @@
+#include "flagtree_spec.h"
+
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_Pipeliner_MatmulLoopPipeline_cpp
+
 #include "PipelineExpander.h"
 #include "PipeliningUtility.h"
 #include "Schedule.h"
@@ -15,7 +19,9 @@
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #include "triton/Dialect/TritonGPU/Transforms/Passes.h"
 #include "triton/Dialect/TritonGPU/Transforms/Utility.h"
+#ifdef __NVIDIA__
 #include "triton/Dialect/TritonNvidiaGPU/IR/Dialect.h"
+#endif
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
@@ -32,7 +38,9 @@
 using namespace mlir;
 namespace tt = mlir::triton;
 namespace ttg = mlir::triton::gpu;
+#ifdef __NVIDIA__
 namespace ttng = mlir::triton::nvidia_gpu;
+#endif
 
 // TODO: We can extra some helpers into common utilities once we add more
 // schedules.
@@ -1764,3 +1772,5 @@ void triton::asyncLaunchDots(scf::ForOp forOp) {
       builder.create<ttng::DotWaitOp>(forOp.getLoc(), ArrayRef<Value>{}, 0);
   threadValuesThroughWait(dotWaitAfterLoop, waitOperands);
 }
+
+#endif

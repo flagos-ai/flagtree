@@ -1,6 +1,3 @@
-add_subdirectory(backend/flagtree_backend_specialization/lib)
-add_subdirectory(include)
-add_subdirectory(lib)
 find_package(Python3 REQUIRED COMPONENTS Development Interpreter)
 option(EDITABLE_MODE "Build in developer (editable) mode" OFF)
 if(EDITABLE_MODE)

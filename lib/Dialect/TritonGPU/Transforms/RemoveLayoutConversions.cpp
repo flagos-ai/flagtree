@@ -1,3 +1,7 @@
+#include "flagtree_spec.h"
+
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_RemoveLayoutConversions_cpp
+
 #include <memory>
 
 #include "mlir/Analysis/SliceAnalysis.h"
@@ -1319,3 +1323,5 @@ public:
 } // namespace gpu
 } // namespace triton
 } // namespace mlir
+
+#endif

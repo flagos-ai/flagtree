@@ -8,10 +8,14 @@
 #include "triton/Dialect/TritonGPU/Transforms/Passes.h"
 #include "triton/Dialect/TritonGPU/Transforms/Utility.h"
 
+#include "flagtree_spec.h"
+
 using namespace mlir;
 namespace tt = mlir::triton;
 namespace ttg = mlir::triton::gpu;
+#ifdef __NVIDIA__
 namespace ttng = mlir::triton::nvidia_gpu;
+#endif
 
 // Combine the current mask with the given predicate.
 static Value getPredMask(RewriterBase &rewriter, Type typeLike,
@@ -61,6 +65,7 @@ Operation *mlir::triton::predicateOp(RewriterBase &rewriter, Operation *op,
     loadOp.getMaskMutable().assign(mask);
     return op;
   }
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_PipeliningUtility_predicateOp
   if (auto copyOp = dyn_cast<ttng::AsyncTMACopyGlobalToLocalOp>(op)) {
     rewriter.setInsertionPoint(copyOp);
     Value mask = getPredMask(rewriter, copyOp.getPred().getType(),
@@ -75,6 +80,7 @@ Operation *mlir::triton::predicateOp(RewriterBase &rewriter, Operation *op,
     expectOp.getPredMutable().assign(mask);
     return op;
   }
+#endif
 
   assert("don't know how to predicate this op" && false);
   return op;

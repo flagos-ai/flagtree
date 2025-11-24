@@ -1,3 +1,7 @@
+#include "flagtree_spec.h"
+
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_Prefetch_cpp
+
 //===----------------------------------------------------------------------===//
 //
 // This pass tries to prefetch operands (a and b) of tt.dot.
@@ -405,3 +409,5 @@ struct PrefetchPass : public impl::TritonGPUPrefetchBase<PrefetchPass> {
 } // namespace gpu
 } // namespace triton
 } // namespace mlir
+
+#endif

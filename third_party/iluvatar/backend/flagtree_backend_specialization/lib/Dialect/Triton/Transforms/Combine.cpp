@@ -93,7 +93,7 @@ bool isAddPtrOffsetCombinable(Value first, Value second) {
 // TODO(csigg): remove after next LLVM integrate.
 using FastMathFlags = arith::FastMathFlags;
 
-#include "TritonCombine.inc"
+#include "triton/../../lib/Dialect/Triton/Transforms/TritonCombine.inc"
 
 // select(cond, load(ptrs, splat(cond), ???), other)
 //   => load(ptrs, splat(cond), other)

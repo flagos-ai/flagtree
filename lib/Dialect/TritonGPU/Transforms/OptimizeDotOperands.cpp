@@ -1,3 +1,7 @@
+#include "flagtree_spec.h"
+
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_cpp
+
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
@@ -197,6 +201,7 @@ public:
   }
 };
 
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_disable_FuseTransHopper
 // Rewrite
 //
 //   dot(alloc(trans() #shared1) ->
@@ -262,6 +267,7 @@ public:
     return success();
   }
 };
+#endif
 
 // Rewrite
 //   dot(convert(lhs #mma) #shared, rhs) #mma ->
@@ -327,7 +333,9 @@ public:
     patterns.add<SwizzleShmemConvert>(context);
     if (this->hoistLayoutConversion.getValue())
       patterns.add<HoistLayoutConversion>(context);
+#ifndef FLAGTREE_SPEC_Dialect_TritonGPU_Transforms_OptimizeDotOperands_disable_FuseTransHopper
     patterns.add<FuseTransHopper>(context);
+#endif
     patterns.add<MMAV3UseRegOperand>(context);
     ConvertLayoutOp::getCanonicalizationPatterns(patterns, context);
     if (failed(applyPatternsAndFoldGreedily(m, std::move(patterns))))
@@ -338,3 +346,5 @@ public:
 } // namespace gpu
 } // namespace triton
 } // namespace mlir
+
+#endif
