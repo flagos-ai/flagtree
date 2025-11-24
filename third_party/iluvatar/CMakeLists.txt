@@ -1,4 +1,6 @@
-find_package(Python3 REQUIRED COMPONENTS Development Interpreter)
+add_compile_options("-Wno-deprecated-declarations")
+add_compile_options("-Wno-error=deprecated-declarations")
+
 option(EDITABLE_MODE "Build in developer (editable) mode" OFF)
 if(EDITABLE_MODE)
   set(ILUVATAR_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
