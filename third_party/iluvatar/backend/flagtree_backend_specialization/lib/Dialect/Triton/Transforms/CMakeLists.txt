@@ -1,4 +1,4 @@
-include_directories(${PROJECT_BINARY_DIR}/third_party/iluvatar/lib/Dialect/Triton/Transforms)
+include_directories(${PROJECT_BINARY_DIR}/lib)
 
 add_triton_library(FlagTree_iluvatar_TritonTransforms
   Combine.cpp
