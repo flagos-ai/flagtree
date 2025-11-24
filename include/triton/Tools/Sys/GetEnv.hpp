@@ -8,6 +8,8 @@
 #include <sstream>
 #include <string>
 
+#include "flagtree_spec.h"
+
 namespace mlir::triton {
 
 inline const std::set<std::string> CACHE_INVALIDATING_ENV_VARS = {

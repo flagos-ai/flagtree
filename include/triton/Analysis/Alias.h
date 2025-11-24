@@ -5,8 +5,6 @@
 #include "mlir/Analysis/DataFlow/SparseAnalysis.h"
 #include "llvm/ADT/DenseSet.h"
 
-#include "flagtree_spec.h"
-
 namespace mlir {
 
 class AliasInfo {
