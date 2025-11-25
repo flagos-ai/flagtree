@@ -1,4 +1,4 @@
-# FlagTree Backend Specialization 统一设计（Python）
+# FlagTree Backend Specialization 统一设计（C++）
 
 ## 1. 接口
 FlagTree 为 Python 代码的后端特化提供两种接口：spec 接口特化函数实现，spec_func 接口特化函数定义。由于调用了当前活动驱动类中的成员，只能在活动后端发现并激活后使用，因此一般来说只能用于一个局部作用域内。如果用在 py 文件的全局作用域且该文件在启动初期被 import，则会报错。
@@ -58,7 +58,7 @@ def atomic_add(ptr: tl.tensor, val: tl.tensor, mask: tl.tensor, sem: str, scope:
 ```
 
 #### 注册特化方法
-- third_party/iluvatar/backend/spec/\_\_init\_\_.py
+- third_party/iluvatar/backend/spec/\__init\__.py
 ```python
 __all__ = [
     ..., "atomic_add_int64", ...
