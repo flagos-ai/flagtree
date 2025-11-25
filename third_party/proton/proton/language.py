@@ -3,12 +3,14 @@ from triton.language.core import builtin
 from triton._C.libtriton import proton as triton_proton
 from triton.language.semantic import TritonSemantic
 from triton.experimental.gluon.language._semantic import GluonSemantic
+from triton.experimental.flagtree.language._semantic import FlagTreeSemantic
 
 from .flags import get_instrumentation_on
 
 _ALL_SEMANTICS = {
     "triton": TritonSemantic,
     "gluon": GluonSemantic,
+    "flagtree": FlagTreeSemantic,
 }
 """
 By default **only Gluon** semantic is enabled.
@@ -16,7 +18,7 @@ Instrumenting kernels written in Triton DSL is disable because Triton's higher-l
 aggressive compiler rewrites (loop pipelining, instruction re-ordering, IR duplication, etc.).
 These transformations can invalidate naïve instrumentation and lead to misleading results.
 """
-_SEMANTICS = {_ALL_SEMANTICS["gluon"]}
+_SEMANTICS = {_ALL_SEMANTICS["gluon"], _ALL_SEMANTICS["flagtree"]}
 
 
 def _check_supported_semantic(semantic):
