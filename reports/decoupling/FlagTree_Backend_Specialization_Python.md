@@ -28,7 +28,7 @@ def spec_func(function_name: str):
 后端驱动类下需添加 spec 成员，注册该后端目录下的特化实现入口（本文以 iluvatar 后端为例）。注意原有的 utils 成员需改成 property，否则会循环注册。
 - third_party/iluvatar/backend/driver.py
 ```python
-class CudaDriver(GPUDriver):
+class BackendDriver(GPUDriver):
     def __init__(self):
         # self.utils = CudaUtils()  # 改为 property
         self.launcher_cls = CudaLauncher
@@ -58,7 +58,7 @@ def atomic_add(ptr: tl.tensor, val: tl.tensor, mask: tl.tensor, sem: str, scope:
 ```
 
 #### 注册特化方法
-- third_party/iluvatar/backend/spec/\_\_init\_\_.py
+- **third_party/iluvatar/backend/spec/**\_\_init\_\_.py
 ```python
 __all__ = [
     ..., "atomic_add_int64", ...
@@ -66,7 +66,7 @@ __all__ = [
 ```
 
 #### 实现特化函数
-- third_party/iluvatar/backend/spec/triton/language/semantic.py
+- **third_party/iluvatar/backend/spec/**triton/language/semantic.py
 ```python
 def atomic_add_int64(sca_ty, builder, val, ptr, mask, sem, scope):
     from triton.language.semantic import full, and_, cast, lshr, bitcast, add, _bool_like, where, shl, or_
@@ -90,7 +90,7 @@ class _matmul(torch.autograd.Function):
 ```
 
 #### 注册特化方法
-- third_party/iluvatar/backend/spec/\__init\__.py
+- **third_party/iluvatar/backend/spec/**\_\_init\_\_.py
 ```python
 __all__ = [
     ..., "matmul_kernel", ...

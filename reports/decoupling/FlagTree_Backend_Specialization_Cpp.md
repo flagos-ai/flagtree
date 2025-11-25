@@ -1,111 +1,75 @@
 # FlagTree Backend Specialization 统一设计（C++）
 
-## 1. 接口
-FlagTree 为 Python 代码的后端特化提供两种接口：spec 接口特化函数实现，spec_func 接口特化函数定义。由于调用了当前活动驱动类中的成员，只能在活动后端发现并激活后使用，因此一般来说只能用于一个局部作用域内。如果用在 py 文件的全局作用域且该文件在启动初期被 import，则会报错。
-- python/triton/runtime/driver.py
-```python
-# flagtree backend specialization
-def spec(function_name: str, *args, **kwargs):
-    if hasattr(driver.active, "spec"):
-        spec = driver.active.spec
-        if hasattr(spec, function_name):
-            func = getattr(spec, function_name)
-            return func(*args, **kwargs)
-    return None
-```
-```python
-# flagtree backend func specialization
-def spec_func(function_name: str):
-    if hasattr(driver.active, "spec"):
-        spec = driver.active.spec
-        if hasattr(spec, function_name):
-            func = getattr(spec, function_name)
-            return func
-    return None
+## 1. 基本设计
+FlagTree 为 C++ 代码的后端特化提供的实现方案：使用宏判断在工程编译时选择是否特化。
+
+## 2. td 文件特化
+td 文件如果需要特化，可整体复制到对应的后端 spec 目录下进行后端特化实现。例如将 include/triton/Dialect/Triton/IR/TritonAttrDefs.td 复制到 **third_party/iluvatar/backend/spec/**include/triton/Dialect/Triton/IR/TritonAttrDefs.td 进行特化修改（本文以 iluvatar 后端为例），注意不需要修改 td 文件头部的 #ifndef 和 #define 宏，因为 CMakeLists.txt 中通过 set_flagtree_backend_td 方法只选择其中一个进行代码生成。
+- include/triton/Dialect/Triton/IR/CMakeLists.txt
+```shell
+# set(LLVM_TARGET_DEFINITIONS TritonOps.td)  # 原实现
+set_flagtree_backend_td(LLVM_TARGET_DEFINITIONS TritonOps.td)
+mlir_tablegen(Ops.h.inc -gen-op-decls)
+mlir_tablegen(Ops.cpp.inc -gen-op-defs)
+mlir_tablegen(OpsEnums.h.inc -gen-enum-decls)
+mlir_tablegen(OpsEnums.cpp.inc -gen-enum-defs)
+add_mlir_doc(TritonOps TritonOps dialects/ -gen-op-doc)
 ```
 
-## 2. 后端入口注册
-后端驱动类下需添加 spec 成员，注册该后端目录下的特化实现入口（本文以 iluvatar 后端为例）。注意原有的 utils 成员需改成 property，否则会循环注册。
-- third_party/iluvatar/backend/driver.py
-```python
-class CudaDriver(GPUDriver):
-    def __init__(self):
-        # self.utils = CudaUtils()  # 改为 property
-        self.launcher_cls = CudaLauncher
-        # flagtree backend specialization
-        from triton.backends.iluvatar import spec
-        self.spec = spec
-        super().__init__()
-    @property
-    def utils(self):
-        return CudaUtils()
+## 3. h 头文件特化
+
+## 4. cpp 文件特化
+
+### 4.1 情形一：整个文件特化
+调用关系耦合太多时，可退化为整个文件特化。常用于 cpp 内定义多个 class/struct 并交叉调用的情形。
+
+#### 4.1.1 主干代码的缺省实现
+- lib/Dialect/Triton/IR/Ops.cpp
+```c++
+#if __has_include("flagtree_spec.h")
+#include "flagtree_spec.h"
+#endif
+
+#ifndef FLAGTREE_SPEC_Dialect_Triton_IR_Ops_cpp
+...
+#endif
 ```
 
-## 3. 使用实例
+#### 4.1.2 宏定义及头文件包含（注意修改文件名及头部宏）
+- **third_party/iluvatar/backend/spec/**include/triton/Dialect/Triton/IR/iluvatar_Ops.h
+```c++
+#ifndef ILUVATAR_TRITON_DIALECT_TRITON_IR_OPS_H_
+#define ILUVATAR_TRITON_DIALECT_TRITON_IR_OPS_H_
 
-### 3.1 情形一：特化函数实现（spec）
+#define FLAGTREE_SPEC_Dialect_Triton_IR_Ops_cpp
 
-#### 调用统一特化
-本例中，缺省实现是 return tl.tensor(...)，特化函数起名为 atomic_add_int64。
-- python/triton/language/semantic.py
-```python
-def atomic_add(ptr: tl.tensor, val: tl.tensor, mask: tl.tensor, sem: str, scope: str, builder: ir.builder) -> tl.tensor:
-    ...
-    rett = tl.tensor(builder.create_atomic_rmw(op, ptr.handle, val.handle, mask.handle, sem, scope), val.type)
-    # flagtree backend specialization
-    from triton.runtime.driver import spec
-    return spec("atomic_add_int64", sca_ty, builder, val, ptr, mask, sem, scope) or rett
+#endif // ILUVATAR_TRITON_DIALECT_TRITON_IR_OPS_H_
+```
+- third_party/iluvatar/backend/spec/include/flagtree_spec.h
+```c++
+#include "triton/Dialect/Triton/IR/iluvatar_Ops.h"
 ```
 
-#### 注册特化方法
-- third_party/iluvatar/backend/spec/\__init\__.py
-```python
-__all__ = [
-    ..., "atomic_add_int64", ...
-]
+#### 4.1.3 后端目录的特化实现
+- **third_party/iluvatar/backend/spec/**lib/Dialect/Triton/IR/Ops.cpp
+
+### 4.2 特化目标链接
+CMakeLists.txt 中通过 get_flagtree_backend_lib 方法将 spec 目录中的特化实现目标链接进来。
+- lib/Dialect/Triton/IR/CMakeLists.txt
+```shell
+get_flagtree_backend_lib("TritonIR" _EXTRA_LINK_LIBS)
+
+add_triton_library(TritonIR
+  ....cpp
+
+  DEPENDS
+  ...
+
+  LINK_LIBS PUBLIC
+  ...
+  ${_EXTRA_LINK_LIBS}
+)
 ```
 
-#### 实现特化函数
-- third_party/iluvatar/backend/spec/triton/language/semantic.py
-```python
-def atomic_add_int64(sca_ty, builder, val, ptr, mask, sem, scope):
-    from triton.language.semantic import full, and_, cast, lshr, bitcast, add, _bool_like, where, shl, or_
-    ...
-```
 
-### 3.2 情形二：特化函数定义（spec_func）
 
-#### 调用统一特化
-- python/triton/ops/matmul.py
-```python
-@jit
-def _kernel(A, B, C, M, N, K, ...):
-    ...
-
-class _matmul(torch.autograd.Function):
-    # flagtree backend specialization
-    from triton.runtime.driver import spec_func
-    kernel = spec_func("matmul_kernel") or _kernel
-    ...
-```
-
-#### 注册特化方法
-- third_party/iluvatar/backend/spec/\__init\__.py
-```python
-__all__ = [
-    ..., "matmul_kernel", ...
-]
-```
-
-#### 实现特化函数
-```python
-def matmul_kernel(grid, a, b, c, M, N, K, ...):
-    from triton.ops.matmul import get_configs_io_bound
-    ...
-
-    @jit
-    def _kernel(A, B, C, M, N, K, ...):
-        ...
-
-    return _kernel[grid](a, b, c, M, N, K, ...)
-```
