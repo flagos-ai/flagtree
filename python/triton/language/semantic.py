@@ -1276,7 +1276,7 @@ def atomic_add(ptr: tl.tensor, val: tl.tensor, mask: tl.tensor, sem: str, scope:
     rett = tl.tensor(builder.create_atomic_rmw(op, ptr.handle, val.handle, mask.handle, sem, scope), val.type)
     # flagtree backend specialization
     from triton.runtime.driver import spec
-    return spec("atomin_add_int64", sca_ty, builder, val, ptr, mask, sem, scope) or rett
+    return spec("atomic_add_int64", sca_ty, builder, val, ptr, mask, sem, scope) or rett
 
 
 def atomic_and(ptr: tl.tensor, val: tl.tensor, mask: tl.tensor, sem: str, scope: str, builder: ir.builder) -> tl.tensor:

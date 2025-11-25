@@ -9,7 +9,7 @@ def is_atomic_support_bf16():
     return True
 
 
-def atomin_add_int64(sca_ty, builder, val, ptr, mask, sem, scope):
+def atomic_add_int64(sca_ty, builder, val, ptr, mask, sem, scope):
     from triton.language import core as tl
     from triton._C.libtriton import ir
     from triton.language.semantic import full, and_, cast, lshr, bitcast, add, _bool_like, where, shl, or_
