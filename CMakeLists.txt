@@ -33,6 +33,8 @@ elseif(FLAGTREE_BACKEND STREQUAL "mthreads")
 elseif(FLAGTREE_BACKEND STREQUAL "ascend")
   set(CMAKE_C_COMPILER clang)
   set(CMAKE_CXX_COMPILER clang++)
+  add_compile_options("-Wno-deprecated-declarations")
+  add_compile_options("-Wno-error=deprecated-declarations")
 endif()
 set(FLAGTREE_PLUGIN "$ENV{FLAGTREE_PLUGIN}")
 if(FLAGTREE_PLUGIN)
@@ -196,12 +198,7 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_BINARY_DIR}/third_party) # Tablegen'd files
 
 # link_directories(${LLVM_LIBRARY_DIR})
-if (FLAGTREE_BACKEND STREQUAL "ascend")
-  include_directories(${PROJECT_SOURCE_DIR}/include)
-  include_directories(${PROJECT_BINARY_DIR}/include) # Tablegen'd files
-  add_subdirectory(include)
-  add_subdirectory(lib)
-elseif(NOT FLAGTREE_BACKEND)
+if(NOT FLAGTREE_BACKEND)
   add_subdirectory(include)
   add_subdirectory(lib)
 endif()
@@ -399,9 +396,17 @@ if(TRITON_BUILD_PYTHON_MODULE)
     add_library(triton SHARED ${PYTHON_SRC_PATH}/main.cc
                 ${PYTHON_SRC_PATH}/interpreter.cc
                 ${PYTHON_SRC_PATH}/llvm.cc)
+  elseif(FLAGTREE_BACKEND STREQUAL "ascend")
+    set(PYTHON_ROOT_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/python/src)
+    include_directories(${PYTHON_ROOT_SRC_PATH})
+    add_library(triton SHARED ${PYTHON_ROOT_SRC_PATH}/main.cc
+                ${PYTHON_SRC_PATH}/ir.cc
+                ${PYTHON_ROOT_SRC_PATH}/passes.cc
+                ${PYTHON_ROOT_SRC_PATH}/interpreter.cc
+                ${PYTHON_ROOT_SRC_PATH}/llvm.cc)
   else()
     add_library(triton SHARED ${PYTHON_SRC_PATH}/main.cc
-                ${PYTHON_IR_SRC_PATH}/ir.cc
+                ${PYTHON_SRC_PATH}/ir.cc
                 ${PYTHON_SRC_PATH}/passes.cc
                 ${PYTHON_SRC_PATH}/interpreter.cc
                 ${PYTHON_SRC_PATH}/llvm.cc)
