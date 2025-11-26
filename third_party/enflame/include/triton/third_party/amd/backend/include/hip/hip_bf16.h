@@ -33,4 +33,4 @@ THE SOFTWARE.
 #error("Must define exactly one of __HIP_PLATFORM_AMD__ or __HIP_PLATFORM_NVIDIA__");
 #endif
 
-#endif  // HIP_INCLUDE_HIP_HIP_BF16_H
+#endif // HIP_INCLUDE_HIP_HIP_BF16_H

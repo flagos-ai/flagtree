@@ -23,10 +23,9 @@ THE SOFTWARE.
 #ifndef HIP_INCLUDE_HIP_CHANNEL_DESCRIPTOR_H
 #define HIP_INCLUDE_HIP_CHANNEL_DESCRIPTOR_H
 
-// Some standard header files, these are included by hc.hpp and so want to make them avail on both
-// paths to provide a consistent include env and avoid "missing symbol" errors that only appears
-// on NVCC path:
-
+// Some standard header files, these are included by hc.hpp and so want to make
+// them avail on both paths to provide a consistent include env and avoid
+// "missing symbol" errors that only appears on NVCC path:
 
 #if defined(__HIP_PLATFORM_AMD__) && !defined(__HIP_PLATFORM_NVIDIA__)
 #include <hip/amd_detail/amd_channel_descriptor.h>

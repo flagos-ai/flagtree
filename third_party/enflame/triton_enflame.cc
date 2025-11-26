@@ -14,33 +14,33 @@
  * limitations under the License.
  */
 
+#include <iostream>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <iostream>
 
 namespace py = pybind11;
 
 // Empty initialization function to resolve linking issues
 void init_triton_enflame(py::module &&m) {
-    // Temporarily provide empty implementation to resolve linking issues
-    // TODO: Add GCU-related MLIR dialects and transformation passes later
+  // Temporarily provide empty implementation to resolve linking issues
+  // TODO: Add GCU-related MLIR dialects and transformation passes later
 
-    m.doc() = "Enflame GCU backend for Triton";
+  m.doc() = "Enflame GCU backend for Triton";
 
-    // Can add some basic utility functions
-    m.def("get_gcu_arch", []() {
-        return "gcu300"; // Default architecture
-    });
+  // Can add some basic utility functions
+  m.def("get_gcu_arch", []() {
+    return "gcu300"; // Default architecture
+  });
 
-    m.def("is_gcu_available", []() {
-        // Simple availability check
-        return true;
-    });
+  m.def("is_gcu_available", []() {
+    // Simple availability check
+    return true;
+  });
 
-    // Empty dialect loading function
-    m.def("load_dialects", [](py::object context) {
-        // TODO: Load GCU-related MLIR dialects
-        // Temporarily empty implementation, using py::object to avoid MLIR dependency
-    });
-
+  // Empty dialect loading function
+  m.def("load_dialects", [](py::object context) {
+    // TODO: Load GCU-related MLIR dialects
+    // Temporarily empty implementation, using py::object to avoid MLIR
+    // dependency
+  });
 }

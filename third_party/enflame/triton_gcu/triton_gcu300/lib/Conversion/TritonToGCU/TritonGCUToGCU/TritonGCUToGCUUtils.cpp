@@ -16,20 +16,20 @@
 
 #include "TritonGCUToGCUUtils.h"
 
-#include <vector>
 #include <algorithm>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "Analysis/FirstLastUserAnalysis.h"
-#include "Conversion/TritonToGCU/Utils.h"
 #include "ConstantUtil.h"
+#include "Conversion/TritonToGCU/Utils.h"
 
 #include "Dialect/GCU/IR/Dialect.h"
 #include "Dialect/GCU/IR/Types.h"
-#include "Dialect/MemrefExt/IR/MemrefExt.h"
 #include "Dialect/MathExt/IR/MathExt.h"
 #include "Dialect/MathExt/IR/MathExtTypes.h"
+#include "Dialect/MemrefExt/IR/MemrefExt.h"
 #include "Dialect/TritonGCU/IR/TritonGCUDialect.h"
 #include "Dialect/TritonGCU/IR/TritonGCUTypes.h"
 
@@ -56,7 +56,6 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
-#include "llvm/Support/MathExtras.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Types.h"
@@ -68,6 +67,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 
 #define DBG_TRITON_IR 1
@@ -940,8 +940,7 @@ Value CopyFromSharedMem(OpBuilder &builder, Value tag, Type type, Value buffer,
 
 Value loadFromSharedMemForDotOperand(
     OpBuilder builder, Value tag, Type type, ArrayRef<int64_t> mnShape,
-    Value sharedBuffer, Operation *lastTTUser,
-    Operation *firstTTUser,
+    Value sharedBuffer, Operation *lastTTUser, Operation *firstTTUser,
     triton::gcu::FirstLastUserAnalysis &userAnalysis,
     std::map<Operation *, Operation *> &replaced2Origin) {
   auto loc = sharedBuffer.getLoc();
@@ -1003,7 +1002,7 @@ void storeToSharedMem(OpBuilder &builder, Value tag, TensorType type,
                                              builder.getI32Type()),
         builder.create<arith::IndexCastOp>(loc, builder.getI32Type(),
                                            warpIds[i])));
-        outputSize.push_back(outputType.getShape()[i]);
+    outputSize.push_back(outputType.getShape()[i]);
   }
   auto isThread0 = builder.create<arith::CmpIOp>(
       loc, arith::CmpIPredicate::eq,
@@ -1085,13 +1084,12 @@ void AnalysisYieldOperendUseStage(
           TTYeiledOPerandHasMultiUseStage[op.getOperation()][i] = true;
           continue;
         }
-        if (isa<TensorType>(operand.getType()) && isa<scf::ForOp>(
-                op.getOperation()->getParentOp())) {
+        if (isa<TensorType>(operand.getType()) &&
+            isa<scf::ForOp>(op.getOperation()->getParentOp())) {
           auto forOp = llvm::cast<scf::ForOp>(op.getOperation()->getParentOp());
           auto reginArg = forOp.getRegionIterArgs()[i];
-          auto lastOp =
-              userAnalysis.getLastUserOp(reginArg,
-                                         definingOp->getParentRegion());
+          auto lastOp = userAnalysis.getLastUserOp(
+              reginArg, definingOp->getParentRegion());
           if (lastOp == nullptr) {
             TTYeiledOPerandHasMultiUseStage[op.getOperation()][i] = true;
           } else {
@@ -1099,14 +1097,13 @@ void AnalysisYieldOperendUseStage(
               TTYeiledOPerandHasMultiUseStage[op.getOperation()][i] = true;
             }
           }
-        } else if (isa<TensorType>(operand.getType()) && isa<scf::WhileOp>(
-                       op.getOperation()->getParentOp())) {
+        } else if (isa<TensorType>(operand.getType()) &&
+                   isa<scf::WhileOp>(op.getOperation()->getParentOp())) {
           auto whileOp =
               llvm::cast<scf::WhileOp>(op.getOperation()->getParentOp());
           mlir::Value reginArg = whileOp.getAfterArguments()[i];
-          auto lastOp =
-              userAnalysis.getLastUserOp(reginArg,
-                                         definingOp->getParentRegion());
+          auto lastOp = userAnalysis.getLastUserOp(
+              reginArg, definingOp->getParentRegion());
           if (lastOp == nullptr) {
             TTYeiledOPerandHasMultiUseStage[op.getOperation()][i] = true;
           } else {
@@ -1120,49 +1117,53 @@ void AnalysisYieldOperendUseStage(
   });
 }
 
-void GetOrderValueByStride(OpBuilder &rewriter, Location loc,
-  SmallVector<unsigned> nInitStrideDims, SmallVector<Value, 4> &initStride,
-  SmallVector<Value, 4> &initShape, SmallVector<Value, 4> &initOffset,
-  SmallVector<Value, 4> &orderStride, SmallVector<Value, 4> &orderShape,
-  SmallVector<Value, 4> &orderOffset, SmallVector<Value, 4> &vOrder) {
-    int64_t rank = static_cast<int64_t>(nInitStrideDims.size());
-    auto elementTyIdx = rewriter.getIndexType();
-    auto elementTyI32 = rewriter.getI32Type();
-    auto tmpStrideBuffer = rewriter.create<memref::AllocOp>(
-        loc, MemRefType::get(rank, elementTyIdx));
-    auto tmpShapeBuffer = rewriter.create<memref::AllocOp>(
-        loc, MemRefType::get(rank, elementTyIdx));
-    auto tmpOffsetBuffer = rewriter.create<memref::AllocOp>(
-        loc, MemRefType::get(rank, elementTyIdx));
-    auto tmpOrderBuffer = rewriter.create<memref::AllocOp>(
-        loc, MemRefType::get(rank, elementTyI32));
-    for (unsigned i = 0; i < rank; ++i) {
-      auto idx = rewriter.create<arith::ConstantIndexOp>(loc, i);
-      rewriter.create<memref::StoreOp>(loc, initStride[i],
-        tmpStrideBuffer, ValueRange{idx});
-      rewriter.create<memref::StoreOp>(loc, initShape[i],
-        tmpShapeBuffer, ValueRange{idx});
-      rewriter.create<memref::StoreOp>(loc, initOffset[i],
-        tmpOffsetBuffer, ValueRange{idx});
-      rewriter.create<memref::StoreOp>(loc,
+void GetOrderValueByStride(
+    OpBuilder &rewriter, Location loc, SmallVector<unsigned> nInitStrideDims,
+    SmallVector<Value, 4> &initStride, SmallVector<Value, 4> &initShape,
+    SmallVector<Value, 4> &initOffset, SmallVector<Value, 4> &orderStride,
+    SmallVector<Value, 4> &orderShape, SmallVector<Value, 4> &orderOffset,
+    SmallVector<Value, 4> &vOrder) {
+  int64_t rank = static_cast<int64_t>(nInitStrideDims.size());
+  auto elementTyIdx = rewriter.getIndexType();
+  auto elementTyI32 = rewriter.getI32Type();
+  auto tmpStrideBuffer = rewriter.create<memref::AllocOp>(
+      loc, MemRefType::get(rank, elementTyIdx));
+  auto tmpShapeBuffer = rewriter.create<memref::AllocOp>(
+      loc, MemRefType::get(rank, elementTyIdx));
+  auto tmpOffsetBuffer = rewriter.create<memref::AllocOp>(
+      loc, MemRefType::get(rank, elementTyIdx));
+  auto tmpOrderBuffer = rewriter.create<memref::AllocOp>(
+      loc, MemRefType::get(rank, elementTyI32));
+  for (unsigned i = 0; i < rank; ++i) {
+    auto idx = rewriter.create<arith::ConstantIndexOp>(loc, i);
+    rewriter.create<memref::StoreOp>(loc, initStride[i], tmpStrideBuffer,
+                                     ValueRange{idx});
+    rewriter.create<memref::StoreOp>(loc, initShape[i], tmpShapeBuffer,
+                                     ValueRange{idx});
+    rewriter.create<memref::StoreOp>(loc, initOffset[i], tmpOffsetBuffer,
+                                     ValueRange{idx});
+    rewriter.create<memref::StoreOp>(
+        loc,
         rewriter.create<arith::ConstantIntOp>(loc, nInitStrideDims[i],
-        rewriter.getI32Type()), tmpOrderBuffer, ValueRange{idx});
-    }
+                                              rewriter.getI32Type()),
+        tmpOrderBuffer, ValueRange{idx});
+  }
 
-    Value zero = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-    Value cEnd = rewriter.create<arith::ConstantIndexOp>(loc, rank - 1);
-    Value cStep = rewriter.create<arith::ConstantIndexOp>(loc, 1);
-    scf::buildLoopNest(rewriter, loc, zero, cEnd, cStep,
+  Value zero = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+  Value cEnd = rewriter.create<arith::ConstantIndexOp>(loc, rank - 1);
+  Value cStep = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+  scf::buildLoopNest(
+      rewriter, loc, zero, cEnd, cStep,
       [&](OpBuilder &outerBuilder, Location outerLoc, ValueRange ivsOuter) {
         Value i = ivsOuter[0];
-        Value cInnerEnd = outerBuilder.create<arith::SubIOp>(
-          outerLoc, cEnd, i);
-        scf::buildLoopNest(outerBuilder, outerLoc, zero, cInnerEnd, cStep,
-          [&](OpBuilder &innerBuilder, Location innerLoc,
-            ValueRange ivsInner) {
+        Value cInnerEnd = outerBuilder.create<arith::SubIOp>(outerLoc, cEnd, i);
+        scf::buildLoopNest(
+            outerBuilder, outerLoc, zero, cInnerEnd, cStep,
+            [&](OpBuilder &innerBuilder, Location innerLoc,
+                ValueRange ivsInner) {
               Value j = ivsInner[0];
-              Value jNext = innerBuilder.create<arith::AddIOp>(
-                  innerLoc, j, cStep);
+              Value jNext =
+                  innerBuilder.create<arith::AddIOp>(innerLoc, j, cStep);
 
               Value vStrideJ = innerBuilder.create<memref::LoadOp>(
                   innerLoc, tmpStrideBuffer, j);
@@ -1181,61 +1182,63 @@ void GetOrderValueByStride(OpBuilder &rewriter, Location loc,
               Value vOrderJNext = innerBuilder.create<memref::LoadOp>(
                   innerLoc, tmpOrderBuffer, jNext);
 
-              Value cmp = innerBuilder.create<arith::CmpIOp>(innerLoc,
-              arith::CmpIPredicate::slt, vStrideJ, vStrideJNext);
-              innerBuilder.create<scf::IfOp>(innerLoc, cmp,
-                [&](OpBuilder &thenBuilder, Location thenLoc) {
-                  thenBuilder.create<memref::StoreOp>(thenLoc,
-                      vStrideJNext, tmpStrideBuffer, j);
-                  thenBuilder.create<memref::StoreOp>(thenLoc,
-                      vStrideJ, tmpStrideBuffer, jNext);
-                  thenBuilder.create<memref::StoreOp>(thenLoc,
-                      vShapeJNext, tmpShapeBuffer, j);
-                  thenBuilder.create<memref::StoreOp>(thenLoc,
-                      vShapeJ, tmpShapeBuffer, jNext);
-                  thenBuilder.create<memref::StoreOp>(thenLoc,
-                      vOffsetJNext, tmpOffsetBuffer, j);
-                  thenBuilder.create<memref::StoreOp>(thenLoc,
-                      vOffsetJ, tmpOffsetBuffer, jNext);
-                  thenBuilder.create<memref::StoreOp>(thenLoc,
-                      vOrderJNext, tmpOrderBuffer, j);
-                  thenBuilder.create<memref::StoreOp>(thenLoc, vOrderJ,
-                      tmpOrderBuffer, jNext);
-                  thenBuilder.create<scf::YieldOp>(thenLoc);
-                },
-                [&](OpBuilder &elseBuilder, Location elseLoc) {
-                  elseBuilder.create<scf::YieldOp>(elseLoc);
-                });
+              Value cmp = innerBuilder.create<arith::CmpIOp>(
+                  innerLoc, arith::CmpIPredicate::slt, vStrideJ, vStrideJNext);
+              innerBuilder.create<scf::IfOp>(
+                  innerLoc, cmp,
+                  [&](OpBuilder &thenBuilder, Location thenLoc) {
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vStrideJNext,
+                                                        tmpStrideBuffer, j);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vStrideJ,
+                                                        tmpStrideBuffer, jNext);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vShapeJNext,
+                                                        tmpShapeBuffer, j);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vShapeJ,
+                                                        tmpShapeBuffer, jNext);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vOffsetJNext,
+                                                        tmpOffsetBuffer, j);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vOffsetJ,
+                                                        tmpOffsetBuffer, jNext);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vOrderJNext,
+                                                        tmpOrderBuffer, j);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vOrderJ,
+                                                        tmpOrderBuffer, jNext);
+                    thenBuilder.create<scf::YieldOp>(thenLoc);
+                  },
+                  [&](OpBuilder &elseBuilder, Location elseLoc) {
+                    elseBuilder.create<scf::YieldOp>(elseLoc);
+                  });
             });
       });
 
-    for (unsigned i = 0; i < rank; ++i) {
-      auto idx = rewriter.create<arith::ConstantIndexOp>(loc, i);
-      vOrder.push_back(rewriter.create<memref::LoadOp>(loc,
-        tmpOrderBuffer, ValueRange{idx}));
-      orderStride.push_back(rewriter.create<memref::LoadOp>(loc,
-        tmpStrideBuffer, ValueRange{idx}));
-      orderOffset.push_back(rewriter.create<arith::IndexCastOp>(loc,
-      rewriter.getI32Type(), rewriter.create<memref::LoadOp>(loc,
-        tmpOffsetBuffer, ValueRange{idx})));
-    }
-    orderShape.push_back(rewriter.create<memref::LoadOp>(loc,
-        tmpShapeBuffer, ValueRange{zero}));
-    for (unsigned i = 0; i < rank - 1; ++i) {
-        orderShape.push_back(rewriter.create<arith::DivSIOp>(
-            loc, orderStride[i], orderStride[i+1]));
-    }
+  for (unsigned i = 0; i < rank; ++i) {
+    auto idx = rewriter.create<arith::ConstantIndexOp>(loc, i);
+    vOrder.push_back(
+        rewriter.create<memref::LoadOp>(loc, tmpOrderBuffer, ValueRange{idx}));
+    orderStride.push_back(
+        rewriter.create<memref::LoadOp>(loc, tmpStrideBuffer, ValueRange{idx}));
+    orderOffset.push_back(rewriter.create<arith::IndexCastOp>(
+        loc, rewriter.getI32Type(),
+        rewriter.create<memref::LoadOp>(loc, tmpOffsetBuffer,
+                                        ValueRange{idx})));
+  }
+  orderShape.push_back(
+      rewriter.create<memref::LoadOp>(loc, tmpShapeBuffer, ValueRange{zero}));
+  for (unsigned i = 0; i < rank - 1; ++i) {
+    orderShape.push_back(rewriter.create<arith::DivSIOp>(loc, orderStride[i],
+                                                         orderStride[i + 1]));
+  }
 
-    rewriter.create<memref::DeallocOp>(loc, tmpStrideBuffer);
-    rewriter.create<memref::DeallocOp>(loc, tmpShapeBuffer);
-    rewriter.create<memref::DeallocOp>(loc, tmpOffsetBuffer);
-    rewriter.create<memref::DeallocOp>(loc, tmpOrderBuffer);
+  rewriter.create<memref::DeallocOp>(loc, tmpStrideBuffer);
+  rewriter.create<memref::DeallocOp>(loc, tmpShapeBuffer);
+  rewriter.create<memref::DeallocOp>(loc, tmpOffsetBuffer);
+  rewriter.create<memref::DeallocOp>(loc, tmpOrderBuffer);
 }
 
-void GetOrderSlicefor30(OpBuilder &rewriter, Location loc,
-  int64_t rank, SmallVector<Value, 4> &initStride,
-  SmallVector<Value, 4> &initSliceShape,
-  SmallVector<Value, 4> &orderSliceShape) {
+void GetOrderSlicefor30(OpBuilder &rewriter, Location loc, int64_t rank,
+                        SmallVector<Value, 4> &initStride,
+                        SmallVector<Value, 4> &initSliceShape,
+                        SmallVector<Value, 4> &orderSliceShape) {
   auto elementTyIdx = rewriter.getIndexType();
   auto tmpStrideBuffer = rewriter.create<memref::AllocOp>(
       loc, MemRefType::get(rank, elementTyIdx));
@@ -1243,69 +1246,71 @@ void GetOrderSlicefor30(OpBuilder &rewriter, Location loc,
       loc, MemRefType::get(rank, elementTyIdx));
   for (unsigned i = 0; i < rank; ++i) {
     auto idx = rewriter.create<arith::ConstantIndexOp>(loc, i);
-    rewriter.create<memref::StoreOp>(loc, initStride[i],
-      tmpStrideBuffer, ValueRange{idx});
-    rewriter.create<memref::StoreOp>(loc, initSliceShape[i],
-      tmpShapeBuffer, ValueRange{idx});
+    rewriter.create<memref::StoreOp>(loc, initStride[i], tmpStrideBuffer,
+                                     ValueRange{idx});
+    rewriter.create<memref::StoreOp>(loc, initSliceShape[i], tmpShapeBuffer,
+                                     ValueRange{idx});
   }
 
   Value zero = rewriter.create<arith::ConstantIndexOp>(loc, 0);
   Value cEnd = rewriter.create<arith::ConstantIndexOp>(loc, rank - 1);
   Value cStep = rewriter.create<arith::ConstantIndexOp>(loc, 1);
-  scf::buildLoopNest(rewriter, loc, zero, cEnd, cStep,
-    [&](OpBuilder &outerBuilder, Location outerLoc, ValueRange ivsOuter) {
-      Value i = ivsOuter[0];
-      Value cInnerEnd = outerBuilder.create<arith::SubIOp>(
-        outerLoc, cEnd, i);
-      scf::buildLoopNest(outerBuilder, outerLoc, zero, cInnerEnd, cStep,
-        [&](OpBuilder &innerBuilder, Location innerLoc,
-          ValueRange ivsInner) {
-            Value j = ivsInner[0];
-            Value jNext = innerBuilder.create<arith::AddIOp>(
-                innerLoc, j, cStep);
+  scf::buildLoopNest(
+      rewriter, loc, zero, cEnd, cStep,
+      [&](OpBuilder &outerBuilder, Location outerLoc, ValueRange ivsOuter) {
+        Value i = ivsOuter[0];
+        Value cInnerEnd = outerBuilder.create<arith::SubIOp>(outerLoc, cEnd, i);
+        scf::buildLoopNest(
+            outerBuilder, outerLoc, zero, cInnerEnd, cStep,
+            [&](OpBuilder &innerBuilder, Location innerLoc,
+                ValueRange ivsInner) {
+              Value j = ivsInner[0];
+              Value jNext =
+                  innerBuilder.create<arith::AddIOp>(innerLoc, j, cStep);
 
-            Value vStrideJ = innerBuilder.create<memref::LoadOp>(
-                innerLoc, tmpStrideBuffer, j);
-            Value vStrideJNext = innerBuilder.create<memref::LoadOp>(
-                innerLoc, tmpStrideBuffer, jNext);
-            Value vShapeJ = innerBuilder.create<memref::LoadOp>(
-                innerLoc, tmpShapeBuffer, j);
-            Value vShapeJNext = innerBuilder.create<memref::LoadOp>(
-                innerLoc, tmpShapeBuffer, jNext);
+              Value vStrideJ = innerBuilder.create<memref::LoadOp>(
+                  innerLoc, tmpStrideBuffer, j);
+              Value vStrideJNext = innerBuilder.create<memref::LoadOp>(
+                  innerLoc, tmpStrideBuffer, jNext);
+              Value vShapeJ = innerBuilder.create<memref::LoadOp>(
+                  innerLoc, tmpShapeBuffer, j);
+              Value vShapeJNext = innerBuilder.create<memref::LoadOp>(
+                  innerLoc, tmpShapeBuffer, jNext);
 
-            Value cmp = innerBuilder.create<arith::CmpIOp>(innerLoc,
-            arith::CmpIPredicate::slt, vStrideJ, vStrideJNext);
-            innerBuilder.create<scf::IfOp>(innerLoc, cmp,
-              [&](OpBuilder &thenBuilder, Location thenLoc) {
-                thenBuilder.create<memref::StoreOp>(thenLoc,
-                    vStrideJNext, tmpStrideBuffer, j);
-                thenBuilder.create<memref::StoreOp>(thenLoc,
-                    vStrideJ, tmpStrideBuffer, jNext);
-                thenBuilder.create<memref::StoreOp>(thenLoc,
-                    vShapeJNext, tmpShapeBuffer, j);
-                thenBuilder.create<memref::StoreOp>(thenLoc,
-                    vShapeJ, tmpShapeBuffer, jNext);
-                thenBuilder.create<scf::YieldOp>(thenLoc);
-              },
-              [&](OpBuilder &elseBuilder, Location elseLoc) {
-                elseBuilder.create<scf::YieldOp>(elseLoc);
-              });
-          });
-    });
+              Value cmp = innerBuilder.create<arith::CmpIOp>(
+                  innerLoc, arith::CmpIPredicate::slt, vStrideJ, vStrideJNext);
+              innerBuilder.create<scf::IfOp>(
+                  innerLoc, cmp,
+                  [&](OpBuilder &thenBuilder, Location thenLoc) {
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vStrideJNext,
+                                                        tmpStrideBuffer, j);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vStrideJ,
+                                                        tmpStrideBuffer, jNext);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vShapeJNext,
+                                                        tmpShapeBuffer, j);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vShapeJ,
+                                                        tmpShapeBuffer, jNext);
+                    thenBuilder.create<scf::YieldOp>(thenLoc);
+                  },
+                  [&](OpBuilder &elseBuilder, Location elseLoc) {
+                    elseBuilder.create<scf::YieldOp>(elseLoc);
+                  });
+            });
+      });
 
   for (unsigned i = 0; i < rank; ++i) {
     auto idx = rewriter.create<arith::ConstantIndexOp>(loc, i);
-    orderSliceShape.push_back(rewriter.create<memref::LoadOp>(loc,
-      tmpShapeBuffer, ValueRange{idx}));
+    orderSliceShape.push_back(
+        rewriter.create<memref::LoadOp>(loc, tmpShapeBuffer, ValueRange{idx}));
   }
 
   rewriter.create<memref::DeallocOp>(loc, tmpStrideBuffer);
   rewriter.create<memref::DeallocOp>(loc, tmpShapeBuffer);
 }
 
-
 void GetTransByOrder(OpBuilder &rewriter, Location loc,
-              SmallVector<Value, 4> &order, SmallVector<Value, 4> &transOrder) {
+                     SmallVector<Value, 4> &order,
+                     SmallVector<Value, 4> &transOrder) {
   unsigned rank = order.size();
 
   auto elementTyI32 = rewriter.getI32Type();
@@ -1315,61 +1320,64 @@ void GetTransByOrder(OpBuilder &rewriter, Location loc,
       loc, MemRefType::get(rank, elementTyI32));
   for (unsigned i = 0; i < rank; ++i) {
     auto idx = rewriter.create<arith::ConstantIndexOp>(loc, i);
-    rewriter.create<memref::StoreOp>(loc,
-      rewriter.create<arith::ConstantIntOp>(loc, i, rewriter.getI32Type()),
-      tmpTransOrderBuffer, ValueRange{idx});
+    rewriter.create<memref::StoreOp>(
+        loc,
+        rewriter.create<arith::ConstantIntOp>(loc, i, rewriter.getI32Type()),
+        tmpTransOrderBuffer, ValueRange{idx});
     rewriter.create<memref::StoreOp>(loc, order[i], tmpOrderBuffer,
-                                    ValueRange{idx});
+                                     ValueRange{idx});
   }
 
   Value zero = rewriter.create<arith::ConstantIndexOp>(loc, 0);
   Value cEnd = rewriter.create<arith::ConstantIndexOp>(loc, rank - 1);
   Value cStep = rewriter.create<arith::ConstantIndexOp>(loc, 1);
-  scf::buildLoopNest(rewriter, loc, zero, cEnd, cStep,
-    [&](OpBuilder &outerBuilder, Location outerLoc, ValueRange ivsOuter) {
-      Value i = ivsOuter[0];
-      Value cInnerEnd = outerBuilder.create<arith::SubIOp>(
-        outerLoc, cEnd, i);
-      scf::buildLoopNest(outerBuilder, outerLoc, zero, cInnerEnd, cStep,
-        [&](OpBuilder &innerBuilder, Location innerLoc,
-          ValueRange ivsInner) {
-            Value j = ivsInner[0];
-            Value jNext = innerBuilder.create<arith::AddIOp>(
-                innerLoc, j, cStep);
+  scf::buildLoopNest(
+      rewriter, loc, zero, cEnd, cStep,
+      [&](OpBuilder &outerBuilder, Location outerLoc, ValueRange ivsOuter) {
+        Value i = ivsOuter[0];
+        Value cInnerEnd = outerBuilder.create<arith::SubIOp>(outerLoc, cEnd, i);
+        scf::buildLoopNest(
+            outerBuilder, outerLoc, zero, cInnerEnd, cStep,
+            [&](OpBuilder &innerBuilder, Location innerLoc,
+                ValueRange ivsInner) {
+              Value j = ivsInner[0];
+              Value jNext =
+                  innerBuilder.create<arith::AddIOp>(innerLoc, j, cStep);
 
-            Value vOrderJ = innerBuilder.create<memref::LoadOp>(
-                innerLoc, tmpOrderBuffer, j);
-            Value vOrderJNext = innerBuilder.create<memref::LoadOp>(
-                innerLoc, tmpOrderBuffer, jNext);
-            Value vTransJ = innerBuilder.create<memref::LoadOp>(
-                innerLoc, tmpTransOrderBuffer, j);
-            Value vTransJNext = innerBuilder.create<memref::LoadOp>(
-                innerLoc, tmpTransOrderBuffer, jNext);
+              Value vOrderJ = innerBuilder.create<memref::LoadOp>(
+                  innerLoc, tmpOrderBuffer, j);
+              Value vOrderJNext = innerBuilder.create<memref::LoadOp>(
+                  innerLoc, tmpOrderBuffer, jNext);
+              Value vTransJ = innerBuilder.create<memref::LoadOp>(
+                  innerLoc, tmpTransOrderBuffer, j);
+              Value vTransJNext = innerBuilder.create<memref::LoadOp>(
+                  innerLoc, tmpTransOrderBuffer, jNext);
 
-            Value cmp = innerBuilder.create<arith::CmpIOp>(innerLoc,
-            arith::CmpIPredicate::sgt, vOrderJ, vOrderJNext);
-            innerBuilder.create<scf::IfOp>(innerLoc, cmp,
-              [&](OpBuilder &thenBuilder, Location thenLoc) {
-                thenBuilder.create<memref::StoreOp>(thenLoc,
-                    vOrderJNext, tmpOrderBuffer, j);
-                thenBuilder.create<memref::StoreOp>(thenLoc,
-                    vOrderJ, tmpOrderBuffer, jNext);
-                thenBuilder.create<memref::StoreOp>(thenLoc,
-                    vTransJNext, tmpTransOrderBuffer, j);
-                thenBuilder.create<memref::StoreOp>(thenLoc,
-                    vTransJ, tmpTransOrderBuffer, jNext);
-                thenBuilder.create<scf::YieldOp>(thenLoc);
-              },
-              [&](OpBuilder &elseBuilder, Location elseLoc) {
-                elseBuilder.create<scf::YieldOp>(elseLoc);
-              });
-          });
-    });
+              Value cmp = innerBuilder.create<arith::CmpIOp>(
+                  innerLoc, arith::CmpIPredicate::sgt, vOrderJ, vOrderJNext);
+              innerBuilder.create<scf::IfOp>(
+                  innerLoc, cmp,
+                  [&](OpBuilder &thenBuilder, Location thenLoc) {
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vOrderJNext,
+                                                        tmpOrderBuffer, j);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vOrderJ,
+                                                        tmpOrderBuffer, jNext);
+                    thenBuilder.create<memref::StoreOp>(thenLoc, vTransJNext,
+                                                        tmpTransOrderBuffer, j);
+                    thenBuilder.create<memref::StoreOp>(
+                        thenLoc, vTransJ, tmpTransOrderBuffer, jNext);
+                    thenBuilder.create<scf::YieldOp>(thenLoc);
+                  },
+                  [&](OpBuilder &elseBuilder, Location elseLoc) {
+                    elseBuilder.create<scf::YieldOp>(elseLoc);
+                  });
+            });
+      });
 
   for (unsigned i = 0; i < rank; ++i) {
     auto idx = rewriter.create<arith::ConstantIndexOp>(loc, i);
-    transOrder.push_back(rewriter.create<memref::LoadOp>(loc,
-      tmpTransOrderBuffer, ValueRange{idx}));
+    transOrder.push_back(rewriter.create<memref::LoadOp>(
+        loc, tmpTransOrderBuffer, ValueRange{idx}));
   }
 
   rewriter.create<memref::DeallocOp>(loc, tmpOrderBuffer);
@@ -1557,8 +1565,8 @@ Value ConfigGcuLoad(OpBuilder &rewriter, Location loc, Value srcOut,
                                loc, rewriter.getI32Type(), zero));
       vSrcOffsets.insert(vSrcOffsets.begin() + updateDim, zero);
       vTempOrder.insert(vTempOrder.begin() + updateDim,
-                         rewriter.create<arith::ConstantIntOp>(
-                             loc, updateDim, rewriter.getI32Type()));
+                        rewriter.create<arith::ConstantIntOp>(
+                            loc, updateDim, rewriter.getI32Type()));
     }
     GetTransByOrder(rewriter, loc, vTempOrder, vTransOrder);
   } else {
@@ -1609,8 +1617,8 @@ Value ConfigGcuLoad(OpBuilder &rewriter, Location loc, Value srcOut,
         rewriter.create<arith::SubIOp>(loc, vResultShapes[i], vSlicehape[i]);
     padSize = rewriter.create<arith::AddIOp>(loc, padSize, dim_diff);
     padSizes.push_back(dim_diff);
-    padOffsets.push_back(rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getI32Type(), zero));
+    padOffsets.push_back(
+        rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), zero));
   }
 
   auto isNeedPad = rewriter.create<arith::CmpIOp>(
@@ -1651,9 +1659,9 @@ Value ConfigGcuLoad(OpBuilder &rewriter, Location loc, Value srcOut,
                 defaultValue, tagDte, ValueRange{tagIdx});
             builder.create<memref::DmaWaitOp>(loc, tagDte, ValueRange{tagIdx},
                                               totalSize);
-            doSlicePadOrMemsetSlice(builder, loc, op, reshapeOut,
-                                    trans_buffer, padOffsets, vIntSlicehape,
-                                    padSizes, defaultValue, tagDte, tagIdx);
+            doSlicePadOrMemsetSlice(builder, loc, op, reshapeOut, trans_buffer,
+                                    padOffsets, vIntSlicehape, padSizes,
+                                    defaultValue, tagDte, tagIdx);
             builder.create<scf::YieldOp>(loc);
           },
           [&](OpBuilder &builder, Location loc) {
@@ -1701,9 +1709,9 @@ Value ConfigGcuLoad(OpBuilder &rewriter, Location loc, Value srcOut,
                 defaultValue, tagDte, ValueRange{tagIdx});
             builder.create<memref::DmaWaitOp>(loc, tagDte, ValueRange{tagIdx},
                                               totalSize);
-            doSlicePadOrMemsetSlice(builder, loc, op, reshapeOut,
-                                    trans_buffer, padOffsets, vIntSlicehape,
-                                    padSizes, defaultValue, tagDte, tagIdx);
+            doSlicePadOrMemsetSlice(builder, loc, op, reshapeOut, trans_buffer,
+                                    padOffsets, vIntSlicehape, padSizes,
+                                    defaultValue, tagDte, tagIdx);
             builder.create<scf::YieldOp>(loc);
           },
           [&](OpBuilder &builder, Location loc) {
@@ -1718,23 +1726,23 @@ Value ConfigGcuLoad(OpBuilder &rewriter, Location loc, Value srcOut,
           });
     } else {
       rewriter.create<scf::IfOp>(
-        loc, isPad,
-        [&](OpBuilder &builder, Location loc) {
-          doSlicePadOrMemsetSlice(builder, loc, op, reshapeOut,
-                                  src, vOrderOffsets, vIntSlicehape, padSizes,
-                                  defaultValue, tagDte, tagIdx);
-          builder.create<scf::YieldOp>(loc);
-        },
-        [&](OpBuilder &builder, Location loc) {
-          builder.create<scf::IfOp>(
-            loc, isThread0, [&](OpBuilder &childBuilder, Location loc) {
-              childBuilder.create<memref_ext::SliceStartOp>(
-                  loc, reshapeOut, src, vOrderOffsets, defaultValue, tagDte,
-                  ValueRange{tagIdx});
-              childBuilder.create<scf::YieldOp>(loc);
+          loc, isPad,
+          [&](OpBuilder &builder, Location loc) {
+            doSlicePadOrMemsetSlice(builder, loc, op, reshapeOut, src,
+                                    vOrderOffsets, vIntSlicehape, padSizes,
+                                    defaultValue, tagDte, tagIdx);
+            builder.create<scf::YieldOp>(loc);
+          },
+          [&](OpBuilder &builder, Location loc) {
+            builder.create<scf::IfOp>(
+                loc, isThread0, [&](OpBuilder &childBuilder, Location loc) {
+                  childBuilder.create<memref_ext::SliceStartOp>(
+                      loc, reshapeOut, src, vOrderOffsets, defaultValue, tagDte,
+                      ValueRange{tagIdx});
+                  childBuilder.create<scf::YieldOp>(loc);
+                });
+            builder.create<scf::YieldOp>(loc);
           });
-          builder.create<scf::YieldOp>(loc);
-        });
     }
   } else {
     auto isNotZero = rewriter.create<arith::CmpIOp>(
@@ -1867,404 +1875,411 @@ Value ConfigGcuLoad(OpBuilder &rewriter, Location loc, Value srcOut,
 }
 
 Value ConfigGcuStore(OpBuilder &rewriter, Location loc, Value storeValue,
-      Value transOut, mlir::Operation *op, MemRefType storeValueType,
-      Value storePtr, mlir::ValueRange configStrides,
-      mlir::ValueRange configShapes, Value tagDte, Value tagIdx) {
-    auto storeOp = dyn_cast<triton::gcu::StoreOp>(op);
-    assert(storeOp);
+                     Value transOut, mlir::Operation *op,
+                     MemRefType storeValueType, Value storePtr,
+                     mlir::ValueRange configStrides,
+                     mlir::ValueRange configShapes, Value tagDte,
+                     Value tagIdx) {
+  auto storeOp = dyn_cast<triton::gcu::StoreOp>(op);
+  assert(storeOp);
 
-    auto storeType = storeOp.getValue().getType();
-    auto elemType = storeOp.getPtr().getType().getElementType();
-    auto buffer = rewriter.create<gcu::PtrToMemRefOp>(
-        loc, MemRefType::get(ArrayRef<int64_t>{ShapedType::kDynamic}, elemType),
-        storePtr);
+  auto storeType = storeOp.getValue().getType();
+  auto elemType = storeOp.getPtr().getType().getElementType();
+  auto buffer = rewriter.create<gcu::PtrToMemRefOp>(
+      loc, MemRefType::get(ArrayRef<int64_t>{ShapedType::kDynamic}, elemType),
+      storePtr);
 
-    int64_t rank = storeValueType.getRank();
-    auto zero = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-    auto one = rewriter.create<arith::ConstantIndexOp>(loc, 1);
-    auto zero32 =
-        rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), zero);
+  int64_t rank = storeValueType.getRank();
+  auto zero = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+  auto one = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+  auto zero32 =
+      rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), zero);
 
-    bool bDynamicStride = false;
-    bool bStaticTranspose = false;
-    bool bReshape = true;
-    SmallVector<unsigned> updateStrideDims;
-    SmallVector<unsigned> nInitStrideDims;
-    auto hint = storeOp.getOrderHint();
-    int64_t hint_size = static_cast<int64_t>(hint.size());
-    assert(hint_size == rank || hint_size == 0);
-    SmallVector<int32_t> order_hint;
-    for (unsigned i = 0; i < rank; ++i)
-      if ( hint_size == 0)
-        order_hint.push_back(-1);
-      else
-        order_hint.push_back(hint[i]);
+  bool bDynamicStride = false;
+  bool bStaticTranspose = false;
+  bool bReshape = true;
+  SmallVector<unsigned> updateStrideDims;
+  SmallVector<unsigned> nInitStrideDims;
+  auto hint = storeOp.getOrderHint();
+  int64_t hint_size = static_cast<int64_t>(hint.size());
+  assert(hint_size == rank || hint_size == 0);
+  SmallVector<int32_t> order_hint;
+  for (unsigned i = 0; i < rank; ++i)
+    if (hint_size == 0)
+      order_hint.push_back(-1);
+    else
+      order_hint.push_back(hint[i]);
 
-    for (unsigned i = 0; i < rank; ++i) {
-      if (order_hint[i] == -1) {
-        bDynamicStride = true;
-        auto trueCondition = rewriter.create<arith::CmpIOp>(
-              loc, arith::CmpIPredicate::ne, configStrides[i], zero);
-        rewriter.create<triton::gcu::AssertOp>(
-            loc, trueCondition, "Not Support dynamic stride is 0", "", "", 0);
-      }
+  for (unsigned i = 0; i < rank; ++i) {
+    if (order_hint[i] == -1) {
+      bDynamicStride = true;
+      auto trueCondition = rewriter.create<arith::CmpIOp>(
+          loc, arith::CmpIPredicate::ne, configStrides[i], zero);
+      rewriter.create<triton::gcu::AssertOp>(
+          loc, trueCondition, "Not Support dynamic stride is 0", "", "", 0);
+    }
+  }
+
+  for (int i = 0; i < rank; ++i) {
+    if ((order_hint[i] == 0 && !bDynamicStride) ||
+        (order_hint[i] == 1 && bDynamicStride)) {
+      bReshape = false;
+      break;
+    }
+  }
+
+  for (int i = 0; i < rank; ++i) {
+    if (bDynamicStride && order_hint[i] == 0)
+      updateStrideDims.push_back(i);
+    else
+      nInitStrideDims.push_back(i);
+  }
+
+  SmallVector<Value, 4> vSrcOffsets;
+  auto numElems = triton::gcu::getElemsPerThread(storeType);
+  SmallVector<Value, 4> vNumElems;
+  for (unsigned i = 0; i < rank; ++i)
+    vNumElems.push_back(
+        rewriter.create<arith::ConstantIndexOp>(loc, numElems[i]));
+  auto warpIds = getWarpIds(rewriter, loc, storeType);
+  for (auto dim : nInitStrideDims) {
+    Value offset =
+        rewriter.create<arith::MulIOp>(loc, warpIds[dim], vNumElems[dim]);
+    vSrcOffsets.push_back(offset);
+  }
+
+  SmallVector<Value, 4> vSrcStrides;
+  SmallVector<Value, 4> vSrcShapes;
+  for (auto dim : nInitStrideDims) {
+    vSrcStrides.push_back(configStrides[dim]);
+    vSrcShapes.push_back(configShapes[dim]);
+  }
+
+  SmallVector<Value, 4> vStoreShapes;
+  SmallVector<int64_t, 4> storeShapes;
+  for (unsigned i = 0; i < rank; ++i) {
+    storeShapes.push_back(storeValueType.getShape()[i]);
+    vStoreShapes.push_back(
+        rewriter.create<arith::ConstantIndexOp>(loc, storeShapes[i]));
+  }
+
+  Value reshapeStoreValue = storeValue;
+  if (bReshape) {
+    assert(rank < 4 && "not support stride is no 1 for rank >=4");
+    vSrcOffsets.push_back(zero);
+    vSrcShapes.push_back(one);
+    vSrcStrides.push_back(one);
+    storeShapes.push_back(1);
+    vStoreShapes.push_back(one);
+    vNumElems.push_back(one);
+    if (bDynamicStride) {
+      order_hint.push_back(1);
+      nInitStrideDims.push_back(rank);
+    } else {
+      for (int i = 0; i < rank; ++i)
+        order_hint[i]--;
+      order_hint.push_back(rank);
+    }
+    rank += 1;
+    auto reshapeStoreType = MemRefType::get(storeShapes, elemType);
+    auto [reshapeStrides, reshapeOffset] =
+        reshapeStoreType.getStridesAndOffset();
+    reshapeStoreValue = rewriter.create<memref::ReinterpretCastOp>(
+        loc, reshapeStoreType, storeValue, reshapeOffset, storeShapes,
+        reshapeStrides);
+  }
+
+  if (rank == 2 && bDynamicStride) {
+    if (order_hint[1] == 1) {
+      order_hint[0] = 0;
+      order_hint[1] = 1;
+      bDynamicStride = false;
+    } else if (order_hint[0] == 1) {
+      order_hint[0] = 1;
+      order_hint[1] = 0;
+      bDynamicStride = false;
+    }
+  }
+
+  SmallVector<Value, 4> vOrderStrides;
+  SmallVector<Value, 4> vOrderShapes;
+  SmallVector<Value, 4> vOrderOffsets;
+  SmallVector<Value, 4> vTransOrder;
+  SmallVector<Value, 4> vTempOrder;
+  if (bDynamicStride) {
+    GetOrderValueByStride(rewriter, loc, nInitStrideDims, vSrcStrides,
+                          vSrcShapes, vSrcOffsets, vOrderStrides, vOrderShapes,
+                          vOrderOffsets, vTempOrder);
+    for (auto updateDim : updateStrideDims) {
+      auto updateStride = rewriter.create<arith::MulIOp>(
+          loc, vOrderStrides[updateDim], vOrderShapes[updateDim]);
+      vOrderStrides.insert(vOrderStrides.begin() + updateDim, updateStride);
+      vSrcStrides.insert(vSrcStrides.begin() + updateDim, updateStride);
+      vOrderShapes.insert(vOrderShapes.begin() + updateDim, one);
+      vSrcShapes.insert(vSrcShapes.begin() + updateDim, one);
+      vOrderOffsets.insert(vOrderOffsets.begin() + updateDim,
+                           rewriter.create<arith::IndexCastOp>(
+                               loc, rewriter.getI32Type(), zero));
+      vSrcOffsets.insert(vSrcOffsets.begin() + updateDim, zero);
+      vTempOrder.insert(vTempOrder.begin() + updateDim,
+                        rewriter.create<arith::ConstantIntOp>(
+                            loc, updateDim, rewriter.getI32Type()));
+    }
+    GetTransByOrder(rewriter, loc, vTempOrder, vTransOrder);
+  } else {
+    SmallVector<int32_t, 4> static_order(order_hint.begin(), order_hint.end());
+    for (int i = 0; i < rank; ++i) {
+      vOrderStrides.push_back(vSrcStrides[static_order[i]]);
+      vOrderOffsets.push_back(rewriter.create<arith::IndexCastOp>(
+          loc, rewriter.getI32Type(), vSrcOffsets[static_order[i]]));
+      vTransOrder.push_back(rewriter.create<arith::ConstantIntOp>(
+          loc, static_order[i], rewriter.getI32Type()));
+    }
+    if (static_order.size() > 0)
+      vOrderShapes.push_back(vSrcShapes[static_order[0]]);
+    for (int i = 0; i < rank - 1; ++i) {
+      vOrderShapes.push_back(rewriter.create<arith::DivSIOp>(
+          loc, vOrderStrides[i], vOrderStrides[i + 1]));
     }
 
     for (int i = 0; i < rank; ++i) {
-      if ((order_hint[i] == 0 && !bDynamicStride) ||
-          (order_hint[i] == 1 && bDynamicStride)) {
-        bReshape = false;
+      if (static_order[i] != i) {
+        bStaticTranspose = true;
         break;
       }
     }
+  }
 
+  SmallVector<Value, 4> vSlicehape;
+  SmallVector<Value, 4> vIntSlicehape;
+  Value totalSize = one;
+  for (unsigned i = 0; i < rank; ++i) {
+    auto shape = rewriter.create<arith::MinSIOp>(
+        loc, vNumElems[i],
+        rewriter.create<arith::MaxSIOp>(
+            loc, zero,
+            rewriter.create<arith::SubIOp>(loc, vSrcShapes[i],
+                                           vSrcOffsets[i])));
+    vSlicehape.push_back(shape);
+    vIntSlicehape.push_back(
+        rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), shape));
+    totalSize = rewriter.create<arith::MulIOp>(loc, totalSize, shape);
+  }
+
+  SmallVector<Value, 4> vOrderSlicehape;
+  if (bDynamicStride) {
+    GetOrderSlicefor30(rewriter, loc, rank, vSrcStrides, vSlicehape,
+                       vOrderSlicehape);
+  } else {
     for (int i = 0; i < rank; ++i) {
-      if (bDynamicStride && order_hint[i] == 0)
-        updateStrideDims.push_back(i);
-      else
-        nInitStrideDims.push_back(i);
-    }
-
-    SmallVector<Value, 4> vSrcOffsets;
-    auto numElems = triton::gcu::getElemsPerThread(storeType);
-    SmallVector<Value, 4> vNumElems;
-    for (unsigned i = 0; i < rank; ++i)
-      vNumElems.push_back(
-        rewriter.create<arith::ConstantIndexOp>(loc, numElems[i]));
-    auto warpIds = getWarpIds(rewriter, loc, storeType);
-    for (auto dim : nInitStrideDims) {
-      Value offset = rewriter.create<arith::MulIOp>(loc,
-        warpIds[dim], vNumElems[dim]);
-      vSrcOffsets.push_back(offset);
-    }
-
-    SmallVector<Value, 4> vSrcStrides;
-    SmallVector<Value, 4> vSrcShapes;
-    for (auto dim : nInitStrideDims) {
-      vSrcStrides.push_back(configStrides[dim]);
-      vSrcShapes.push_back(configShapes[dim]);
-    }
-
-    SmallVector<Value, 4> vStoreShapes;
-    SmallVector<int64_t, 4> storeShapes;
-    for (unsigned i = 0; i < rank; ++i) {
-      storeShapes.push_back(storeValueType.getShape()[i]);
-      vStoreShapes.push_back(rewriter.create<arith::ConstantIndexOp>(
-                             loc, storeShapes[i]));
-    }
-
-    Value reshapeStoreValue = storeValue;
-    if (bReshape) {
-      assert(rank < 4 && "not support stride is no 1 for rank >=4");
-      vSrcOffsets.push_back(zero);
-      vSrcShapes.push_back(one);
-      vSrcStrides.push_back(one);
-      storeShapes.push_back(1);
-      vStoreShapes.push_back(one);
-      vNumElems.push_back(one);
-      if (bDynamicStride) {
-        order_hint.push_back(1);
-        nInitStrideDims.push_back(rank);
-      } else {
-        for (int i = 0; i < rank; ++i)
-          order_hint[i]--;
-        order_hint.push_back(rank);
-      }
-      rank += 1;
-      auto reshapeStoreType = MemRefType::get(storeShapes, elemType);
-      auto [reshapeStrides, reshapeOffset] =
-                reshapeStoreType.getStridesAndOffset();
-      reshapeStoreValue = rewriter.create<memref::ReinterpretCastOp>(loc,
-        reshapeStoreType, storeValue, reshapeOffset, storeShapes,
-        reshapeStrides);
-    }
-
-    if (rank == 2 && bDynamicStride) {
-      if (order_hint[1] == 1) {
-        order_hint[0] = 0;
-        order_hint[1] = 1;
-        bDynamicStride = false;
-      } else if (order_hint[0] == 1) {
-        order_hint[0] = 1;
-        order_hint[1] = 0;
-        bDynamicStride = false;
-      }
-    }
-
-    SmallVector<Value, 4> vOrderStrides;
-    SmallVector<Value, 4> vOrderShapes;
-    SmallVector<Value, 4> vOrderOffsets;
-    SmallVector<Value, 4> vTransOrder;
-    SmallVector<Value, 4> vTempOrder;
-    if (bDynamicStride) {
-      GetOrderValueByStride(rewriter, loc, nInitStrideDims, vSrcStrides,
-      vSrcShapes, vSrcOffsets, vOrderStrides, vOrderShapes, vOrderOffsets,
-      vTempOrder);
-      for (auto updateDim : updateStrideDims) {
-        auto updateStride = rewriter.create<arith::MulIOp>(loc,
-          vOrderStrides[updateDim], vOrderShapes[updateDim]);
-        vOrderStrides.insert(vOrderStrides.begin() + updateDim, updateStride);
-        vSrcStrides.insert(vSrcStrides.begin() + updateDim, updateStride);
-        vOrderShapes.insert(vOrderShapes.begin() + updateDim, one);
-        vSrcShapes.insert(vSrcShapes.begin() + updateDim, one);
-        vOrderOffsets.insert(vOrderOffsets.begin() + updateDim,
-          rewriter.create<arith::IndexCastOp>(loc,
-          rewriter.getI32Type(), zero));
-        vSrcOffsets.insert(vSrcOffsets.begin() + updateDim, zero);
-        vTempOrder.insert(vTempOrder.begin() + updateDim,
-          rewriter.create<arith::ConstantIntOp>(loc, updateDim,
-                                                rewriter.getI32Type()));
-      }
-      GetTransByOrder(rewriter, loc, vTempOrder, vTransOrder);
-    } else {
       SmallVector<int32_t, 4> static_order(order_hint.begin(),
                                            order_hint.end());
-      for (int i = 0; i < rank; ++i) {
-        vOrderStrides.push_back(vSrcStrides[static_order[i]]);
-        vOrderOffsets.push_back(rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getI32Type(), vSrcOffsets[static_order[i]]));
-        vTransOrder.push_back(rewriter.create<arith::ConstantIntOp>(
-          loc, static_order[i], rewriter.getI32Type()));
-      }
-      if (static_order.size() > 0)
-        vOrderShapes.push_back(vSrcShapes[static_order[0]]);
-      for (int i = 0; i < rank - 1; ++i) {
-        vOrderShapes.push_back(rewriter.create<arith::DivSIOp>(
-            loc, vOrderStrides[i], vOrderStrides[i+1]));
-      }
-
-      for (int i = 0; i < rank; ++i) {
-        if (static_order[i] != i) {
-          bStaticTranspose = true;
-          break;
-        }
-      }
+      vOrderSlicehape.push_back(vSlicehape[static_order[i]]);
     }
+  }
 
-    SmallVector<Value, 4> vSlicehape;
-    SmallVector<Value, 4> vIntSlicehape;
-    Value totalSize = one;
-    for (unsigned i = 0; i < rank; ++i) {
-      auto shape = rewriter.create<arith::MinSIOp>(
-            loc, vNumElems[i],
-            rewriter.create<arith::MaxSIOp>(
-                loc, zero,
-                rewriter.create<arith::SubIOp>(
-                    loc, vSrcShapes[i], vSrcOffsets[i])));
-      vSlicehape.push_back(shape);
-      vIntSlicehape.push_back(rewriter.create<arith::IndexCastOp>(
-            loc, rewriter.getI32Type(), shape));
-      totalSize = rewriter.create<arith::MulIOp>(loc, totalSize, shape);
-    }
+  SmallVector<Value, 4> sliceOffsets(rank, zero32);
+  Value diff = zero;
+  for (unsigned i = 0; i < rank; ++i) {
+    auto dim_diff =
+        rewriter.create<arith::SubIOp>(loc, vStoreShapes[i], vSlicehape[i]);
+    diff = rewriter.create<arith::AddIOp>(loc, diff, dim_diff);
+  }
 
-    SmallVector<Value, 4> vOrderSlicehape;
-    if (bDynamicStride) {
-      GetOrderSlicefor30(rewriter, loc, rank, vSrcStrides,
-                        vSlicehape, vOrderSlicehape);
-    } else {
-      for (int i = 0; i < rank; ++i) {
-        SmallVector<int32_t, 4> static_order(order_hint.begin(),
-                                             order_hint.end());
-        vOrderSlicehape.push_back(vSlicehape[static_order[i]]);
-      }
-    }
-
-    SmallVector<Value, 4> sliceOffsets(rank, zero32);
-    Value diff = zero;
-    for (unsigned i = 0; i < rank; ++i) {
-      auto dim_diff = rewriter.create<arith::SubIOp>(loc,
-                                            vStoreShapes[i], vSlicehape[i]);
-      diff = rewriter.create<arith::AddIOp>(loc, diff, dim_diff);
-    }
-
-    auto resultType = MemRefType::get(
+  auto resultType = MemRefType::get(
       SmallVector<int64_t>(rank, ShapedType::kDynamic), elemType);
-    auto dst = rewriter.create<memref::ReinterpretCastOp>(
-        loc, resultType, buffer, zero, vOrderShapes, vOrderStrides);
+  auto dst = rewriter.create<memref::ReinterpretCastOp>(
+      loc, resultType, buffer, zero, vOrderShapes, vOrderStrides);
 
-    auto isNeedSlice = rewriter.create<arith::CmpIOp>(
-        loc, arith::CmpIPredicate::sgt, diff, zero);
+  auto isNeedSlice = rewriter.create<arith::CmpIOp>(
+      loc, arith::CmpIPredicate::sgt, diff, zero);
 
-    auto isNotZero = rewriter.create<arith::CmpIOp>(
-        loc, arith::CmpIPredicate::ne, totalSize, zero);
+  auto isNotZero = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::ne,
+                                                  totalSize, zero);
 
-    Value isDynamicTrans = rewriter.create<arith::CmpIOp>(
-        loc, arith::CmpIPredicate::ne, vTransOrder[0],
-        rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), zero));
-    for (unsigned i = 1; i < rank; ++i) {
-      auto isDimTrans = rewriter.create<arith::CmpIOp>(
+  Value isDynamicTrans = rewriter.create<arith::CmpIOp>(
+      loc, arith::CmpIPredicate::ne, vTransOrder[0],
+      rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), zero));
+  for (unsigned i = 1; i < rank; ++i) {
+    auto isDimTrans = rewriter.create<arith::CmpIOp>(
         loc, arith::CmpIPredicate::ne, vTransOrder[i],
         rewriter.create<arith::ConstantIntOp>(loc, i, rewriter.getI32Type()));
-      isDynamicTrans = rewriter.create<arith::OrIOp>(loc,
-        isDynamicTrans, isDimTrans);
-    }
+    isDynamicTrans =
+        rewriter.create<arith::OrIOp>(loc, isDynamicTrans, isDimTrans);
+  }
 
-    if (bDynamicStride) {
-      auto isTrans =
-          rewriter.create<arith::AndIOp>(loc, isDynamicTrans, isNotZero);
-      auto isSlice =
-          rewriter.create<arith::AndIOp>(loc, isNeedSlice, isNotZero);
-      auto isAll = rewriter.create<arith::AndIOp>(loc, isSlice, isTrans);
-      rewriter.create<scf::IfOp>(loc, isAll,
+  if (bDynamicStride) {
+    auto isTrans =
+        rewriter.create<arith::AndIOp>(loc, isDynamicTrans, isNotZero);
+    auto isSlice = rewriter.create<arith::AndIOp>(loc, isNeedSlice, isNotZero);
+    auto isAll = rewriter.create<arith::AndIOp>(loc, isSlice, isTrans);
+    rewriter.create<scf::IfOp>(
+        loc, isAll,
         [&](OpBuilder &builder, Location loc) {
-          auto trans_buffer = rewriter.create<memref::ReinterpretCastOp>(loc,
-              resultType, transOut, zero, vOrderSlicehape, vOrderStrides);
+          auto trans_buffer = rewriter.create<memref::ReinterpretCastOp>(
+              loc, resultType, transOut, zero, vOrderSlicehape, vOrderStrides);
           builder.create<memref_ext::SliceTransposeStartOp>(
-            loc, trans_buffer, reshapeStoreValue, sliceOffsets, vTransOrder,
-            triton::gcu::createConstantZero(rewriter, loc, elemType),
-            tagDte, ValueRange{tagIdx});
+              loc, trans_buffer, reshapeStoreValue, sliceOffsets, vTransOrder,
+              triton::gcu::createConstantZero(rewriter, loc, elemType), tagDte,
+              ValueRange{tagIdx});
           builder.create<memref::DmaWaitOp>(loc, tagDte, ValueRange{tagIdx},
                                             totalSize);
-          builder.create<memref_ext::DesliceStartOp>(
-            loc, dst, trans_buffer, vOrderOffsets, tagDte, ValueRange{tagIdx});
+          builder.create<memref_ext::DesliceStartOp>(loc, dst, trans_buffer,
+                                                     vOrderOffsets, tagDte,
+                                                     ValueRange{tagIdx});
           builder.create<scf::YieldOp>(loc);
         },
         [&](OpBuilder &builder, Location loc) {
-          builder.create<scf::IfOp>(loc, isTrans,
-          [&](OpBuilder &childBuilder, Location loc) {
-            childBuilder.create<memref_ext::TransposeDesliceStartOp>(
-                loc, dst, reshapeStoreValue, vTransOrder, vOrderOffsets, tagDte,
-                ValueRange{tagIdx});
-            childBuilder.create<scf::YieldOp>(loc);
-          },
-          [&](OpBuilder &childBuilder, Location loc) {
-            childBuilder.create<scf::IfOp>(loc, isSlice,
-              [&](OpBuilder &child2Builder, Location loc) {
-                child2Builder.create<memref_ext::SliceDesliceStartOp>(
-                  loc, dst, reshapeStoreValue, sliceOffsets, vIntSlicehape,
-                  vOrderOffsets, tagDte, ValueRange{tagIdx});
-                child2Builder.create<scf::YieldOp>(loc);
+          builder.create<scf::IfOp>(
+              loc, isTrans,
+              [&](OpBuilder &childBuilder, Location loc) {
+                childBuilder.create<memref_ext::TransposeDesliceStartOp>(
+                    loc, dst, reshapeStoreValue, vTransOrder, vOrderOffsets,
+                    tagDte, ValueRange{tagIdx});
+                childBuilder.create<scf::YieldOp>(loc);
               },
-              [&](OpBuilder &child2Builder, Location loc) {
-                child2Builder.create<scf::IfOp>(loc, isNotZero,
-                  [&](OpBuilder &child3Builder, Location loc) {
-                    child3Builder.create<memref_ext::DesliceStartOp>(
-                      loc, dst, reshapeStoreValue, vOrderOffsets, tagDte,
-                      ValueRange{tagIdx});
-                    child3Builder.create<scf::YieldOp>(loc);
-                  });
-                  child2Builder.create<scf::YieldOp>(loc);
+              [&](OpBuilder &childBuilder, Location loc) {
+                childBuilder.create<scf::IfOp>(
+                    loc, isSlice,
+                    [&](OpBuilder &child2Builder, Location loc) {
+                      child2Builder.create<memref_ext::SliceDesliceStartOp>(
+                          loc, dst, reshapeStoreValue, sliceOffsets,
+                          vIntSlicehape, vOrderOffsets, tagDte,
+                          ValueRange{tagIdx});
+                      child2Builder.create<scf::YieldOp>(loc);
+                    },
+                    [&](OpBuilder &child2Builder, Location loc) {
+                      child2Builder.create<scf::IfOp>(
+                          loc, isNotZero,
+                          [&](OpBuilder &child3Builder, Location loc) {
+                            child3Builder.create<memref_ext::DesliceStartOp>(
+                                loc, dst, reshapeStoreValue, vOrderOffsets,
+                                tagDte, ValueRange{tagIdx});
+                            child3Builder.create<scf::YieldOp>(loc);
+                          });
+                      child2Builder.create<scf::YieldOp>(loc);
+                    });
+                childBuilder.create<scf::YieldOp>(loc);
               });
-            childBuilder.create<scf::YieldOp>(loc);
-          });
           builder.create<scf::YieldOp>(loc);
         });
-    } else if (bStaticTranspose) {
-      auto isSlice =
-          rewriter.create<arith::AndIOp>(loc, isNeedSlice, isNotZero);
-      rewriter.create<scf::IfOp>(loc, isSlice,
+  } else if (bStaticTranspose) {
+    auto isSlice = rewriter.create<arith::AndIOp>(loc, isNeedSlice, isNotZero);
+    rewriter.create<scf::IfOp>(
+        loc, isSlice,
         [&](OpBuilder &builder, Location loc) {
-          auto trans_buffer = rewriter.create<memref::ReinterpretCastOp>(loc,
-            resultType, transOut, zero, vOrderSlicehape, vOrderStrides);
+          auto trans_buffer = rewriter.create<memref::ReinterpretCastOp>(
+              loc, resultType, transOut, zero, vOrderSlicehape, vOrderStrides);
           builder.create<memref_ext::SliceTransposeStartOp>(
-            loc, trans_buffer, reshapeStoreValue, sliceOffsets, vTransOrder,
-            triton::gcu::createConstantZero(rewriter, loc, elemType),
-            tagDte, ValueRange{tagIdx});
+              loc, trans_buffer, reshapeStoreValue, sliceOffsets, vTransOrder,
+              triton::gcu::createConstantZero(rewriter, loc, elemType), tagDte,
+              ValueRange{tagIdx});
           builder.create<memref::DmaWaitOp>(loc, tagDte, ValueRange{tagIdx},
                                             totalSize);
-          builder.create<memref_ext::DesliceStartOp>(
-            loc, dst, trans_buffer, vOrderOffsets, tagDte, ValueRange{tagIdx});
+          builder.create<memref_ext::DesliceStartOp>(loc, dst, trans_buffer,
+                                                     vOrderOffsets, tagDte,
+                                                     ValueRange{tagIdx});
           builder.create<scf::YieldOp>(loc);
         },
         [&](OpBuilder &builder, Location loc) {
-          builder.create<scf::IfOp>(loc, isNotZero,
-          [&](OpBuilder &childBuilder, Location loc) {
-            childBuilder.create<memref_ext::TransposeDesliceStartOp>(
-                loc, dst, reshapeStoreValue, vTransOrder, vOrderOffsets, tagDte,
-                ValueRange{tagIdx});
-            childBuilder.create<scf::YieldOp>(loc);
-          });
+          builder.create<scf::IfOp>(
+              loc, isNotZero, [&](OpBuilder &childBuilder, Location loc) {
+                childBuilder.create<memref_ext::TransposeDesliceStartOp>(
+                    loc, dst, reshapeStoreValue, vTransOrder, vOrderOffsets,
+                    tagDte, ValueRange{tagIdx});
+                childBuilder.create<scf::YieldOp>(loc);
+              });
           builder.create<scf::YieldOp>(loc);
         });
-    } else {
-      auto isSlice =
-          rewriter.create<arith::AndIOp>(loc, isNeedSlice, isNotZero);
-      rewriter.create<scf::IfOp>(loc, isSlice,
+  } else {
+    auto isSlice = rewriter.create<arith::AndIOp>(loc, isNeedSlice, isNotZero);
+    rewriter.create<scf::IfOp>(
+        loc, isSlice,
         [&](OpBuilder &builder, Location loc) {
           builder.create<memref_ext::SliceDesliceStartOp>(
-            loc, dst, reshapeStoreValue, sliceOffsets, vIntSlicehape,
-            vOrderOffsets, tagDte, ValueRange{tagIdx});
+              loc, dst, reshapeStoreValue, sliceOffsets, vIntSlicehape,
+              vOrderOffsets, tagDte, ValueRange{tagIdx});
           builder.create<scf::YieldOp>(loc);
         },
         [&](OpBuilder &builder, Location loc) {
-          builder.create<scf::IfOp>(loc, isNotZero,
-          [&](OpBuilder &childBuilder, Location loc) {
-            childBuilder.create<memref_ext::DesliceStartOp>(
-                loc, dst, reshapeStoreValue, vOrderOffsets, tagDte,
-                ValueRange{tagIdx});
-            childBuilder.create<scf::YieldOp>(loc);
-          });
+          builder.create<scf::IfOp>(
+              loc, isNotZero, [&](OpBuilder &childBuilder, Location loc) {
+                childBuilder.create<memref_ext::DesliceStartOp>(
+                    loc, dst, reshapeStoreValue, vOrderOffsets, tagDte,
+                    ValueRange{tagIdx});
+                childBuilder.create<scf::YieldOp>(loc);
+              });
           builder.create<scf::YieldOp>(loc);
         });
-    }
+  }
   return totalSize;
 }
 
-void WaitGcuLoadStore(OpBuilder &rewriter, Location loc,
-      Value tagDte, Value tagIdx, Value totalSize) {
-   rewriter.create<memref::DmaWaitOp>(loc, tagDte,
-                                        ValueRange{tagIdx}, totalSize);
+void WaitGcuLoadStore(OpBuilder &rewriter, Location loc, Value tagDte,
+                      Value tagIdx, Value totalSize) {
+  rewriter.create<memref::DmaWaitOp>(loc, tagDte, ValueRange{tagIdx},
+                                     totalSize);
 }
 
-void moveDeallocOp(ConversionPatternRewriter& rewriter,
-                   Value v, Operation* pos, size_t depth) {
-  if (depth > 1) return;
+void moveDeallocOp(ConversionPatternRewriter &rewriter, Value v, Operation *pos,
+                   size_t depth) {
+  if (depth > 1)
+    return;
 
-  Operation* allocOp = v.getDefiningOp();
+  Operation *allocOp = v.getDefiningOp();
   if (llvm::isa<mlir::UnrealizedConversionCastOp>(allocOp)) {
-    //not define in current block;
+    // not define in current block;
     return;
   }
   unsigned operandIdx = cast<OpResult>(v).getResultNumber();
   while (allocOp && !mlir::isa<memref::AllocOp>(allocOp)) {
-    mlir::TypeSwitch<mlir::Operation*>(allocOp)
-      .Case<memref::ReinterpretCastOp,
-            memref::MemorySpaceCastOp>([&](auto castOp){
-        allocOp = castOp.getSource().getDefiningOp();
-        operandIdx = cast<OpResult>(castOp.getSource()).getResultNumber();
-      })
-      .Case<scf::ForOp>([&](auto forOp) {
-        auto yieldOp =
-            llvm::cast<scf::YieldOp>(forOp.getBody()->getTerminator());
-        Value operand = yieldOp.getOperands()[operandIdx];
-        if (rewriter.getRemappedValue(operand)) {
-          operand = rewriter.getRemappedValue(operand);
-        }
-        allocOp = operand.getDefiningOp();
-        operandIdx = cast<OpResult>(operand).getResultNumber();
-
-        Value initValue = forOp.getInitArgs()[operandIdx];
-        if (rewriter.getRemappedValue(initValue)) {
-          initValue = rewriter.getRemappedValue(initValue);
-        }
-        moveDeallocOp(rewriter, initValue, pos, ++depth);
-      })
-      .Case<scf::IfOp>([&](auto ifOp) {
-        auto thenYieldOp = ifOp.thenYield();
-        Value operand = thenYieldOp.getOperands()[operandIdx];
-        if (rewriter.getRemappedValue(operand)) {
-          operand = rewriter.getRemappedValue(operand);
-        }
-        allocOp = operand.getDefiningOp();
-        operandIdx = cast<OpResult>(operand).getResultNumber();
-
-        if (ifOp.getNumRegions() > 1) {
-          auto elseYieldOp = ifOp.elseYield();
-          operand = elseYieldOp.getOperands()[operandIdx];
+    mlir::TypeSwitch<mlir::Operation *>(allocOp)
+        .Case<memref::ReinterpretCastOp, memref::MemorySpaceCastOp>(
+            [&](auto castOp) {
+              allocOp = castOp.getSource().getDefiningOp();
+              operandIdx = cast<OpResult>(castOp.getSource()).getResultNumber();
+            })
+        .Case<scf::ForOp>([&](auto forOp) {
+          auto yieldOp =
+              llvm::cast<scf::YieldOp>(forOp.getBody()->getTerminator());
+          Value operand = yieldOp.getOperands()[operandIdx];
           if (rewriter.getRemappedValue(operand)) {
             operand = rewriter.getRemappedValue(operand);
           }
-          moveDeallocOp(rewriter, operand, pos, ++depth);
-        }
-      })
-      .Default([&](auto op) {
-        allocOp = nullptr;
-      });
-  }
-  if (!allocOp) llvm_unreachable("can't find allocation position");
+          allocOp = operand.getDefiningOp();
+          operandIdx = cast<OpResult>(operand).getResultNumber();
 
-  Operation* deallocOp = nullptr;
-  for (const auto& user : allocOp->getUsers()) {
+          Value initValue = forOp.getInitArgs()[operandIdx];
+          if (rewriter.getRemappedValue(initValue)) {
+            initValue = rewriter.getRemappedValue(initValue);
+          }
+          moveDeallocOp(rewriter, initValue, pos, ++depth);
+        })
+        .Case<scf::IfOp>([&](auto ifOp) {
+          auto thenYieldOp = ifOp.thenYield();
+          Value operand = thenYieldOp.getOperands()[operandIdx];
+          if (rewriter.getRemappedValue(operand)) {
+            operand = rewriter.getRemappedValue(operand);
+          }
+          allocOp = operand.getDefiningOp();
+          operandIdx = cast<OpResult>(operand).getResultNumber();
+
+          if (ifOp.getNumRegions() > 1) {
+            auto elseYieldOp = ifOp.elseYield();
+            operand = elseYieldOp.getOperands()[operandIdx];
+            if (rewriter.getRemappedValue(operand)) {
+              operand = rewriter.getRemappedValue(operand);
+            }
+            moveDeallocOp(rewriter, operand, pos, ++depth);
+          }
+        })
+        .Default([&](auto op) { allocOp = nullptr; });
+  }
+  if (!allocOp)
+    llvm_unreachable("can't find allocation position");
+
+  Operation *deallocOp = nullptr;
+  for (const auto &user : allocOp->getUsers()) {
     if (llvm::isa<memref::DeallocOp>(user)) {
       deallocOp = user;
       break;

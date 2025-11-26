@@ -41,7 +41,7 @@ def test_err_in_binary_operator():
 
     @triton.jit
     def kernel():
-        0 + "a" # noqa
+        0 + "a"  # noqa
 
     with pytest.raises(CompilationError) as e:
         triton.compile(triton.compiler.ASTSource(fn=kernel, signature={}, constexprs={}))
@@ -99,7 +99,7 @@ def test_err_in_binary_op():
 
     @triton.jit
     def kernel():
-        1.0 << 1 # noqa
+        1.0 << 1  # noqa
 
     with pytest.raises(CompilationError) as e:
         triton.compile(triton.compiler.ASTSource(fn=kernel, signature={}, constexprs={}))

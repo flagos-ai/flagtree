@@ -160,7 +160,8 @@ struct FuncOpConversion : public ConvertOpToLLVMPattern<triton::FuncOp> {
     // } else {
     //   // The noinline attribute will be used by the LLVM codegen to prevent
     //   // inlining.
-    //   // https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/LLVMIR/IR/LLVMInlining.cpp#L267
+    //   //
+    //   https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/LLVMIR/IR/LLVMInlining.cpp#L267
     //   newFuncOp.setPassthroughAttr(
     //       ArrayAttr::get(ctx, rewriter.getStringAttr("noinline")));
     //   newFuncOp.setLinkage(LLVM::Linkage::Internal);
@@ -168,7 +169,8 @@ struct FuncOpConversion : public ConvertOpToLLVMPattern<triton::FuncOp> {
     // // Set an attribute for reqntidx, it could be used in latter LLVM codegen
     // // for `nvvm.annotation` metadata.
     // int numWarps = triton::gpu::lookupNumWarps(funcOp);
-    // if (auto totalNumWarps = funcOp.getParentOp()->getAttrOfType<IntegerAttr>(
+    // if (auto totalNumWarps =
+    // funcOp.getParentOp()->getAttrOfType<IntegerAttr>(
     //         "ttg.total-num-warps"))
     //   numWarps = totalNumWarps.getInt();
     // newFuncOp->setAttr("nvvm.reqntid",

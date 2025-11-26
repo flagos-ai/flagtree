@@ -38,22 +38,22 @@ THE SOFTWARE.
  * An opaque value that represents a hip surface object
  */
 struct __hip_surface;
-typedef struct __hip_surface* hipSurfaceObject_t;
+typedef struct __hip_surface *hipSurfaceObject_t;
 
 /**
  * hip surface reference
  */
 struct surfaceReference {
-    hipSurfaceObject_t surfaceObject;
+  hipSurfaceObject_t surfaceObject;
 };
 
 /**
  * hip surface boundary modes
  */
 enum hipSurfaceBoundaryMode {
-    hipBoundaryModeZero = 0,
-    hipBoundaryModeTrap = 1,
-    hipBoundaryModeClamp = 2
+  hipBoundaryModeZero = 0,
+  hipBoundaryModeTrap = 1,
+  hipBoundaryModeClamp = 2
 };
 
 #if defined(__clang__)

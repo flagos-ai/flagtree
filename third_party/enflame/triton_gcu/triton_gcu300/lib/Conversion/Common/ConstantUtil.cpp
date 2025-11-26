@@ -139,6 +139,6 @@ Value createConstantInf(OpBuilder &builder, Location loc, Type elemType,
       loc, APFloat::getInf(*sem, isNegative), dyn_cast<FloatType>(elemType));
 }
 
-}  // namespace gcu
-}  // namespace triton
-}  // namespace mlir
+} // namespace gcu
+} // namespace triton
+} // namespace mlir

@@ -1,8 +1,3 @@
-
-+
-10
-−
-0
 '''
 This file is commented out for release.
 The original content is preserved below for reference.

@@ -27,7 +27,7 @@ namespace math_ext {
 LogicalResult UmulhiOp::verify() {
   if (getLhs().getType() != getRhs().getType() ||
       getLhs().getType() != getResult().getType())
-      return emitOpError() << "Lhs, Rhs and Result must be of the same type";
+    return emitOpError() << "Lhs, Rhs and Result must be of the same type";
   return success();
 }
 

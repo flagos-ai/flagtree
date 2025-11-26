@@ -49,9 +49,11 @@
 // AMD Queue Properties.
 typedef uint32_t amd_queue_properties32_t;
 enum amd_queue_properties_t {
-  AMD_HSA_BITS_CREATE_ENUM_ENTRIES(AMD_QUEUE_PROPERTIES_ENABLE_TRAP_HANDLER, 0, 1),
+  AMD_HSA_BITS_CREATE_ENUM_ENTRIES(AMD_QUEUE_PROPERTIES_ENABLE_TRAP_HANDLER, 0,
+                                   1),
   AMD_HSA_BITS_CREATE_ENUM_ENTRIES(AMD_QUEUE_PROPERTIES_IS_PTR64, 1, 1),
-  AMD_HSA_BITS_CREATE_ENUM_ENTRIES(AMD_QUEUE_PROPERTIES_ENABLE_TRAP_HANDLER_DEBUG_SGPRS, 2, 1),
+  AMD_HSA_BITS_CREATE_ENUM_ENTRIES(
+      AMD_QUEUE_PROPERTIES_ENABLE_TRAP_HANDLER_DEBUG_SGPRS, 2, 1),
   AMD_HSA_BITS_CREATE_ENUM_ENTRIES(AMD_QUEUE_PROPERTIES_ENABLE_PROFILING, 3, 1),
   AMD_HSA_BITS_CREATE_ENUM_ENTRIES(AMD_QUEUE_PROPERTIES_USE_SCRATCH_ONCE, 4, 1),
   AMD_HSA_BITS_CREATE_ENUM_ENTRIES(AMD_QUEUE_PROPERTIES_RESERVED1, 5, 27)
@@ -68,9 +70,9 @@ enum amd_queue_capabilities_t {
   AMD_HSA_BITS_CREATE_ENUM_ENTRIES(AMD_QUEUE_CAPS_ASYNC_RECLAIM, 0, 1),
 };
 
-// Members tagged with "async-reclaim" are ignored by CP FW's that do not support
-// AMD_QUEUE_CAPS_ASYNC_RECLAIM. CP FW's that support async-reclaim also support
-// dual-scratch (alternate scratch).
+// Members tagged with "async-reclaim" are ignored by CP FW's that do not
+// support AMD_QUEUE_CAPS_ASYNC_RECLAIM. CP FW's that support async-reclaim also
+// support dual-scratch (alternate scratch).
 
 typedef struct AMD_QUEUE_ALIGN amd_queue_s {
   hsa_queue_t hsa_queue;
@@ -92,7 +94,7 @@ typedef struct AMD_QUEUE_ALIGN amd_queue_s {
   uint64_t scratch_backing_memory_byte_size;
   uint32_t scratch_wave64_lane_byte_size;
   amd_queue_properties32_t queue_properties;
-  volatile uint64_t scratch_last_used_index;     /* async-reclaim */
+  volatile uint64_t scratch_last_used_index; /* async-reclaim */
   hsa_signal_t queue_inactive_signal;
   uint32_t reserved4[2];
   volatile uint64_t alt_scratch_last_used_index; /* async-reclaim */

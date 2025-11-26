@@ -33,6 +33,7 @@ import site
 from typing import Dict
 from types import ModuleType
 
+
 @functools.lru_cache()
 def _version_key():
     contents = []
@@ -57,6 +58,7 @@ def _make_so_cache_key(version_hash, signature, constants, **kwargs):
 
 # gcu kernel translation
 
+
 def _get_topscc_root():
     return os.getenv("CAPS_PATH", "/opt/tops")
 
@@ -65,12 +67,11 @@ def _kernel_to_fatbin(kernel: str, arch: int, enable_transform: bool):
     print(kernel)
     with tempfile.TemporaryDirectory() as tmpdir:
         bin = os.path.join(tmpdir, "kernel.fatbin")
-        toolkit.compile(
-            kernel, "--device-only",
-            f"--arch=gcu{arch}", f"--output={bin}",
-            "--enable-transform" if enable_transform else "")
+        toolkit.compile(kernel, "--device-only", f"--arch=gcu{arch}", f"--output={bin}",
+                        "--enable-transform" if enable_transform else "")
         with open(bin, "rb") as f:
             return f.read()
+
 
 def build_gcu_ext(name, src, srcdir, extra_objects=[], extra_libraries=[]):
 
@@ -80,23 +81,16 @@ def build_gcu_ext(name, src, srcdir, extra_objects=[], extra_libraries=[]):
 
     # fallback on setuptools
     extra_compile_args = ['-w']
-    library_dirs = [os.path.join(_get_topscc_root(), "lib"),
-                    local_lib_path]
+    library_dirs = [os.path.join(_get_topscc_root(), "lib"), local_lib_path]
     include_dirs = [os.path.join(_get_topscc_root(), "include")]
     link_args = [f"-Wl,-rpath={local_lib_path}"]
     libraries = ["topsrt"] + extra_libraries
     define_macros = []
 
     # create extension module
-    ext = Extension(name,
-                    [src],
-                    extra_objects=extra_objects,
-                    extra_compile_args=extra_compile_args,
-                    include_dirs=include_dirs,
-                    library_dirs=library_dirs,
-                    libraries=libraries,
-                    define_macros=define_macros,
-                    extra_link_args=link_args)
+    ext = Extension(name, [src], extra_objects=extra_objects, extra_compile_args=extra_compile_args,
+                    include_dirs=include_dirs, library_dirs=library_dirs, libraries=libraries,
+                    define_macros=define_macros, extra_link_args=link_args)
 
     args = ['build_ext']
     args.append('--build-temp=' + srcdir)
@@ -108,6 +102,7 @@ def build_gcu_ext(name, src, srcdir, extra_objects=[], extra_libraries=[]):
     )
     setuptools.setup(**args)
     return so
+
 
 #
 # GCU
@@ -165,12 +160,14 @@ def ty_to_cpp(ty):
         "index": "int64_t",
     }[ty]
 
+
 def _extracted_type(ty):
     if ty[0] == '*':
         return "PyObject*"
     if ty[0] in ("constexpr"):
         return "PyObject*"
     return ty_to_cpp(ty)
+
 
 def format_of(ty):
     return {
@@ -187,6 +184,7 @@ def format_of(ty):
         "uint32_t": "I",
         "uint64_t": "K",
     }[ty]
+
 
 def generate_launcher(constants, signature, arch='gcu300', no_constant_args=False):
     start_desc = len(signature)
@@ -207,7 +205,7 @@ def generate_launcher(constants, signature, arch='gcu300', no_constant_args=Fals
     # generate glue code
     launch_str = ''
     if 'gcu400' == arch or 'gcu410' == arch:
-      launch_str += f"""topsLaunchConfig_t config;
+        launch_str += f"""topsLaunchConfig_t config;
       memset(&config, 0x0, sizeof(config));
       config.gridDim = dim3(gridX, gridY, gridZ);
       config.blockDim = dim3(1, 1, 1);
@@ -222,7 +220,7 @@ def generate_launcher(constants, signature, arch='gcu300', no_constant_args=Fals
       config.stream = stream;
       TOPS_CHECK(topsModuleLaunchKernelEx(&config, function, params, NULL));"""
     else:
-      launch_str += 'TOPS_CHECK(topsModuleLaunchKernel(function, gridX, gridY, gridZ, num_warps, 1, 1, shared_memory, stream, params, 0));'
+        launch_str += 'TOPS_CHECK(topsModuleLaunchKernel(function, gridX, gridY, gridZ, num_warps, 1, 1, shared_memory, stream, params, 0));'
     src = f"""
 #include <stdbool.h>
 #include <Python.h>
@@ -395,6 +393,7 @@ def compile_module_from_src(src, name):
     spec.loader.exec_module(mod)
     return mod
 
+
 class GcuLauncher(object):
 
     def __init__(self, src, metadata):
@@ -409,11 +408,13 @@ class GcuLauncher(object):
     def __call__(self, *args, **kwargs):
         self.launch(*args, **kwargs)
 
+
 class GCUDriver(object):
+
     def __init__(self):
         self.utils = GCUUtils()
         self.get_current_stream = lambda idx: torch.gcu.current_stream(idx).gcu_stream
-        self.get_current_device = lambda : torch.device(f"{device_name}:{torch.gcu.current_device()}").index
+        self.get_current_device = lambda: torch.device(f"{device_name}:{torch.gcu.current_device()}").index
         self.launcher_cls = GcuLauncher
 
     def get_device_properties(self, device):
@@ -446,6 +447,7 @@ class GCUDriver(object):
         from triton.testing import do_bench
         return do_bench
 
+
 class GCUBackend(object):
 
     def __init__(self) -> None:
@@ -461,10 +463,11 @@ class GCUBackend(object):
     def get_architecture_descriptor(self, **kwargs):
         device = self.driver.get_current_device()
         device_properties = self.driver.get_device_properties(device)
-        capability = {"max_threads_per_block": device_properties["max_threads_per_block"],
-                      "multiprocessor_count": device_properties["multiprocessor_count"],
-                      "version": device_properties["version"],
-                      "max_shared_mem": device_properties["max_shared_mem"]}
+        capability = {
+            "max_threads_per_block": device_properties["max_threads_per_block"], "multiprocessor_count":
+            device_properties["multiprocessor_count"], "version": device_properties["version"], "max_shared_mem":
+            device_properties["max_shared_mem"]
+        }
         return capability
 
     def compile_kernel(self, name, kernel, enable_transform, signature, constants):
@@ -488,12 +491,11 @@ class GCUBackend(object):
     def get_num_processors(self):
         return self.get_architecture_descriptor()['max_threads_per_block']
 
-    def compile(self, name, kernel, enable_transform = False, signature = {}, constants = []):
+    def compile(self, name, kernel, enable_transform=False, signature={}, constants=[]):
         kernel_path = self.compile_kernel(name, kernel, enable_transform, signature, constants)
         with open(kernel_path, "rb") as binary:
             bin = binary.read()
-            m, func, _, _ = self.get_load_binary_fn()(
-                name, bin, 0, self.get_current_device())
+            m, func, _, _ = self.get_load_binary_fn()(name, bin, 0, self.get_current_device())
             assert func != 0, "cannot find kenrel function"
             launcher_path = self.make_launcher_stub(name, signature, constants, True)
             import importlib.util
@@ -524,22 +526,17 @@ class Kernel(object):
 
     def __call__(self, *args, gridX=1, gridY=1, gridZ=1, blockX=1):
         arch = driver.get_architecture_descriptor()
-        self.launcher(
-            gridX, gridY, gridZ, blockX,
-            #0, 0, 0, 0,
-            arch["max_shared_mem"],
-            driver.get_stream(), self.func,
-            None, None, None, *args)
+        self.launcher(gridX, gridY, gridZ, blockX,
+                      #0, 0, 0, 0,
+                      arch["max_shared_mem"], driver.get_stream(), self.func, None, None, None, *args)
 
     def __getitem__(self, dims):
         blockX, *gridXYZ = dims
         gridX = gridXYZ[0] if len(gridXYZ) >= 1 else 1
         gridY = gridXYZ[1] if len(gridXYZ) >= 2 else 1
         gridZ = gridXYZ[2] if len(gridXYZ) >= 3 else 1
+
         def launcher(*args):
-            self.__call__(*args,
-                          gridX=gridX, gridY=gridY, gridZ=gridZ,
-                          blockX=blockX)
+            self.__call__(*args, gridX=gridX, gridY=gridY, gridZ=gridZ, blockX=blockX)
+
         return launcher
-
-

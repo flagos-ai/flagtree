@@ -52,7 +52,8 @@ template <class _Tp, _Tp __v> struct integral_constant {
   constexpr operator value_type() const { return value; }
   constexpr value_type operator()() const { return value; }
 };
-template <class _Tp, _Tp __v> constexpr const _Tp integral_constant<_Tp, __v>::value;
+template <class _Tp, _Tp __v>
+constexpr const _Tp integral_constant<_Tp, __v>::value;
 
 typedef integral_constant<bool, true> true_type;
 typedef integral_constant<bool, false> false_type;
@@ -62,10 +63,12 @@ typedef bool_constant<true> true_type;
 typedef bool_constant<false> false_type;
 
 template <bool __B, class __T = void> struct enable_if {};
-template <class __T> struct enable_if<true, __T> { typedef __T type; };
+template <class __T> struct enable_if<true, __T> {
+  typedef __T type;
+};
 
-template<bool _B> struct true_or_false_type : public false_type {};
-template<> struct true_or_false_type<true> : public true_type {};
+template <bool _B> struct true_or_false_type : public false_type {};
+template <> struct true_or_false_type<true> : public true_type {};
 
 template <class _Tp> struct is_integral : public false_type {};
 template <> struct is_integral<bool> : public true_type {};
@@ -99,39 +102,41 @@ template <> struct is_arithmetic<unsigned long long> : public true_type {};
 template <> struct is_arithmetic<float> : public true_type {};
 template <> struct is_arithmetic<double> : public true_type {};
 
-template<typename _Tp> struct is_floating_point : public false_type {};
-template<> struct is_floating_point<float> : public true_type {};
-template<> struct is_floating_point<double> : public true_type {};
-template<> struct is_floating_point<long double> : public true_type {};
+template <typename _Tp> struct is_floating_point : public false_type {};
+template <> struct is_floating_point<float> : public true_type {};
+template <> struct is_floating_point<double> : public true_type {};
+template <> struct is_floating_point<long double> : public true_type {};
 
 template <typename __T, typename __U> struct is_same : public false_type {};
 template <typename __T> struct is_same<__T, __T> : public true_type {};
 
-template<typename _Tp, bool = is_arithmetic<_Tp>::value>
-  struct is_signed : public false_type {};
-template<typename _Tp>
-  struct is_signed<_Tp, true> : public true_or_false_type<_Tp(-1) < _Tp(0)> {};
+template <typename _Tp, bool = is_arithmetic<_Tp>::value>
+struct is_signed : public false_type {};
+template <typename _Tp>
+struct is_signed<_Tp, true> : public true_or_false_type<_Tp(-1) < _Tp(0)> {};
 
-template<typename _CharT> struct char_traits;
-template<typename _CharT, typename _Traits = char_traits<_CharT>> class basic_istream;
-template<typename _CharT, typename _Traits = char_traits<_CharT>> class basic_ostream;
+template <typename _CharT> struct char_traits;
+template <typename _CharT, typename _Traits = char_traits<_CharT>>
+class basic_istream;
+template <typename _CharT, typename _Traits = char_traits<_CharT>>
+class basic_ostream;
 typedef basic_istream<char> istream;
 typedef basic_ostream<char> ostream;
 
-template<typename _Tp>
-    struct is_standard_layout
-    : public integral_constant<bool, __is_standard_layout(_Tp)>
-    { };
+template <typename _Tp>
+struct is_standard_layout
+    : public integral_constant<bool, __is_standard_layout(_Tp)> {};
 
-template<typename _Tp>
-    struct is_trivial
-    : public integral_constant<bool, __is_trivial(_Tp)>
-    { };
+template <typename _Tp>
+struct is_trivial : public integral_constant<bool, __is_trivial(_Tp)> {};
 
-
-template <bool B, class T, class F> struct conditional { using type = T; };
-template <class T, class F> struct conditional<false, T, F> { using type = F; };
-}
+template <bool B, class T, class F> struct conditional {
+  using type = T;
+};
+template <class T, class F> struct conditional<false, T, F> {
+  using type = F;
+};
+} // namespace __hip_internal
 typedef __hip_internal::uint8_t __hip_uint8_t;
 typedef __hip_internal::uint16_t __hip_uint16_t;
 typedef __hip_internal::uint32_t __hip_uint32_t;
@@ -156,7 +161,9 @@ typedef __hip_internal::int64_t __hip_int64_t;
 #define __forceinline__ inline __attribute__((always_inline))
 
 #if __HIP_NO_IMAGE_SUPPORT
-#define __hip_img_chk__ __attribute__((unavailable("The image/texture API not supported on the device")))
+#define __hip_img_chk__                                                        \
+  __attribute__((                                                              \
+      unavailable("The image/texture API not supported on the device")))
 #else
 #define __hip_img_chk__
 #endif

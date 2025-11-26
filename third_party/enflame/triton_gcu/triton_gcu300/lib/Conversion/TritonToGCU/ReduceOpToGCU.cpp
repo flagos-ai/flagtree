@@ -386,9 +386,9 @@ struct TTReduceOpLowering : SharedConversionPattern<triton::ReduceOp> {
                         loc, builder.getI32Type(), warpIds[i])));
               }
             }
-            auto output = syncAllocOp(builder, loc, op.getOperation(),
-                                      userAnalysis, replaced2Origin,
-                                      outputType);
+            auto output =
+                syncAllocOp(builder, loc, op.getOperation(), userAnalysis,
+                            replaced2Origin, outputType);
             auto defaultValue = triton::gcu::createConstantZero(
                 builder, loc, srcType.getElementType());
             if (srcType.getRank() > 5) {
@@ -1728,7 +1728,7 @@ private:
     return values;
   }
 };
-}  // namespace
+} // namespace
 
 void mlir::triton::populateReduceOpToGCUPatterns(
     const TypeConverter &converter, RewritePatternSet &patterns,

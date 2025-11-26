@@ -6,6 +6,7 @@ if importlib.util.find_spec("triton.backends.enflame") is None:
     import triton_gcu.triton
 import torch_gcu
 
+
 def test_is_lazy():
     from importlib import reload
     reload(sys.modules["triton.runtime.driver"])

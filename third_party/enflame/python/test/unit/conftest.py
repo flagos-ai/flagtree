@@ -3,6 +3,7 @@ import os
 import pytest
 import tempfile
 
+
 def pytest_addoption(parser):
     parser.addoption("--device", action="store", default='gcu')
 

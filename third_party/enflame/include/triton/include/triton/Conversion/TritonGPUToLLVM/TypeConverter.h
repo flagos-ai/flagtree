@@ -30,18 +30,18 @@ public:
 
   template <typename T1, typename T2, typename T3, typename T4>
   void convertFP8Type() {
-     addConversion([&](T1 type) -> std::optional<Type> {
+    addConversion([&](T1 type) -> std::optional<Type> {
       return IntegerType::get(type.getContext(), 8);
-     }),
-     addConversion([&](T2 type) -> std::optional<Type> {
-      return IntegerType::get(type.getContext(), 8);
-     }),
-     addConversion([&](T3 type) -> std::optional<Type> {
-      return IntegerType::get(type.getContext(), 8);
-     }),
-     addConversion([&](T4 type) -> std::optional<Type> {
-      return IntegerType::get(type.getContext(), 8);
-     });
+    }),
+        addConversion([&](T2 type) -> std::optional<Type> {
+          return IntegerType::get(type.getContext(), 8);
+        }),
+        addConversion([&](T3 type) -> std::optional<Type> {
+          return IntegerType::get(type.getContext(), 8);
+        }),
+        addConversion([&](T4 type) -> std::optional<Type> {
+          return IntegerType::get(type.getContext(), 8);
+        });
   }
 };
 

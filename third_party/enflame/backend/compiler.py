@@ -29,6 +29,7 @@ from triton._C.libtriton import ir, passes, llvm
 from typing import Dict
 from types import ModuleType
 
+
 def _patch_kernel(kernel):
     # add gpu module
     kernel = re.sub('module ([^\n]+)\n', 'module \\1\ngpu.module @triton {\n', kernel)
@@ -38,6 +39,7 @@ def _patch_kernel(kernel):
     kernel = ''.join(loc_lines) + kernel.replace(pattern, '')
     kernel += '}\n'
     return kernel
+
 
 def make_ttir(mod, metadata, options):
     pm = ir.pass_manager(mod.context)
@@ -53,11 +55,11 @@ def make_ttir(mod, metadata, options):
     pm.run(mod)
     return mod
 
+
 def make_ttgir(mod, metadata, options):
     pm = ir.pass_manager(mod.context)
     pm.enable_debug()
-    passes.ttir.add_convert_to_ttgpuir(pm, f"gcu:{options.arch}",
-                                       options.num_warps, options.warp_size,
+    passes.ttir.add_convert_to_ttgpuir(pm, f"gcu:{options.arch}", options.num_warps, options.warp_size,
                                        options.num_ctas)
     # passes.ttgpuir.add_coalesce(pm)
     passes.ttgpuir.add_remove_layout_conversions(pm)
@@ -68,6 +70,7 @@ def make_ttgir(mod, metadata, options):
     pm.run(mod)
     return mod
 
+
 def make_gcuir(mod, metadata, options):
     patched_mod = _patch_kernel(str(mod))
     metadata['name'] = re.search('tt.func public @(\\w+)\\(', patched_mod).group(1).strip()
@@ -77,26 +80,16 @@ def make_gcuir(mod, metadata, options):
     if toolkit.get_bool_env("MLIR_ENABLE_TIMING"):
         passes.append('--mlir-timing')
         passes.append('--mlir-timing-display=list')
-    if options.arch == "gcu300" :
+    if options.arch == "gcu300":
         passes += [
             # '-mlir-disable-threading',
             # '-mlir-print-ir-module-scope',
-            '-triton-gpu-to-triton-gcu',
-            '-gcu64-type-verifier',
-            '-convert-tensor-pointer',
-            '-triton-gcu-dot-layout-optimize',
-            '-tritongpu-remove-layout-conversions',
-            '-convert-triton-load-store-to-gcu-dma',
-            '-canonicalize',
-            '-loop-invariant-code-motion',
-            '-gcu-triton-fusion',
-            '-triton-gcu-data-layout-optimize',
-            '-canonicalize',
-            '-triton-gcu-pingpong=' + 'num_stages=' + str(options.num_stages),
-            '-flatten-triton-func',
-            '-convert-triton-to-gcu=' + 'vector-length=' + str(options.vector_length),
-            '-cse',
-            '-canonicalize'
+            '-triton-gpu-to-triton-gcu', '-gcu64-type-verifier', '-convert-tensor-pointer',
+            '-triton-gcu-dot-layout-optimize', '-tritongpu-remove-layout-conversions',
+            '-convert-triton-load-store-to-gcu-dma', '-canonicalize', '-loop-invariant-code-motion',
+            '-gcu-triton-fusion', '-triton-gcu-data-layout-optimize', '-canonicalize',
+            '-triton-gcu-pingpong=' + 'num_stages=' + str(options.num_stages), '-flatten-triton-func',
+            '-convert-triton-to-gcu=' + 'vector-length=' + str(options.vector_length), '-cse', '-canonicalize'
         ]
     elif options.arch == "gcu400" or options.arch == "gcu410":
         if toolkit.get_bool_env("ENABLE_I64_CHECK"):
@@ -107,20 +100,12 @@ def make_gcuir(mod, metadata, options):
         passes += [
             # '-mlir-disable-threading',
             # '-mlir-print-ir-module-scope',
-            '-triton-gpu-to-triton-gcu',
-            '-convert-tensor-pointer',
-            LOAD_STORE_TO_DMA_PASS,
-            '-canonicalize',
-            '-loop-invariant-code-motion',
-            '-gcu-combine-ops',
-            '-gcu-triton-fusion=arch=' + options.arch,
-            '-canonicalize',
-            '-flatten-triton-func',
-            '-convert-triton-to-gcu',
-            '-cse',
-            '-canonicalize'
+            '-triton-gpu-to-triton-gcu', '-convert-tensor-pointer', LOAD_STORE_TO_DMA_PASS, '-canonicalize',
+            '-loop-invariant-code-motion', '-gcu-combine-ops', '-gcu-triton-fusion=arch=' + options.arch,
+            '-canonicalize', '-flatten-triton-func', '-convert-triton-to-gcu', '-cse', '-canonicalize'
         ]
     return toolkit.triton_gcu_opt(patched_mod, *passes, arch=options.arch)
+
 
 def make_llir(mod, metadata, options):
     passes = []
@@ -132,28 +117,15 @@ def make_llir(mod, metadata, options):
         passes.append('--mlir-timing')
         passes.append('--mlir-timing-display=list')
     passes += [
-        '-insert-local-fence=arch=' + options.arch,
-        '--convert-vector-to-scf=target-rank=1',
-        '-lower-affine',
-        '-convert-vector-to-gcu=vector-bit-width=' + str(options.vector_length * 8),
-        '-canonicalize',
-        '-convert-memref-to-gcu',
-        '-kernel-memory-alloc=arch=' + options.arch + ' num-warps='+str(options.num_warps),
-        '-loop-invariant-code-motion',
-        '-convert-scf-to-cf',
-        '-canonicalize',
-        '-cse',
-        '--symbol-dce',
-        '-gcu-remove-transform-ir',
-        '-convert-vector-to-gcu=vector-bit-width=' + str(options.vector_length * 8),
+        '-insert-local-fence=arch=' + options.arch, '--convert-vector-to-scf=target-rank=1', '-lower-affine',
+        '-convert-vector-to-gcu=vector-bit-width=' + str(options.vector_length * 8), '-canonicalize',
+        '-convert-memref-to-gcu', '-kernel-memory-alloc=arch=' + options.arch + ' num-warps=' + str(options.num_warps),
+        '-loop-invariant-code-motion', '-convert-scf-to-cf', '-canonicalize', '-cse', '--symbol-dce',
+        '-gcu-remove-transform-ir', '-convert-vector-to-gcu=vector-bit-width=' + str(options.vector_length * 8),
         '-canonicalize',
         '--convert-gpu-to-gcu=chipset=' + options.arch + ' vector-bit-width=' + str(options.vector_length * 8),
-        '--gcu-attach-target=arch=' + options.arch,
-        '-convert-index-to-llvm',
-        '-gpu-to-llvm',
-        '-convert-llvm-to-gcu',
-        '-alloca-to-entry',
-        '-canonicalize'
+        '--gcu-attach-target=arch=' + options.arch, '-convert-index-to-llvm', '-gpu-to-llvm', '-convert-llvm-to-gcu',
+        '-alloca-to-entry', '-canonicalize'
     ]
 
     ## Do nothing, until we figure out how to link .bc into triton_gcu.
@@ -163,23 +135,26 @@ def make_llir(mod, metadata, options):
 
     return toolkit.gcu_compiler_opt(mod, *passes)
 
+
 def make_fatbin(mod, metadata, options):
     metadata['shared'] = int(re.search('gcu.shared_memory_size = (\\d+)', str(mod)).group(1).strip())
     with tempfile.TemporaryDirectory() as tmpdir:
         bin = os.path.join(tmpdir, "kernel.fatbin")
-        toolkit.compile(
-            mod, "--device-only", "--is-triton-backend",
-            f"--arch={options.arch}", f"--toolkit-path={datadir}",  f"--output={bin}")
+        toolkit.compile(mod, "--device-only", "--is-triton-backend", f"--arch={options.arch}",
+                        f"--toolkit-path={datadir}", f"--output={bin}")
         with open(bin, "rb") as f:
             return f.read()
+
 
 @functools.lru_cache(None)
 def file_hash(path):
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
 
+
 def min_dot_size(target: GPUTarget):
     return lambda lhsType, rhsType: (1, 1, 1)
+
 
 @dataclass()
 class GCUOptions:
@@ -219,7 +194,7 @@ class GCUOptions:
             self.vector_length = 2048
             self.allow_fp8e4nv = True
             self.allowed_dot_input_precisions: Tuple[str] = ("tf32", "tf32x3", "ieee")
-            self.max_num_imprecise_acc_default = 2 ** 30
+            self.max_num_imprecise_acc_default = 2**30
             self.supported_fp8_dtypes: Tuple[str] = ("fp8e4nv", "fp8e5")
             self.deprecated_fp8_dtypes: Tuple[str] = ()
             self.sanitize_overflow: bool = True
@@ -241,7 +216,9 @@ class GCUOptions:
         key = '_'.join([f'{name}-{val}' for name, val in self.__dict__.items()])
         return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
+
 class _GCUBackend(BaseBackend):
+
     def __init__(self, target: GPUTarget) -> None:
         super().__init__(target)
         self._backend = GCUBackend()

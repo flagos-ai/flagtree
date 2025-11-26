@@ -43,15 +43,15 @@
 #ifndef OPENSRC_HSA_RUNTIME_INC_HSA_VEN_AMD_AQLPROFILE_H_
 #define OPENSRC_HSA_RUNTIME_INC_HSA_VEN_AMD_AQLPROFILE_H_
 
-#include <stdint.h>
 #include "hsa.h"
+#include <stdint.h>
 
 #define HSA_AQLPROFILE_VERSION_MAJOR 2
 #define HSA_AQLPROFILE_VERSION_MINOR 0
 
 #ifdef __cplusplus
 extern "C" {
-#endif  // __cplusplus
+#endif // __cplusplus
 
 ////////////////////////////////////////////////////////////////////////////////
 // Library version
@@ -141,9 +141,10 @@ typedef struct {
 
 // Check if event is valid for the specific GPU
 hsa_status_t hsa_ven_amd_aqlprofile_validate_event(
-    hsa_agent_t agent,                            // HSA handle for the profiling GPU
-    const hsa_ven_amd_aqlprofile_event_t* event,  // [in] Pointer on validated event
-    bool* result);                                // [out] True if the event valid, False otherwise
+    hsa_agent_t agent, // HSA handle for the profiling GPU
+    const hsa_ven_amd_aqlprofile_event_t
+        *event,    // [in] Pointer on validated event
+    bool *result); // [out] True if the event valid, False otherwise
 
 // Profiling parameters
 // All parameters are generic and if not applicable for a specific
@@ -232,7 +233,7 @@ typedef enum {
 //
 // Buffer descriptor
 typedef struct {
-  void* ptr;
+  void *ptr;
   uint32_t size;
 } hsa_ven_amd_aqlprofile_descriptor_t;
 
@@ -240,14 +241,14 @@ typedef struct {
 // needed for profiling buffers descriptors, a command buffer and
 // an output data buffer
 typedef struct {
-  hsa_agent_t agent;                                     // GFXIP handle
-  hsa_ven_amd_aqlprofile_event_type_t type;              // Events type
-  const hsa_ven_amd_aqlprofile_event_t* events;          // Events array
-  uint32_t event_count;                                  // Events count
-  const hsa_ven_amd_aqlprofile_parameter_t* parameters;  // Parameters array
-  uint32_t parameter_count;                              // Parameters count
-  hsa_ven_amd_aqlprofile_descriptor_t output_buffer;     // Output buffer
-  hsa_ven_amd_aqlprofile_descriptor_t command_buffer;    // PM4 commands
+  hsa_agent_t agent;                                    // GFXIP handle
+  hsa_ven_amd_aqlprofile_event_type_t type;             // Events type
+  const hsa_ven_amd_aqlprofile_event_t *events;         // Events array
+  uint32_t event_count;                                 // Events count
+  const hsa_ven_amd_aqlprofile_parameter_t *parameters; // Parameters array
+  uint32_t parameter_count;                             // Parameters count
+  hsa_ven_amd_aqlprofile_descriptor_t output_buffer;    // Output buffer
+  hsa_ven_amd_aqlprofile_descriptor_t command_buffer;   // PM4 commands
 } hsa_ven_amd_aqlprofile_profile_t;
 
 //
@@ -267,35 +268,41 @@ typedef struct {
 // Only 'pm4_command' fields of the packet are set and the application
 // is responsible to set Vendor Specific header type a completion signal
 hsa_status_t hsa_ven_amd_aqlprofile_start(
-    hsa_ven_amd_aqlprofile_profile_t* profile,        // [in/out] profile contex object
-    hsa_ext_amd_aql_pm4_packet_t* aql_start_packet);  // [out] profile start AQL packet
+    hsa_ven_amd_aqlprofile_profile_t *profile, // [in/out] profile contex object
+    hsa_ext_amd_aql_pm4_packet_t
+        *aql_start_packet); // [out] profile start AQL packet
 
 // Method to populate the provided AQL packet with profiling stop commands
 // Only 'pm4_command' fields of the packet are set and the application
 // is responsible to set Vendor Specific header type and a completion signal
 hsa_status_t hsa_ven_amd_aqlprofile_stop(
-    const hsa_ven_amd_aqlprofile_profile_t* profile,  // [in] profile contex object
-    hsa_ext_amd_aql_pm4_packet_t* aql_stop_packet);   // [out] profile stop AQL packet
+    const hsa_ven_amd_aqlprofile_profile_t
+        *profile, // [in] profile contex object
+    hsa_ext_amd_aql_pm4_packet_t
+        *aql_stop_packet); // [out] profile stop AQL packet
 
 // Method to populate the provided AQL packet with profiling read commands
 // Only 'pm4_command' fields of the packet are set and the application
 // is responsible to set Vendor Specific header type and a completion signal
 hsa_status_t hsa_ven_amd_aqlprofile_read(
-    const hsa_ven_amd_aqlprofile_profile_t* profile,  // [in] profile contex object
-    hsa_ext_amd_aql_pm4_packet_t* aql_read_packet);   // [out] profile stop AQL packet
+    const hsa_ven_amd_aqlprofile_profile_t
+        *profile, // [in] profile contex object
+    hsa_ext_amd_aql_pm4_packet_t
+        *aql_read_packet); // [out] profile stop AQL packet
 
 // Legacy devices, PM4 profiling packet size
 const unsigned HSA_VEN_AMD_AQLPROFILE_LEGACY_PM4_PACKET_SIZE = 192;
 // Legacy devices, converting the profiling AQL packet to PM4 packet blob
 hsa_status_t hsa_ven_amd_aqlprofile_legacy_get_pm4(
-    const hsa_ext_amd_aql_pm4_packet_t* aql_packet,  // [in] AQL packet
-    void* data);                                     // [out] PM4 packet blob
+    const hsa_ext_amd_aql_pm4_packet_t *aql_packet, // [in] AQL packet
+    void *data);                                    // [out] PM4 packet blob
 
 // Method to add a marker (correlation ID) into the ATT buffer.
 hsa_status_t hsa_ven_amd_aqlprofile_att_marker(
-    hsa_ven_amd_aqlprofile_profile_t* profile,            // [in/out] profile contex object
-    hsa_ext_amd_aql_pm4_packet_t* aql_marker_packet,      // [out] profile marker AQL packet
-    uint32_t data,                                        // [in] Data to be inserted
+    hsa_ven_amd_aqlprofile_profile_t *profile, // [in/out] profile contex object
+    hsa_ext_amd_aql_pm4_packet_t
+        *aql_marker_packet, // [out] profile marker AQL packet
+    uint32_t data,          // [in] Data to be inserted
     hsa_ven_amd_aqlprofile_att_marker_channel_t channel); // [in] Comm channel
 
 //
@@ -306,71 +313,85 @@ hsa_status_t hsa_ven_amd_aqlprofile_att_marker(
 //
 // Profile generic output data:
 typedef struct {
-  uint32_t sample_id;  // PMC sample or trace buffer index
+  uint32_t sample_id; // PMC sample or trace buffer index
   union {
     struct {
-      hsa_ven_amd_aqlprofile_event_t event;  // PMC event
-      uint64_t result;                       // PMC result
+      hsa_ven_amd_aqlprofile_event_t event; // PMC event
+      uint64_t result;                      // PMC result
     } pmc_data;
-    hsa_ven_amd_aqlprofile_descriptor_t trace_data;  // Trace output data descriptor
+    hsa_ven_amd_aqlprofile_descriptor_t
+        trace_data; // Trace output data descriptor
   };
 } hsa_ven_amd_aqlprofile_info_data_t;
 
 // ID query type
 typedef struct {
-  const char* name;
+  const char *name;
   uint32_t id;
   uint32_t instance_count;
 } hsa_ven_amd_aqlprofile_id_query_t;
 
 // Profile attributes
 typedef enum {
-  HSA_VEN_AMD_AQLPROFILE_INFO_COMMAND_BUFFER_SIZE = 0,  // get_info returns uint32_t value
-  HSA_VEN_AMD_AQLPROFILE_INFO_PMC_DATA_SIZE = 1,        // get_info returns uint32_t value
-  HSA_VEN_AMD_AQLPROFILE_INFO_PMC_DATA = 2,             // get_info returns PMC uint64_t value
-                                                        // in info_data object
-  HSA_VEN_AMD_AQLPROFILE_INFO_TRACE_DATA = 3,           // get_info returns trace buffer ptr/size
-                                                        // in info_data object
-  HSA_VEN_AMD_AQLPROFILE_INFO_BLOCK_COUNTERS = 4,       // get_info returns number of block counter
-  HSA_VEN_AMD_AQLPROFILE_INFO_BLOCK_ID = 5,             // get_info returns block id, instances
-                                                        // by name string using _id_query_t
-  HSA_VEN_AMD_AQLPROFILE_INFO_ENABLE_CMD = 6,           // get_info returns size/pointer for
-                                                        // counters enable command buffer
-  HSA_VEN_AMD_AQLPROFILE_INFO_DISABLE_CMD = 7,          // get_info returns size/pointer for
-                                                        // counters disable command buffer
+  HSA_VEN_AMD_AQLPROFILE_INFO_COMMAND_BUFFER_SIZE =
+      0, // get_info returns uint32_t value
+  HSA_VEN_AMD_AQLPROFILE_INFO_PMC_DATA_SIZE =
+      1,                                      // get_info returns uint32_t value
+  HSA_VEN_AMD_AQLPROFILE_INFO_PMC_DATA = 2,   // get_info returns PMC uint64_t
+                                              // value in info_data object
+  HSA_VEN_AMD_AQLPROFILE_INFO_TRACE_DATA = 3, // get_info returns trace buffer
+                                              // ptr/size in info_data object
+  HSA_VEN_AMD_AQLPROFILE_INFO_BLOCK_COUNTERS =
+      4, // get_info returns number of block counter
+  HSA_VEN_AMD_AQLPROFILE_INFO_BLOCK_ID =
+      5, // get_info returns block id, instances
+         // by name string using _id_query_t
+  HSA_VEN_AMD_AQLPROFILE_INFO_ENABLE_CMD =
+      6, // get_info returns size/pointer for
+         // counters enable command buffer
+  HSA_VEN_AMD_AQLPROFILE_INFO_DISABLE_CMD =
+      7, // get_info returns size/pointer for
+         // counters disable command buffer
 } hsa_ven_amd_aqlprofile_info_type_t;
-
 
 // Definition of output data iterator callback
 typedef hsa_status_t (*hsa_ven_amd_aqlprofile_data_callback_t)(
-    hsa_ven_amd_aqlprofile_info_type_t info_type,   // [in] data type, PMC or trace data
-    hsa_ven_amd_aqlprofile_info_data_t* info_data,  // [in] info_data object
-    void* callback_data);                           // [in/out] data passed to the callback
+    hsa_ven_amd_aqlprofile_info_type_t
+        info_type, // [in] data type, PMC or trace data
+    hsa_ven_amd_aqlprofile_info_data_t *info_data, // [in] info_data object
+    void *callback_data); // [in/out] data passed to the callback
 
 // Method for getting the profile info
 hsa_status_t hsa_ven_amd_aqlprofile_get_info(
-    const hsa_ven_amd_aqlprofile_profile_t* profile,  // [in] profile context object
-    hsa_ven_amd_aqlprofile_info_type_t attribute,     // [in] requested profile attribute
-    void* value);                                     // [in/out] returned value
+    const hsa_ven_amd_aqlprofile_profile_t
+        *profile, // [in] profile context object
+    hsa_ven_amd_aqlprofile_info_type_t
+        attribute, // [in] requested profile attribute
+    void *value);  // [in/out] returned value
 
 // Method for iterating the events output data
 hsa_status_t hsa_ven_amd_aqlprofile_iterate_data(
-    const hsa_ven_amd_aqlprofile_profile_t* profile,  // [in] profile context object
-    hsa_ven_amd_aqlprofile_data_callback_t callback,  // [in] callback to iterate the output data
-    void* data);                                      // [in/out] data passed to the callback
+    const hsa_ven_amd_aqlprofile_profile_t
+        *profile, // [in] profile context object
+    hsa_ven_amd_aqlprofile_data_callback_t
+        callback, // [in] callback to iterate the output data
+    void *data);  // [in/out] data passed to the callback
 
 // Return error string
 hsa_status_t hsa_ven_amd_aqlprofile_error_string(
-    const char** str);  // [out] pointer on the error string
+    const char **str); // [out] pointer on the error string
 
 /**
- * @brief Callback for iteration of all possible event coordinate IDs and coordinate names.
+ * @brief Callback for iteration of all possible event coordinate IDs and
+ * coordinate names.
  */
-typedef hsa_status_t(*hsa_ven_amd_aqlprofile_eventname_callback_t)(int id, const char* name);
+typedef hsa_status_t (*hsa_ven_amd_aqlprofile_eventname_callback_t)(
+    int id, const char *name);
 /**
  * @brief Iterate over all possible event coordinate IDs and their names.
  */
-hsa_status_t hsa_ven_amd_aqlprofile_iterate_event_ids(hsa_ven_amd_aqlprofile_eventname_callback_t);
+hsa_status_t hsa_ven_amd_aqlprofile_iterate_event_ids(
+    hsa_ven_amd_aqlprofile_eventname_callback_t);
 
 /**
  * @brief Iterate over all event coordinates for a given agent_t and event_t.
@@ -381,30 +402,23 @@ hsa_status_t hsa_ven_amd_aqlprofile_iterate_event_ids(hsa_ven_amd_aqlprofile_eve
  * @param name Coordinate name as in _iterate_event_ids.
  * @param userdata Userdata returned from _iterate_event_coord function.
  */
-typedef hsa_status_t(*hsa_ven_amd_aqlprofile_coordinate_callback_t)(
-  int position,
-  int id,
-  int extent,
-  int coordinate,
-  const char* name,
-  void* userdata
-);
+typedef hsa_status_t (*hsa_ven_amd_aqlprofile_coordinate_callback_t)(
+    int position, int id, int extent, int coordinate, const char *name,
+    void *userdata);
 
 /**
  * @brief Iterate over all event coordinates for a given agent_t and event_t.
  * @param[in] agent HSA agent.
  * @param[in] event The event ID and block ID to iterate for.
- * @param[in] sample_id aqlprofile_info_data_t.sample_id returned from _aqlprofile_iterate_data.
+ * @param[in] sample_id aqlprofile_info_data_t.sample_id returned from
+ * _aqlprofile_iterate_data.
  * @param[in] callback Callback function to return the coordinates.
- * @param[in] userdata Arbitrary data pointer to be sent back to the user via callback.
+ * @param[in] userdata Arbitrary data pointer to be sent back to the user via
+ * callback.
  */
 hsa_status_t hsa_ven_amd_aqlprofile_iterate_event_coord(
-  hsa_agent_t agent,
-  hsa_ven_amd_aqlprofile_event_t event,
-  uint32_t sample_id,
-  hsa_ven_amd_aqlprofile_coordinate_callback_t callback,
-  void* userdata
-);
+    hsa_agent_t agent, hsa_ven_amd_aqlprofile_event_t event, uint32_t sample_id,
+    hsa_ven_amd_aqlprofile_coordinate_callback_t callback, void *userdata);
 
 /**
  * @brief Extension version.
@@ -425,64 +439,53 @@ typedef struct hsa_ven_amd_aqlprofile_1_00_pfn_s {
   uint32_t (*hsa_ven_amd_aqlprofile_version_major)();
   uint32_t (*hsa_ven_amd_aqlprofile_version_minor)();
 
-  hsa_status_t (*hsa_ven_amd_aqlprofile_error_string)(
-      const char** str);
+  hsa_status_t (*hsa_ven_amd_aqlprofile_error_string)(const char **str);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_validate_event)(
-      hsa_agent_t agent,
-      const hsa_ven_amd_aqlprofile_event_t* event,
-      bool* result);
+      hsa_agent_t agent, const hsa_ven_amd_aqlprofile_event_t *event,
+      bool *result);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_start)(
-      hsa_ven_amd_aqlprofile_profile_t* profile,
-      hsa_ext_amd_aql_pm4_packet_t* aql_start_packet);
+      hsa_ven_amd_aqlprofile_profile_t *profile,
+      hsa_ext_amd_aql_pm4_packet_t *aql_start_packet);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_stop)(
-      const hsa_ven_amd_aqlprofile_profile_t* profile,
-      hsa_ext_amd_aql_pm4_packet_t* aql_stop_packet);
+      const hsa_ven_amd_aqlprofile_profile_t *profile,
+      hsa_ext_amd_aql_pm4_packet_t *aql_stop_packet);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_read)(
-      const hsa_ven_amd_aqlprofile_profile_t* profile,
-      hsa_ext_amd_aql_pm4_packet_t* aql_read_packet);
+      const hsa_ven_amd_aqlprofile_profile_t *profile,
+      hsa_ext_amd_aql_pm4_packet_t *aql_read_packet);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_legacy_get_pm4)(
-      const hsa_ext_amd_aql_pm4_packet_t* aql_packet,
-      void* data);
+      const hsa_ext_amd_aql_pm4_packet_t *aql_packet, void *data);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_get_info)(
-      const hsa_ven_amd_aqlprofile_profile_t* profile,
-      hsa_ven_amd_aqlprofile_info_type_t attribute,
-      void* value);
+      const hsa_ven_amd_aqlprofile_profile_t *profile,
+      hsa_ven_amd_aqlprofile_info_type_t attribute, void *value);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_iterate_data)(
-      const hsa_ven_amd_aqlprofile_profile_t* profile,
-      hsa_ven_amd_aqlprofile_data_callback_t callback,
-      void* data);
+      const hsa_ven_amd_aqlprofile_profile_t *profile,
+      hsa_ven_amd_aqlprofile_data_callback_t callback, void *data);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_iterate_event_ids)(
-      hsa_ven_amd_aqlprofile_eventname_callback_t
-  );
+      hsa_ven_amd_aqlprofile_eventname_callback_t);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_iterate_event_coord)(
-      hsa_agent_t agent,
-      hsa_ven_amd_aqlprofile_event_t event,
-      uint32_t sample_id,
-      hsa_ven_amd_aqlprofile_coordinate_callback_t callback,
-      void* userdata
-  );
+      hsa_agent_t agent, hsa_ven_amd_aqlprofile_event_t event,
+      uint32_t sample_id, hsa_ven_amd_aqlprofile_coordinate_callback_t callback,
+      void *userdata);
 
   hsa_status_t (*hsa_ven_amd_aqlprofile_att_marker)(
-      hsa_ven_amd_aqlprofile_profile_t* profile,
-      hsa_ext_amd_aql_pm4_packet_t* aql_packet,
-      uint32_t data,
-      hsa_ven_amd_aqlprofile_att_marker_channel_t channel
-  );
+      hsa_ven_amd_aqlprofile_profile_t *profile,
+      hsa_ext_amd_aql_pm4_packet_t *aql_packet, uint32_t data,
+      hsa_ven_amd_aqlprofile_att_marker_channel_t channel);
 } hsa_ven_amd_aqlprofile_1_00_pfn_t;
 
 typedef hsa_ven_amd_aqlprofile_1_00_pfn_t hsa_ven_amd_aqlprofile_pfn_t;
 
 #ifdef __cplusplus
 }
-#endif  // __cplusplus
+#endif // __cplusplus
 
-#endif  // OPENSRC_HSA_RUNTIME_INC_HSA_VEN_AMD_AQLPROFILE_H_
+#endif // OPENSRC_HSA_RUNTIME_INC_HSA_VEN_AMD_AQLPROFILE_H_

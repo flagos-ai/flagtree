@@ -21,4 +21,4 @@ THE SOFTWARE.
 #define HIP_INCLUDE_HIP_HIP_HCC_H
 #warning "hip/hip_hcc.h is deprecated, please use hip/hip_ext.h"
 #include "hip/hip_ext.h"
-#endif  // #ifdef HIP_INCLUDE_HIP_HIP_HCC_H
+#endif // #ifdef HIP_INCLUDE_HIP_HIP_HCC_H

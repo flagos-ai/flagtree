@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import torch
@@ -11,6 +10,7 @@ if importlib.util.find_spec("triton.backends.enflame") is None:
     import triton_gcu.triton
 import torch_gcu
 
+
 def test_annotations(device):
 
     @triton.jit
@@ -18,11 +18,12 @@ def test_annotations(device):
         pass
 
     x = torch.empty(1, device=device)
-    _kernel[(1,)](x, x.shape[0], 32)
+    _kernel[(1, )](x, x.shape[0], 32)
     try:
-        _kernel[(1,)](x.shape[0], x.shape[0], 32)
+        _kernel[(1, )](x.shape[0], x.shape[0], 32)
     except AttributeError:
         pass
+
 
 def annotated_function(return_type=None, **arg_types):
     """A decorator to add annotations to a function."""

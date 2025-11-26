@@ -556,7 +556,7 @@ def test_hooks(device, fresh_triton_cache) -> None:
     assert key in kernel_add.device_caches[getattr(torch, device).current_device()][0]
 
 
-@pytest.mark.skipif(reason="within_2g is a HIP specific optimization", condition= True)
+@pytest.mark.skipif(reason="within_2g is a HIP specific optimization", condition=True)
 def test_within_2gb(device, fresh_triton_cache) -> None:
     default_buffer_ops = os.environ.get("AMDGCN_USE_BUFFER_OPS", "0")
     from triton.backends import backends

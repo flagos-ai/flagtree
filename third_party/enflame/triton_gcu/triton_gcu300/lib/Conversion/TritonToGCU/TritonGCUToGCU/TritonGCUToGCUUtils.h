@@ -38,16 +38,16 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
-#include "llvm/Support/MathExtras.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/Support/MathExtras.h"
 
 namespace mlir {
 namespace triton {
 namespace gcu {
 class FirstLastUserAnalysis;
 }
-}
-}
+} // namespace triton
+} // namespace mlir
 using namespace mlir;
 
 Value getPrivateDTETag(OpBuilder &builder, Operation *op);
@@ -63,7 +63,7 @@ func::FuncOp getOrDefineFunction(gpu::GPUModuleOp moduleOp, Location loc,
 void doMemFence(OpBuilder &rewriter, Operation *op);
 
 void doMemsetConfig(OpBuilder &rewriter, Location loc, Value output, Value v,
-              Value tagDte, Value tagIdx);
+                    Value tagDte, Value tagIdx);
 void doMemset(OpBuilder &rewriter, Operation *op, Value output, Value v,
               unsigned totalNumElems);
 
@@ -119,33 +119,35 @@ void AnalysisYieldOperendUseStage(
     std::map<Operation *, std::map<uint64_t, bool>>
         &TTYeiledOPerandHasMultiUseStage);
 
-void GetOrderValueByStride(OpBuilder &rewriter, Location loc,
-  SmallVector<unsigned> nInitStrideDims, SmallVector<Value, 4> &initStride,
-  SmallVector<Value, 4> &initShape, SmallVector<Value, 4> &initOffset,
-  SmallVector<Value, 4> &orderStride, SmallVector<Value, 4> &orderShape,
-  SmallVector<Value, 4> &orderOffset, SmallVector<Value, 4> &vOrder);
+void GetOrderValueByStride(
+    OpBuilder &rewriter, Location loc, SmallVector<unsigned> nInitStrideDims,
+    SmallVector<Value, 4> &initStride, SmallVector<Value, 4> &initShape,
+    SmallVector<Value, 4> &initOffset, SmallVector<Value, 4> &orderStride,
+    SmallVector<Value, 4> &orderShape, SmallVector<Value, 4> &orderOffset,
+    SmallVector<Value, 4> &vOrder);
 
-void GetOrderSlicefor30(OpBuilder &rewriter, Location loc,
-    int64_t rank, SmallVector<Value, 4> &initStride,
-    SmallVector<Value, 4> &initSliceShape,
-    SmallVector<Value, 4> &orderSliceShape);
+void GetOrderSlicefor30(OpBuilder &rewriter, Location loc, int64_t rank,
+                        SmallVector<Value, 4> &initStride,
+                        SmallVector<Value, 4> &initSliceShape,
+                        SmallVector<Value, 4> &orderSliceShape);
 
-Value ConfigGcuLoad(OpBuilder &rewriter, Location loc,
-      Value srcOut, Value transOut, mlir::Operation *op, MemRefType resultType,
-      Value loadPtr, mlir::ValueRange configStrides,
-      mlir::ValueRange configShapes, Value defaultValue, Value tagDte,
-      Value tagIdx, bool IsShareOutput = false);
+Value ConfigGcuLoad(OpBuilder &rewriter, Location loc, Value srcOut,
+                    Value transOut, mlir::Operation *op, MemRefType resultType,
+                    Value loadPtr, mlir::ValueRange configStrides,
+                    mlir::ValueRange configShapes, Value defaultValue,
+                    Value tagDte, Value tagIdx, bool IsShareOutput = false);
 
 Value ConfigGcuStore(OpBuilder &rewriter, Location loc, Value storeValue,
-      Value transOut, mlir::Operation *op, MemRefType storeValueType,
-      Value storePtr, mlir::ValueRange configStrides,
-      mlir::ValueRange configShapes, Value tagDte, Value tagIdx);
+                     Value transOut, mlir::Operation *op,
+                     MemRefType storeValueType, Value storePtr,
+                     mlir::ValueRange configStrides,
+                     mlir::ValueRange configShapes, Value tagDte, Value tagIdx);
 
-void WaitGcuLoadStore(OpBuilder &rewriter, Location loc,
-      Value tagDte, Value tagIdx, Value totalSize);
+void WaitGcuLoadStore(OpBuilder &rewriter, Location loc, Value tagDte,
+                      Value tagIdx, Value totalSize);
 
-void moveDeallocOp(ConversionPatternRewriter& rewriter,
-                   Value v, Operation* pos, size_t depth);
+void moveDeallocOp(ConversionPatternRewriter &rewriter, Value v, Operation *pos,
+                   size_t depth);
 
 void mergeContinuousDims(OpBuilder &subBuilder, Location loc,
                          Value &sharedMemref, Value &warpMemref,

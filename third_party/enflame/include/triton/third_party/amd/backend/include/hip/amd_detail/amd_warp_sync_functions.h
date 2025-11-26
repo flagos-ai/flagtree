@@ -36,9 +36,7 @@ THE SOFTWARE.
 #include "hip_assert.h"
 #endif
 
-template <typename T>
-__device__ inline
-T __hip_readfirstlane(T val) {
+template <typename T> __device__ inline T __hip_readfirstlane(T val) {
   // In theory, behaviour is undefined when reading from a union member other
   // than the member that was last assigned to, but it works in practice because
   // we rely on the compiler to do the reasonable thing.
@@ -57,9 +55,10 @@ T __hip_readfirstlane(T val) {
 }
 
 // When compiling for wave32 mode, ignore the upper half of the 64-bit mask.
-#define __hip_adjust_mask_for_wave32(MASK)            \
-  do {                                          \
-    if (warpSize == 32) MASK &= 0xFFFFFFFF;     \
+#define __hip_adjust_mask_for_wave32(MASK)                                     \
+  do {                                                                         \
+    if (warpSize == 32)                                                        \
+      MASK &= 0xFFFFFFFF;                                                      \
   } while (0)
 
 // We use a macro to expand each builtin into a waterfall that implements the
@@ -102,7 +101,7 @@ T __hip_readfirstlane(T val) {
         }                                                                      \
       }                                                                        \
     }                                                                          \
-  } while(0)
+  } while (0)
 
 #define __hip_do_sync(RETVAL, FUNC, MASK, ...)                                 \
   do {                                                                         \
@@ -120,13 +119,12 @@ T __hip_readfirstlane(T val) {
         }                                                                      \
       }                                                                        \
     }                                                                          \
-  } while(0)
+  } while (0)
 
 // __all_sync, __any_sync, __ballot_sync
 
 template <typename MaskT>
-__device__ inline
-unsigned long long __ballot_sync(MaskT mask, int predicate) {
+__device__ inline unsigned long long __ballot_sync(MaskT mask, int predicate) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,
       "The mask must be a 64-bit integer. "
@@ -137,8 +135,7 @@ unsigned long long __ballot_sync(MaskT mask, int predicate) {
 }
 
 template <typename MaskT>
-__device__ inline
-int __all_sync(MaskT mask, int predicate) {
+__device__ inline int __all_sync(MaskT mask, int predicate) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,
       "The mask must be a 64-bit integer. "
@@ -148,8 +145,7 @@ int __all_sync(MaskT mask, int predicate) {
 }
 
 template <typename MaskT>
-__device__ inline
-int __any_sync(MaskT mask, int predicate) {
+__device__ inline int __any_sync(MaskT mask, int predicate) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,
       "The mask must be a 64-bit integer. "
@@ -161,10 +157,10 @@ int __any_sync(MaskT mask, int predicate) {
 // __match_any, __match_all and sync variants
 
 template <typename T>
-__device__ inline
-unsigned long long __match_any(T value) {
+__device__ inline unsigned long long __match_any(T value) {
   static_assert(
-      (__hip_internal::is_integral<T>::value || __hip_internal::is_floating_point<T>::value) &&
+      (__hip_internal::is_integral<T>::value ||
+       __hip_internal::is_floating_point<T>::value) &&
           (sizeof(T) == 4 || sizeof(T) == 8),
       "T can be int, unsigned int, long, unsigned long, long long, unsigned "
       "long long, float or double.");
@@ -185,8 +181,7 @@ unsigned long long __match_any(T value) {
 }
 
 template <typename MaskT, typename T>
-__device__ inline
-unsigned long long __match_any_sync(MaskT mask, T value) {
+__device__ inline unsigned long long __match_any_sync(MaskT mask, T value) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,
       "The mask must be a 64-bit integer. "
@@ -197,10 +192,10 @@ unsigned long long __match_any_sync(MaskT mask, T value) {
 }
 
 template <typename T>
-__device__ inline
-unsigned long long __match_all(T value, int* pred) {
+__device__ inline unsigned long long __match_all(T value, int *pred) {
   static_assert(
-      (__hip_internal::is_integral<T>::value || __hip_internal::is_floating_point<T>::value) &&
+      (__hip_internal::is_integral<T>::value ||
+       __hip_internal::is_floating_point<T>::value) &&
           (sizeof(T) == 4 || sizeof(T) == 8),
       "T can be int, unsigned int, long, unsigned long, long long, unsigned "
       "long long, float or double.");
@@ -215,8 +210,8 @@ unsigned long long __match_all(T value, int* pred) {
 }
 
 template <typename MaskT, typename T>
-__device__ inline
-unsigned long long __match_all_sync(MaskT mask, T value, int* pred) {
+__device__ inline unsigned long long __match_all_sync(MaskT mask, T value,
+                                                      int *pred) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,
       "The mask must be a 64-bit integer. "
@@ -230,9 +225,8 @@ unsigned long long __match_all_sync(MaskT mask, T value, int* pred) {
 // various variants of shfl
 
 template <typename MaskT, typename T>
-__device__ inline
-T __shfl_sync(MaskT mask, T var, int srcLane,
-              int width = __AMDGCN_WAVEFRONT_SIZE) {
+__device__ inline T __shfl_sync(MaskT mask, T var, int srcLane,
+                                int width = __AMDGCN_WAVEFRONT_SIZE) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,
       "The mask must be a 64-bit integer. "
@@ -243,8 +237,7 @@ T __shfl_sync(MaskT mask, T var, int srcLane,
 }
 
 template <typename MaskT, typename T>
-__device__ inline
-T __shfl_up_sync(MaskT mask, T var, unsigned int delta,
+__device__ inline T __shfl_up_sync(MaskT mask, T var, unsigned int delta,
                                    int width = __AMDGCN_WAVEFRONT_SIZE) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,
@@ -256,8 +249,7 @@ T __shfl_up_sync(MaskT mask, T var, unsigned int delta,
 }
 
 template <typename MaskT, typename T>
-__device__ inline
-T __shfl_down_sync(MaskT mask, T var, unsigned int delta,
+__device__ inline T __shfl_down_sync(MaskT mask, T var, unsigned int delta,
                                      int width = __AMDGCN_WAVEFRONT_SIZE) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,
@@ -269,8 +261,7 @@ T __shfl_down_sync(MaskT mask, T var, unsigned int delta,
 }
 
 template <typename MaskT, typename T>
-__device__ inline
-T __shfl_xor_sync(MaskT mask, T var, int laneMask,
+__device__ inline T __shfl_xor_sync(MaskT mask, T var, int laneMask,
                                     int width = __AMDGCN_WAVEFRONT_SIZE) {
   static_assert(
       __hip_internal::is_integral<MaskT>::value && sizeof(MaskT) == 8,

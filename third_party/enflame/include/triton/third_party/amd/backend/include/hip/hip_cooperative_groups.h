@@ -27,11 +27,11 @@ THE SOFTWARE.
  *  feature.
  */
 
-#ifndef  HIP_INCLUDE_HIP_HIP_COOPERATIVE_GROUP_H
-#define  HIP_INCLUDE_HIP_HIP_COOPERATIVE_GROUP_H
+#ifndef HIP_INCLUDE_HIP_HIP_COOPERATIVE_GROUP_H
+#define HIP_INCLUDE_HIP_HIP_COOPERATIVE_GROUP_H
 
-#include <hip/hip_version.h>
 #include <hip/hip_common.h>
+#include <hip/hip_version.h>
 
 #if defined(__HIP_PLATFORM_AMD__) && !defined(__HIP_PLATFORM_NVIDIA__)
 #if __cplusplus && defined(__clang__) && defined(__HIP__)

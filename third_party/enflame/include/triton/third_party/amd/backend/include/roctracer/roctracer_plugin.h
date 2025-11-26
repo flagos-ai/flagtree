@@ -77,8 +77,9 @@ extern "C" {
  *
  * @return Returns 0 on success and -1 on error.
  */
-ROCTRACER_EXPORT int roctracer_plugin_initialize(
-    uint32_t roctracer_major_version, uint32_t roctracer_minor_version);
+ROCTRACER_EXPORT int
+roctracer_plugin_initialize(uint32_t roctracer_major_version,
+                            uint32_t roctracer_minor_version);
 
 /**
  * Finalize plugin.
@@ -108,8 +109,9 @@ ROCTRACER_EXPORT void roctracer_plugin_finalize();
  *
  * @return Returns 0 on success and -1 on error.
  */
-ROCTRACER_EXPORT int roctracer_plugin_write_callback_record(
-    const roctracer_record_t* record, const void* callback_data);
+ROCTRACER_EXPORT int
+roctracer_plugin_write_callback_record(const roctracer_record_t *record,
+                                       const void *callback_data);
 
 /**
  * Report a range of activity trace data.
@@ -125,8 +127,9 @@ ROCTRACER_EXPORT int roctracer_plugin_write_callback_record(
  *
  * @return Returns 0 on success and -1 on error.
  */
-ROCTRACER_EXPORT int roctracer_plugin_write_activity_records(
-    const roctracer_record_t* begin, const roctracer_record_t* end);
+ROCTRACER_EXPORT int
+roctracer_plugin_write_activity_records(const roctracer_record_t *begin,
+                                        const roctracer_record_t *end);
 
 /** @} */
 

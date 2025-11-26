@@ -99,7 +99,7 @@ def test_print(func: str, data_type: str, device: str):
     # TODO(antiagainst): Currently the warp count is chosen to make sure wedon't have multiple
     # threads printing duplicated messages due to broadcasting. Improve print op lowering logic
     # to filter out duplicated data range.
-    
+
     # For triton_gcu backend, num_warps must be a power of 2. If we give a value of 128 for N, and get_current_target_warp_size() returns 12 for gcu. The num_warps will be 10 which is not a power of 2.
     # num_warps = N // get_current_target_warp_size()
     num_warps = 4

@@ -24,7 +24,7 @@ namespace mlir {
 namespace triton {
 namespace gcu {
 
-bool get_bool_env(const char* name);
+bool get_bool_env(const char *name);
 SmallVector<unsigned> getWarpsPerCTA(Attribute layout);
 SmallVector<unsigned> getElemsPerThread(Type type);
 unsigned getTotalElemsPerThread(Type type);
@@ -36,8 +36,8 @@ inline int64_t ceilDiv(int64_t lhs, int64_t rhs) {
   // C/C++'s integer division rounds towards 0.
   return lhs % rhs > 0 ? lhs / rhs + 1 : lhs / rhs;
 }
-}  // namespace gcu
-}  // namespace triton
-}  // namespace mlir
+} // namespace gcu
+} // namespace triton
+} // namespace mlir
 
-#endif  // KURAMA_TRITON_TO_GCU_UTILS_H_
+#endif // KURAMA_TRITON_TO_GCU_UTILS_H_

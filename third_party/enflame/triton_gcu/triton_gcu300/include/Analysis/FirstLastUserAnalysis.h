@@ -16,12 +16,12 @@
 #ifndef GCU_ANALYSIS_FIRSTLASTUSERANALYSIS_H
 #define GCU_ANALYSIS_FIRSTLASTUSERANALYSIS_H
 
-#include "llvm/ADT/DenseMap.h"
 #include "mlir/IR/Dominance.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Visitors.h"
-#include "mlir/IR/MLIRContext.h"
+#include "llvm/ADT/DenseMap.h"
 
 namespace mlir {
 namespace triton {
@@ -30,17 +30,17 @@ namespace gcu {
 using namespace mlir;
 
 class FirstLastUserAnalysis {
- public:
+public:
   using OptoOpT = llvm::DenseMap<Operation *, Operation *>;
 
-  explicit FirstLastUserAnalysis(Operation *op) :
-      moduleOp(op), dominators(op), postDominators(op) {
+  explicit FirstLastUserAnalysis(Operation *op)
+      : moduleOp(op), dominators(op), postDominators(op) {
     start();
   }
 
   Operation *getLastUserOp(Value value, Region *opRegion);
 
-  Operation* getLastUserOp(Operation* op) const {
+  Operation *getLastUserOp(Operation *op) const {
     if (lastUserMap.count(op) == 0) {
       llvm::errs() << "op: " << *op << " has no last user\n";
       llvm::report_fatal_error("No last user found for op");
@@ -48,7 +48,7 @@ class FirstLastUserAnalysis {
     return lastUserMap.lookup(op);
   }
 
-  Operation* getFirstUserOp(Operation* op) const {
+  Operation *getFirstUserOp(Operation *op) const {
     if (firstUserMap.count(op) == 0) {
       llvm::errs() << "op: " << *op << " has no first user\n";
       llvm::report_fatal_error("No first user found for op");
@@ -56,10 +56,10 @@ class FirstLastUserAnalysis {
     return firstUserMap.lookup(op);
   }
 
- private:
+private:
   void start();
 
- private:
+private:
   Operation *moduleOp;
   DominanceInfo dominators;
   PostDominanceInfo postDominators;
@@ -68,8 +68,8 @@ class FirstLastUserAnalysis {
   OptoOpT firstUserMap;
 };
 
-}  // namespace gcu
-}  // namespace triton
-}  // namespace mlir
+} // namespace gcu
+} // namespace triton
+} // namespace mlir
 
-#endif  // GCU_ANALYSIS_FIRSTLASTUSERANALYSIS_H
+#endif // GCU_ANALYSIS_FIRSTLASTUSERANALYSIS_H

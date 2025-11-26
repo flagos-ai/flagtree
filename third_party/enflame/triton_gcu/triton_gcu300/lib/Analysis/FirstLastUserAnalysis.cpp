@@ -16,8 +16,8 @@
 
 #include "Analysis/FirstLastUserAnalysis.h"
 
-#include <vector>
 #include <algorithm>
+#include <vector>
 
 #include "Conversion/TritonToGCU/Utils.h"
 #include "Dialect/TritonGCU/IR/TritonGCUDialect.h"
@@ -47,9 +47,9 @@ namespace {
 
 bool isMustAliasOp(mlir::Operation *op) {
   if (llvm::isa<triton::AddPtrOp, triton::PtrToIntOp, triton::IntToPtrOp,
-                triton::BitcastOp,
-                triton::gcu::PtrToIntOp, triton::gcu::IntToPtrOp,
-                triton::IntToPtrOp, triton::PtrToIntOp>(op)) {
+                triton::BitcastOp, triton::gcu::PtrToIntOp,
+                triton::gcu::IntToPtrOp, triton::IntToPtrOp,
+                triton::PtrToIntOp>(op)) {
     return true;
   } else if (llvm::isa<triton::gpu::ConvertLayoutOp>(op)) {
     auto convertLayout = cast<triton::gpu::ConvertLayoutOp>(op);
@@ -114,10 +114,8 @@ bool isMustAliasOp(mlir::Operation *op) {
   }
 }
 
-template<typename DomInfoT,  typename FuncT>
-void getUsersWithAlias(mlir::Operation *op,
-                       DomInfoT &domInfo,
-                       FuncT &funcInfo,
+template <typename DomInfoT, typename FuncT>
+void getUsersWithAlias(mlir::Operation *op, DomInfoT &domInfo, FuncT &funcInfo,
                        std::vector<mlir::Operation *> &userList,
                        std::vector<mlir::Block *> &blockList,
                        std::vector<mlir::Operation *> &aliasList) {
@@ -136,9 +134,10 @@ void getUsersWithAlias(mlir::Operation *op,
     } else {
       auto parent = user->getParentOp();
       auto curUser = user;
-      bool mayAlias = llvm::isa<scf::IfOp, scf::IndexSwitchOp,
-                                scf::ForOp, scf::WhileOp>(parent) &&
-                      llvm::isa<scf::YieldOp>(curUser);
+      bool mayAlias =
+          llvm::isa<scf::IfOp, scf::IndexSwitchOp, scf::ForOp, scf::WhileOp>(
+              parent) &&
+          llvm::isa<scf::YieldOp>(curUser);
 
       while ((!isa<triton::FuncOp>(parent)) &&
              (!isa<mlir::func::FuncOp>(parent))) {
@@ -147,9 +146,10 @@ void getUsersWithAlias(mlir::Operation *op,
 
         curUser = mayAlias ? funcInfo(parent, domInfo) : nullptr;
         parent = parent->getParentOp();
-        mayAlias = llvm::isa<scf::IfOp, scf::IndexSwitchOp,
-                             scf::ForOp, scf::WhileOp>(parent) &&
-                   llvm::isa_and_nonnull<scf::YieldOp>(curUser);
+        mayAlias =
+            llvm::isa<scf::IfOp, scf::IndexSwitchOp, scf::ForOp, scf::WhileOp>(
+                parent) &&
+            llvm::isa_and_nonnull<scf::YieldOp>(curUser);
       }
 
       if (parent->getParentRegion() != opRegion) {
@@ -166,15 +166,15 @@ void getUsersWithAlias(mlir::Operation *op,
   }
 }
 
-mlir::Operation * getLastUserOfOp(mlir::Operation *op,
-                                  PostDominanceInfo &postDomInfo) {
+mlir::Operation *getLastUserOfOp(mlir::Operation *op,
+                                 PostDominanceInfo &postDomInfo) {
   auto opRegion = op->getParentRegion();
   std::vector<mlir::Operation *> userList;
   std::vector<mlir::Block *> blockList;
   std::vector<mlir::Operation *> aliasList;
 
-  getUsersWithAlias(op, postDomInfo, getLastUserOfOp,
-                    userList, blockList, aliasList);
+  getUsersWithAlias(op, postDomInfo, getLastUserOfOp, userList, blockList,
+                    aliasList);
 
   // Analysis alias op
   while (!aliasList.empty()) {
@@ -182,12 +182,13 @@ mlir::Operation * getLastUserOfOp(mlir::Operation *op,
     std::copy(aliasList.begin(), aliasList.end(), tmpList.begin());
     aliasList.clear();
     for (auto tmp : tmpList) {
-      getUsersWithAlias(tmp, postDomInfo, getLastUserOfOp,
-                        userList, blockList, aliasList);
+      getUsersWithAlias(tmp, postDomInfo, getLastUserOfOp, userList, blockList,
+                        aliasList);
     }
   }
 
-  if (blockList.empty()) return nullptr;
+  if (blockList.empty())
+    return nullptr;
 
   Block *dom = postDomInfo.findNearestCommonDominator(blockList);
 
@@ -200,7 +201,7 @@ mlir::Operation * getLastUserOfOp(mlir::Operation *op,
   //            B3
   //   1). B1 and B3 has a "return" op.
   //   2). B2 and B3 has a use for a alloc op which locate in B0. At the time,
-  //   the "postDomInfo.findNearestCommonDominator"  return nullptr 
+  //   the "postDomInfo.findNearestCommonDominator"  return nullptr
   **/
   if (dom == nullptr) {
     auto lastBlock = blockList[0];
@@ -247,16 +248,15 @@ mlir::Operation * getLastUserOfOp(mlir::Operation *op,
   return lastUser;
 }
 
-mlir::Operation * getFirstUserOfOp(mlir::Operation *op,
-                                   DominanceInfo &domInfo) {
+mlir::Operation *getFirstUserOfOp(mlir::Operation *op, DominanceInfo &domInfo) {
   auto opRegion = op->getParentRegion();
 
   std::vector<mlir::Operation *> userList;
   std::vector<mlir::Block *> blockList;
   std::vector<mlir::Operation *> aliasList;
 
-  getUsersWithAlias(op, domInfo, getFirstUserOfOp,
-                    userList, blockList, aliasList);
+  getUsersWithAlias(op, domInfo, getFirstUserOfOp, userList, blockList,
+                    aliasList);
 
   // Analysis alias op
   while (!aliasList.empty()) {
@@ -264,12 +264,13 @@ mlir::Operation * getFirstUserOfOp(mlir::Operation *op,
     std::copy(aliasList.begin(), aliasList.end(), tmpList.begin());
     aliasList.clear();
     for (auto tmp : tmpList) {
-      getUsersWithAlias(tmp, domInfo, getFirstUserOfOp,
-                        userList, blockList, aliasList);
+      getUsersWithAlias(tmp, domInfo, getFirstUserOfOp, userList, blockList,
+                        aliasList);
     }
   }
 
-  if (blockList.empty()) return nullptr;
+  if (blockList.empty())
+    return nullptr;
 
   Block *dom = domInfo.findNearestCommonDominator(blockList);
   if (dom == nullptr) {
@@ -316,11 +317,10 @@ mlir::Operation * getFirstUserOfOp(mlir::Operation *op,
   return firstUser;
 }
 
-}  // namespace
+} // namespace
 
-mlir::Operation *
-FirstLastUserAnalysis::getLastUserOp(mlir::Value value,
-                                     mlir::Region *opRegion) {
+mlir::Operation *FirstLastUserAnalysis::getLastUserOp(mlir::Value value,
+                                                      mlir::Region *opRegion) {
   std::vector<mlir::Operation *> userList;
   std::vector<mlir::Block *> blockList;
   std::vector<mlir::Operation *> aliasList;
@@ -372,12 +372,13 @@ FirstLastUserAnalysis::getLastUserOp(mlir::Value value,
     std::copy(aliasList.begin(), aliasList.end(), tmpList.begin());
     aliasList.clear();
     for (auto tmp : tmpList) {
-      getUsersWithAlias(tmp, postDominators, getLastUserOfOp,
-                        userList, blockList, aliasList);
+      getUsersWithAlias(tmp, postDominators, getLastUserOfOp, userList,
+                        blockList, aliasList);
     }
   }
 
-  if (blockList.empty()) return nullptr;
+  if (blockList.empty())
+    return nullptr;
 
   Block *dom = postDominators.findNearestCommonDominator(blockList);
 
@@ -388,7 +389,7 @@ FirstLastUserAnalysis::getLastUserOp(mlir::Value value,
   //            B3
   //   1). B1 and B3 has a "return" op.
   //   2). B2 and B3 has a use for a alloc op which locate in B0. At the time,
-  //   the "postDominators.findNearestCommonDominator"  return nullptr 
+  //   the "postDominators.findNearestCommonDominator"  return nullptr
   **/
   if (dom == nullptr) {
     auto lastBlock = blockList[0];
@@ -435,7 +436,6 @@ FirstLastUserAnalysis::getLastUserOp(mlir::Value value,
   return lastUser;
 }
 
-
 void FirstLastUserAnalysis::start() {
   assert(llvm::isa<mlir::gpu::GPUModuleOp>(moduleOp) &&
          "The input operation is not a gpu module");
@@ -446,18 +446,18 @@ void FirstLastUserAnalysis::start() {
     if (llvm::isa<arith::ConstantOp>(_op) &&
         llvm::any_of(_op->getResultTypes(), llvm::IsaPred<RankedTensorType>)) {
       lastUserMap[_op] = getLastUserOfOp(_op, postDominators);
-    } else if (
-        llvm::isa<scf::IfOp, scf::IndexSwitchOp, scf::WhileOp, scf::ForOp,
-                  triton::SplatOp, arith::ConstantOp, triton::AddPtrOp,
-                  triton::PtrToIntOp, triton::IntToPtrOp,
-                  triton::gcu::PtrToIntOp, triton::gcu::IntToPtrOp,
-                  triton::MulhiUIOp, triton::ScanOp, triton::HistogramOp,
-                  triton::gcu::LoadOp, triton::LoadOp, triton::BroadcastOp,
-                  triton::ExpandDimsOp, triton::ReshapeOp, triton::SplitOp,
-                  triton::JoinOp, triton::CatOp, triton::gcu::MatmulOp,
-                  triton::DotOp, triton::ReduceOp, triton::MakeRangeOp,
-                  triton::BitcastOp,
-                  triton::gcu::ElementwiseFusionRegionOp>(_op)) {
+    } else if (llvm::isa<
+                   scf::IfOp, scf::IndexSwitchOp, scf::WhileOp, scf::ForOp,
+                   triton::SplatOp, arith::ConstantOp, triton::AddPtrOp,
+                   triton::PtrToIntOp, triton::IntToPtrOp,
+                   triton::gcu::PtrToIntOp, triton::gcu::IntToPtrOp,
+                   triton::MulhiUIOp, triton::ScanOp, triton::HistogramOp,
+                   triton::gcu::LoadOp, triton::LoadOp, triton::BroadcastOp,
+                   triton::ExpandDimsOp, triton::ReshapeOp, triton::SplitOp,
+                   triton::JoinOp, triton::CatOp, triton::gcu::MatmulOp,
+                   triton::DotOp, triton::ReduceOp, triton::MakeRangeOp,
+                   triton::BitcastOp, triton::gcu::ElementwiseFusionRegionOp>(
+                   _op)) {
       lastUserMap[_op] = getLastUserOfOp(_op, postDominators);
     } else if (llvm::isa<triton::TransOp, triton::gpu::ConvertLayoutOp,
                          triton::gcu::LocalLoadOp>(_op)) {
@@ -466,6 +466,6 @@ void FirstLastUserAnalysis::start() {
     }
   });
 }
-}  // namespace gcu
-}  // namespace triton
-}  // namespace mlir
+} // namespace gcu
+} // namespace triton
+} // namespace mlir

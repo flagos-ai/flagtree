@@ -16,6 +16,12 @@
 #ifndef GCU_REGISTER_GCU_DIALECT_H
 #define GCU_REGISTER_GCU_DIALECT_H
 
+#include "Conversion/Passes.h"
+#include "Dialect/GCU/IR/Dialect.h"
+#include "Dialect/MathExt/IR/MathExt.h"
+#include "Dialect/MemrefExt/IR/MemrefExt.h"
+#include "Dialect/TritonGCU/IR/TritonGCUDialect.h"
+#include "Transforms/Passes.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllExtensions.h"
 #include "mlir/InitAllPasses.h"
@@ -25,12 +31,6 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMIRToLLVMTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/X86Vector/X86VectorToLLVMIRTranslation.h"
-#include "Conversion/Passes.h"
-#include "Transforms/Passes.h"
-#include "Dialect/TritonGCU/IR/TritonGCUDialect.h"
-#include "Dialect/GCU/IR/Dialect.h"
-#include "Dialect/MathExt/IR/MathExt.h"
-#include "Dialect/MemrefExt/IR/MemrefExt.h"
 
 namespace mlir {
 namespace gcu {

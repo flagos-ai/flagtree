@@ -24,18 +24,18 @@
 
 #include "Dialect/GCU/IR/Dialect.h"
 #include "Dialect/GCU/IR/Types.h"
-#include "Dialect/MemrefExt/IR/MemrefExt.h"
 #include "Dialect/MathExt/IR/MathExt.h"
 #include "Dialect/MathExt/IR/MathExtTypes.h"
+#include "Dialect/MemrefExt/IR/MemrefExt.h"
 
+#include "Dialect/TritonGCU/IR/TritonGCUDialect.h"
+#include "Dialect/TritonGCU/IR/TritonGCUTypes.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 #include "triton/Dialect/Triton/IR/Utility.h"
 #include "triton/Dialect/TritonGPU/IR/Attributes.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
-#include "Dialect/TritonGCU/IR/TritonGCUDialect.h"
-#include "Dialect/TritonGCU/IR/TritonGCUTypes.h"
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace mlir;
@@ -423,7 +423,7 @@ struct TTAsyncLoadGlobalToShareOpLowering
                          asyncLoad2Tagidex[asyncLoad.getOperation()]);
       return success();
     }
-    //to avoid share momeory race
+    // to avoid share momeory race
     rewriter.create<gpu::BarrierOp>(loc);
     auto isThread0 = rewriter.create<arith::CmpIOp>(
         loc, arith::CmpIPredicate::eq,

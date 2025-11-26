@@ -32,7 +32,7 @@ struct GCUInfo {
 };
 
 static const GCUInfo targetInfo[] = {{128, false, 4}, {512, false, 1}};
-}  // namespace
+} // namespace
 
 namespace mlir {
 namespace triton {
@@ -51,7 +51,7 @@ void populateElementwiseFusionOpToGCUPatterns(
     gcu::FirstLastUserAnalysis &userAnalysis,
     std::map<Operation *, Operation *> &replaced2Origin);
 
-}  // namespace triton
-}  // namespace mlir
+} // namespace triton
+} // namespace mlir
 
 #endif

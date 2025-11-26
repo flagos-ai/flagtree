@@ -21,8 +21,9 @@ namespace f2reduce {
  *
  * The matrix is overwritten in place with its row-reduced echelon form.
  */
-void inplace_rref_strided(uint64_t *matrix, uint64_t rows, uint64_t cols, uint64_t stride);
+void inplace_rref_strided(uint64_t *matrix, uint64_t rows, uint64_t cols,
+                          uint64_t stride);
 
 uint64_t get_recommended_stride(uint64_t cols);
 
-}  // namespace f2reduce
+} // namespace f2reduce

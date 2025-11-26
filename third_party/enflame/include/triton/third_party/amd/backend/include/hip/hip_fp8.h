@@ -30,4 +30,4 @@ THE SOFTWARE.
 #include <hip/amd_detail/amd_hip_fp8.h>
 #endif
 
-#endif  // HIP_INCLUDE_HIP_HIP_FP8_H
+#endif // HIP_INCLUDE_HIP_HIP_FP8_H

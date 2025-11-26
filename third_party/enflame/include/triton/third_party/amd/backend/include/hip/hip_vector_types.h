@@ -27,7 +27,6 @@ THE SOFTWARE.
 
 #include <hip/hip_common.h>
 
-
 #if defined(__HIP_PLATFORM_AMD__) && !defined(__HIP_PLATFORM_NVIDIA__)
 #if __cplusplus
 #include <hip/amd_detail/amd_hip_vector_types.h>

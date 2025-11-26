@@ -23,8 +23,7 @@ THE SOFTWARE.
 #pragma once
 
 // abort
-extern "C" __device__ inline __attribute__((weak))
-void abort() {
+extern "C" __device__ inline __attribute__((weak)) void abort() {
   __builtin_trap();
 }
 
@@ -34,18 +33,15 @@ void abort() {
 // allows the function to exist as a global although its definition is
 // included in every compilation unit.
 #if defined(_WIN32) || defined(_WIN64)
-extern "C" __device__ __attribute__((noinline)) __attribute__((weak))
-void _wassert(const wchar_t *_msg, const wchar_t *_file, unsigned _line) {
-    // FIXME: Need `wchar_t` support to generate assertion message.
-    __builtin_trap();
+extern "C" __device__ __attribute__((noinline)) __attribute__((weak)) void
+_wassert(const wchar_t *_msg, const wchar_t *_file, unsigned _line) {
+  // FIXME: Need `wchar_t` support to generate assertion message.
+  __builtin_trap();
 }
 #else /* defined(_WIN32) || defined(_WIN64) */
-extern "C" __device__ __attribute__((noinline)) __attribute__((weak))
-void __assert_fail(const char *assertion,
-                   const char *file,
-                   unsigned int line,
-                   const char *function)
-{
+extern "C" __device__ __attribute__((noinline)) __attribute__((weak)) void
+__assert_fail(const char *assertion, const char *file, unsigned int line,
+              const char *function) {
   const char fmt[] = "%s:%u: %s: Device-side assertion `%s' failed.\n";
 
   // strlen is not available as a built-in yet, so we create our own
@@ -58,11 +54,12 @@ void __assert_fail(const char *assertion,
   //
   // NOTE: The loop below includes the null terminator in the length
   // as required by append_string_n().
-#define __hip_get_string_length(LEN, STR)       \
-  do {                                          \
-    const char *tmp = STR;                      \
-    while (*tmp++);                             \
-    LEN = tmp - STR;                            \
+#define __hip_get_string_length(LEN, STR)                                      \
+  do {                                                                         \
+    const char *tmp = STR;                                                     \
+    while (*tmp++)                                                             \
+      ;                                                                        \
+    LEN = tmp - STR;                                                           \
   } while (0)
 
   auto msg = __ockl_fprintf_stderr_begin();
@@ -82,20 +79,19 @@ void __assert_fail(const char *assertion,
   __builtin_trap();
 }
 
-extern "C" __device__ __attribute__((noinline)) __attribute__((weak))
-void __assertfail()
-{
-    // ignore all the args for now.
-    __builtin_trap();
+extern "C" __device__ __attribute__((noinline)) __attribute__((weak)) void
+__assertfail() {
+  // ignore all the args for now.
+  __builtin_trap();
 }
 #endif /* defined(_WIN32) || defined(_WIN64) */
 
 #if defined(NDEBUG)
 #define __hip_assert(COND)
 #else
-#define __hip_assert(COND)                          \
-  do {                                              \
-    if (!(COND))                                    \
-      __builtin_trap();                             \
+#define __hip_assert(COND)                                                     \
+  do {                                                                         \
+    if (!(COND))                                                               \
+      __builtin_trap();                                                        \
   } while (0)
 #endif

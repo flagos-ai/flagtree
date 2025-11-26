@@ -23,4 +23,4 @@ THE SOFTWARE.
 
 #if GENERIC_GRID_LAUNCH == 1
 #include "macro_based_grid_launch.hpp"
-#endif  // GENERIC_GRID_LAUNCH
+#endif // GENERIC_GRID_LAUNCH
