@@ -35,7 +35,7 @@ getScratchConfigForCvtLayout(triton::gpu::ConvertLayoutOp op, unsigned &inVec,
                              unsigned &outVec);
 SmallVector<unsigned> getRepShapeForCvtLayout(triton::gpu::ConvertLayoutOp op);
 
-#ifdef FLAGTREE_SPEC_Analysis_Allocation_AllocationAnalysis_getScratchValueSize
+#ifdef FLAGTREE_SPEC_Analysis_Allocation_AllocationAnalysis_getScratchValueSizeElems
 unsigned getScratchValueSizeElems(const SmallVector<unsigned> &smemShape);
 #endif
 

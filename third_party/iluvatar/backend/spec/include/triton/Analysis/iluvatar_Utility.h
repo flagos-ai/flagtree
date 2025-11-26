@@ -14,13 +14,4 @@
 #define FLAGTREE_SPEC_Analysis_Utility_isMmaToMmaShortcut
 #define FLAGTREE_SPEC_Analysis_Utility_isMmaToDotShortcut
 
-namespace mlir {
-
-SetVector<Operation *> multiRootGetSlice(
-    Operation *op, TransitiveFilter backwardFilter = nullptr,
-    TransitiveFilter forwardFilter = nullptr,
-    FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG omitBlockArguments = true);
-
-} // namespace mlir
-
 #endif // ILUVATAR_TRITON_ANALYSIS_UTILITY_H

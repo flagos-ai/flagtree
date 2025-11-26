@@ -242,6 +242,9 @@ void getBackwardSliceImplCorex(Operation *op,
 SetVector<Operation *>
 multiRootGetSlice(Operation *op, TransitiveFilter backwardFilter = nullptr,
                   TransitiveFilter forwardFilter = nullptr);
+#else
+                  TransitiveFilter forwardFilter = nullptr,
+                  FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG omitBlockArguments = true);
 #endif
 
 /// Create a basic DataFlowSolver with constant and dead code analysis included.

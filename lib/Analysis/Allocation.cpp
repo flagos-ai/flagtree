@@ -295,7 +295,7 @@ private:
       auto smemShape = getScratchConfigForCvtLayout(cvtLayout, inVec, outVec);
       unsigned elems = std::accumulate(smemShape.begin(), smemShape.end(), 1,
                                        std::multiplies{});
-#ifdef FLAGTREE_SPEC_Analysis_Allocation_AllocationAnalysis_getScratchValueSize
+#ifdef FLAGTREE_SPEC_Analysis_Allocation_AllocationAnalysis_getScratchValueSizeElems
       elems = getScratchValueSizeElems(smemShape);
 #endif
       auto bytes =
