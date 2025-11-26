@@ -42,7 +42,7 @@ add_subdirectory(bin)
 ## 2. td 文件特化
 
 ### 2.1 td 文件整体特化
-td 文件如果需要特化，可整体复制到对应的后端 spec 目录下进行后端特化实现。例如将 include/triton/Dialect/Triton/IR/TritonAttrDefs.td 复制到 **third_party/iluvatar/backend/spec/**include/triton/Dialect/Triton/IR/TritonAttrDefs.td 进行特化修改，注意不需要修改 td 文件头部的 #ifndef 和 #define 宏，因为 CMakeLists.txt 中通过 set_flagtree_backend_td 方法只选择其中一个进行代码生成。
+td 文件如果需要特化，可整体复制到对应的后端 spec 目录下进行后端特化实现。例如将 include/triton/Dialect/Triton/IR/TritonAttrDefs.td 复制到 <strong>third_party/iluvatar/backend/spec/</strong>include/triton/Dialect/Triton/IR/TritonAttrDefs.td 进行特化修改，注意不需要修改 td 文件头部的 #ifndef 和 #define 宏，因为 CMakeLists.txt 中通过 set_flagtree_backend_td 方法只选择其中一个进行代码生成。
 - include/triton/Dialect/Triton/IR/CMakeLists.txt
 ```shell
 # set(LLVM_TARGET_DEFINITIONS TritonOps.td)  # 原实现
@@ -70,7 +70,7 @@ using FLAGTREE_SPEC_BackendMmaEncodingAttr;
 #define FLAGTREE_SPEC_BackendMmaEncodingAttr                                   \
   ::mlir::triton::gpu::IluvatarMmaEncodingAttr
 ```
-- **third_party/iluvatar/backend/spec/**include/flagtree_spec.h
+- </strong>third_party/iluvatar/backend/spec/</strong>include/flagtree_spec.h
 ```c++
 #include "triton/Dialect/TritonGPU/IR/iluvatar_Dialect.h"
 ```
@@ -97,11 +97,11 @@ using FLAGTREE_SPEC_BackendMmaEncodingAttr;
 ```
 
 #### 3.1.2 宏定义及头文件包含（注意修改文件名及头部宏）
-- **third_party/iluvatar/backend/spec/**include/triton/Conversion/TritonGPUToLLVM/iluvatar_TargetInfoBase.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/triton/Conversion/TritonGPUToLLVM/iluvatar_TargetInfoBase.h
 ```c++
 #define FLAGTREE_SPEC_TargetInfoBase_function
 ```
-- **third_party/iluvatar/backend/spec/**include/flagtree_spec.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/flagtree_spec.h
 ```c++
 #include "triton/Conversion/TritonGPUToLLVM/iluvatar_TargetInfoBase.h"
 ```
@@ -134,17 +134,17 @@ SetVector<Operation *> multiRootGetSlice(
 ```
 
 #### 3.2.2 宏定义及头文件包含（注意修改文件名及头部宏）
-- **third_party/iluvatar/backend/spec/**include/triton/Analysis/iluvatar_Utility.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/triton/Analysis/iluvatar_Utility.h
 ```c++
 #define FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG bool
 ```
-- **third_party/iluvatar/backend/spec/**include/flagtree_spec.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/flagtree_spec.h
 ```c++
 #include "triton/Analysis/iluvatar_Utility.h"
 ```
 
 #### 3.2.3 后端目录的特化实现
-- **third_party/iluvatar/backend/spec/**lib/Analysis/Utility.cpp
+- <strong>third_party/iluvatar/backend/spec/</strong>lib/Analysis/Utility.cpp
 ```c++
 SetVector<Operation *> multiRootGetSlice(
     Operation *op, TransitiveFilter backwardFilter,
@@ -153,7 +153,7 @@ SetVector<Operation *> multiRootGetSlice(
   ...
 }
 ```
-- **third_party/iluvatar/backend/spec/**lib/Analysis/CMakeLists.txt
+- <strong>third_party/iluvatar/backend/spec/</strong>lib/Analysis/CMakeLists.txt
 ```shell
 add_triton_library(FlagTree_iluvatar_TritonAnalysis
   Utility.cpp
@@ -191,23 +191,23 @@ unsigned getScratchValueSizeElems(const SmallVector<unsigned> &smemShape);
 ```
 
 #### 4.1.2 宏定义及头文件包含（注意修改文件名及头部宏）
-- **third_party/iluvatar/backend/spec/**include/triton/Analysis/iluvatar_Allocation.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/triton/Analysis/iluvatar_Allocation.h
 ```c++
 #define FLAGTREE_SPEC_Analysis_Allocation_AllocationAnalysis_getScratchValueSizeElems
 ```
-- **third_party/iluvatar/backend/spec/**include/flagtree_spec.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/flagtree_spec.h
 ```c++
 #include "triton/Analysis/iluvatar_Allocation.h"
 ```
 
 #### 4.1.3 后端目录的特化实现
-- **third_party/iluvatar/backend/spec/**lib/Analysis/Allocation.cpp
+- <strong>third_party/iluvatar/backend/spec/</strong>lib/Analysis/Allocation.cpp
 ```c++
 unsigned getScratchValueSizeElems(const SmallVector<unsigned> &smemShape) {
   ...
 }
 ```
--**third_party/iluvatar/backend/spec/**lib/Analysis/CMakeLists.txt
+-<strong>third_party/iluvatar/backend/spec/</strong>lib/Analysis/CMakeLists.txt
 ```c++
 add_triton_library(FlagTree_iluvatar_TritonAnalysis
   Allocation.cpp
@@ -242,11 +242,11 @@ getCvtOrder(Attribute srcLayout, Attribute dstLayout);
 ```
 
 #### 4.2.2 宏定义及头文件包含（注意修改文件名及头部宏）
-- **third_party/iluvatar/backend/spec/**include/triton/Analysis/iluvatar_Allocation.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/triton/Analysis/iluvatar_Allocation.h
 ```c++
 #define FLAGTREE_SPEC_Analysis_Allocation_getCvtOrder
 ```
-- **third_party/iluvatar/backend/spec/**include/flagtree_spec.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/flagtree_spec.h
 ```c++
 #include "triton/Analysis/iluvatar_Allocation.h"
 ```
@@ -270,18 +270,18 @@ getCvtOrder(Attribute srcLayout, Attribute dstLayout);
 ```
 
 #### 4.3.2 宏定义及头文件包含（注意修改文件名及头部宏）
-- **third_party/iluvatar/backend/spec/**include/triton/Dialect/Triton/IR/iluvatar_Ops.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/triton/Dialect/Triton/IR/iluvatar_Ops.h
 ```c++
 #define FLAGTREE_SPEC_Dialect_Triton_IR_Ops_cpp
 ```
-- **third_party/iluvatar/backend/spec/**include/flagtree_spec.h
+- <strong>third_party/iluvatar/backend/spec/</strong>include/flagtree_spec.h
 ```c++
 #include "triton/Dialect/Triton/IR/iluvatar_Ops.h"
 ```
 
 #### 4.3.3 后端目录的特化实现
-- **third_party/iluvatar/backend/spec/**lib/Dialect/Triton/IR/Ops.cpp
-- **third_party/iluvatar/backend/spec/**lib/Dialect/Triton/IR/CMakeLists.txt
+- <strong>third_party/iluvatar/backend/spec/</strong>lib/Dialect/Triton/IR/Ops.cpp
+- <strong>third_party/iluvatar/backend/spec/</strong>lib/Dialect/Triton/IR/CMakeLists.txt
 ```shell
 add_triton_library(FlagTree_iluvatar_TritonIR
   Ops.cpp

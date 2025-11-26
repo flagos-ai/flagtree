@@ -58,7 +58,7 @@ def atomic_add(ptr: tl.tensor, val: tl.tensor, mask: tl.tensor, sem: str, scope:
 ```
 
 #### 注册特化方法
-- **third_party/iluvatar/backend/spec/**\_\_init\_\_.py
+- <strong>third_party/iluvatar/backend/spec/</strong>\_\_init\_\_.py
 ```python
 __all__ = [
     ..., "atomic_add_int64", ...
@@ -66,7 +66,7 @@ __all__ = [
 ```
 
 #### 实现特化函数
-- **third_party/iluvatar/backend/spec/**triton/language/semantic.py
+- <strong>third_party/iluvatar/backend/spec/</strong>triton/language/semantic.py
 ```python
 def atomic_add_int64(sca_ty, builder, val, ptr, mask, sem, scope):
     from triton.language.semantic import full, and_, cast, lshr, bitcast, add, _bool_like, where, shl, or_
@@ -90,7 +90,7 @@ class _matmul(torch.autograd.Function):
 ```
 
 #### 注册特化方法
-- **third_party/iluvatar/backend/spec/**\_\_init\_\_.py
+- <strong>third_party/iluvatar/backend/spec/</strong>\_\_init\_\_.py
 ```python
 __all__ = [
     ..., "matmul_kernel", ...
