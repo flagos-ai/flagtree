@@ -6,6 +6,7 @@ FlagTree is an open source, unified compiler for multiple AI chips project dedic
 
 ## Latest News
 
+* 2025/11/26 Add FlagTree_Backend_Specialization Unified Design Document [FlagTree_Backend_Specialization](reports/decoupling/).
 * 2025/09/30 Support flagtree_hints for shared memory on GPGPU.
 * 2025/09/29 SDK storage migrated to ksyuncs, improving download stability.
 * 2025/09/25 Support flagtree_hints for ascend backend compilation capability.
