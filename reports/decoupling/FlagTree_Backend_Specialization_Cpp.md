@@ -114,9 +114,9 @@ using FLAGTREE_SPEC_BackendMmaEncodingAttr;
 #### 3.2.1 主干代码的缺省实现与特化接入
 - include/triton/Analysis/Utility.h
 ```c++
-#ifndef FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG
 SetVector<Operation *> multiRootGetSlice(
     Operation *op, TransitiveFilter backwardFilter = nullptr,
+#ifndef FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG
     TransitiveFilter forwardFilter = nullptr);
 #else
     TransitiveFilter forwardFilter = nullptr,

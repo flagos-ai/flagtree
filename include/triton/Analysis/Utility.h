@@ -238,13 +238,14 @@ void getBackwardSliceImplCorex(Operation *op,
 #endif
 
 /// This uses the toplogicalSort above
-#ifndef FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG
 SetVector<Operation *>
 multiRootGetSlice(Operation *op, TransitiveFilter backwardFilter = nullptr,
+#ifndef FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG
                   TransitiveFilter forwardFilter = nullptr);
 #else
                   TransitiveFilter forwardFilter = nullptr,
-                  FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG omitBlockArguments = true);
+                  FLAGTREE_SPEC_Utility_multiRootGetSlice_ARG
+                      omitBlockArguments = true);
 #endif
 
 /// Create a basic DataFlowSolver with constant and dead code analysis included.
