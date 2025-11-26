@@ -1,7 +1,7 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
 import numpy as np
 import triton.language.core as tl
-from typing import Optional, Tuple, overload
+from typing import Optional, Tuple, overload, Sequence
 from enum import Enum
 from . import types as tle
 
@@ -35,6 +35,7 @@ def alloc(
     dtype: tl.dtype,
     layout: Optional[tle.shared_layout] = None,
     scope: tle.scope = tle.smem,
+    nv_mma_shared_layout=True,
     _semantic=None,
 ) -> tle.buffered_tensor:
     """
@@ -99,16 +100,29 @@ def alloc(
 
         if layout is None:
             if storage == tle.smem:
-                layout = tle.swizzled_shared_layout.make_default(rank=len(shape))
-                layout_handle = _semantic.builder.make_swizzled_shared_encoding_attr(
-                    layout.vectorSize,
-                    layout.perPhase,
-                    layout.maxPhase,
-                    layout.order,
-                    layout.numCTAsPerCGA,
-                    layout.numCTASplit,
-                    layout.numCTAOrder,
-                )
+                if nv_mma_shared_layout == False:
+                    layout = tle.swizzled_shared_layout.make_default(rank=len(shape))
+                    layout_handle = _semantic.builder.make_swizzled_shared_encoding_attr(
+                        layout.vectorSize,
+                        layout.perPhase,
+                        layout.maxPhase,
+                        layout.order,
+                        layout.numCTAsPerCGA,
+                        layout.numCTASplit,
+                        layout.numCTAOrder,
+                    )
+                else:
+                    layout = tle.nv_mma_shared_layout.make_default(shape, dtype)
+                    layout_handle = _semantic.builder.make_nv_mma_shared_encoding_attr(
+                        [int(x) for x in layout.shape],
+                        layout.order,
+                        layout.elemType.to_ir(_semantic.builder),
+                        layout.numCTAsPerCGA,
+                        layout.numCTASplit,
+                        layout.numCTAOrder,
+                        layout.fp4Padded,
+                        layout.swizzled,
+                    )    
             else:
                 layout = tle.tensor_memory_layout.make_default(shape)
                 layout_handle = _semantic.builder.make_tensor_memory_encoding_attr(
@@ -133,61 +147,181 @@ def alloc(
         raise RuntimeError(f"Memory allocation failed: {str(e)}") from e
 
 
+class CopyDirection(Enum):
+    """Copy direction enum for data transfer operations"""
+    GM_TO_LOCAL = "GMTOLOCAL"  # Global memory to local memory
+    LOCAL_TO_GM = "LOCALTOGM"  # Local memory to global memory
 
 @tl.builtin
 def copy(
-    src: tl.tensor,
-    result: tle.buffered_tensor,
-    shape: tuple,
+    src,
+    dst,
+    shape,
+    offsets: Sequence[constexpr | tensor] = None,
     _semantic=None,
 ) -> None:
-
     """
-    Copy data between global memory and local memory (bidirectional).
+    High-performance data copy operation supporting TMA (Tensor Memory Accelerator) transfers.
 
-    This function supports both:
-    - Global memory → Local memory (shared memory/tensor memory)
-    - Local memory → Global memory
+    This function provides efficient data movement between different memory spaces, with support for:
+    - TMA descriptor-based transfers (for NVIDIA Hopper architecture and later)
+    - Standard global ↔ local memory transfers
+    - Bidirectional data movement with automatic direction detection
 
-    The direction is automatically determined based on operand types:
-    - If src is tl.tensor and result is tle.buffered_tensor: GM_TO_LOCAL
-    - If src is tle.buffered_tensor and result is tl.tensor: LOCAL_TO_GM
+    Transfer Direction Modes:
+    - GM_TO_LOCAL: Global memory → Local memory (shared memory)
+    - LOCAL_TO_GM: Local memory → Global memory
+
+    Direction is automatically determined based on operand types:
+    - If src is tl.tensor/tensor_descriptor and dst is tle.buffered_tensor: GM_TO_LOCAL
+    - If src is tle.buffered_tensor and dst is tl.tensor/tensor_descriptor: LOCAL_TO_GM
 
     Args:
-        src: Source tensor (global memory) or buffer (local memory)
-        result: Destination buffer (local memory) or tensor (global memory)
-        shape: Copy shape dimensions
-        _semantic: Semantic analyzer for validation (internal use)
+        src: Source data - can be:
+            - tl.tensor (global memory tensor)
+            - tl.tensor_descriptor (TMA descriptor for global memory)
+            - tle.buffered_tensor (local memory buffer)
+        dst: Destination - can be:
+            - tle.buffered_tensor (local memory buffer)
+            - tl.tensor (global memory tensor)
+            - tl.tensor_descriptor (TMA descriptor for global memory)
+        shape: Tuple specifying the dimensions of the data to copy
+        offsets: Sequence of offsets for multi-dimensional addressing. Used with TMA operations
+            to specify the starting coordinates within the tensor. Required for TMA copy.
+        _semantic: Internal semantic analyzer for validation and compilation (user-provided)
 
     Raises:
-        ValueError: When parameter types are incompatible
-        RuntimeError: When copy operation fails
-    """
+        ValueError: When parameter types are incompatible or offsets missing for TMA operations
+        RuntimeError: When copy operation fails during execution or compilation
 
-    # copy data between global memory and sharemem memory
-    class CopyDirection(Enum):
-        """Copy direction enum for data transfer operations"""
-        GM_TO_LOCAL = "GMTOLOCAL"  # Global memory to local memory
-        LOCAL_TO_GM = "LOCALTOGM"  # Local memory to global memory
+    Examples:
+        Standard global → local copy:
+            local_buf = tle.alloc([256, 256], dtype=tl.float32, scope=tle.smem)
+            tle.copy(global_tensor, local_buf, [256, 256])
+
+        TMA copy with offsets:
+            tle.copy(tma_desc, local_buf, [64, 64], [x_offset, y_offset])
+    """
+    def normcopy(
+    src: tl.tensor,
+    dst: tle.buffered_tensor,
+    shape: tuple,
+    direction,
+    _semantic=None,
+    ) -> None:
+
+    # Semantic analysis
+        try:
+            from .semantic import TLESemantic
+            if isinstance(_semantic, TLESemantic):
+                _semantic.analyze_copy_operation(src, dst, shape)
+        except ImportError:
+            # If semantic analysis module is not available, continue with warning
+            import warnings
+            warnings.warn("TLE semantic analysis module not available, skipping validation", UserWarning)
+
+        mask=None
+        other=None
+        boundary_check=()
+        padding_option=""
+        cache_modifier=""
+        eviction_policy=""
+        volatile=False
+
+        try:
+            if (direction == CopyDirection.GM_TO_LOCAL):
+                # src is global tensor
+                tt_load = _semantic.load(src, mask, other, boundary_check, padding_option, cache_modifier, eviction_policy,
+                                        volatile, None)
+                _semantic.builder.create_local_store(dst.handle, tt_load.handle)
+            else:
+                # src is local buffer - copy from shared memory to global memory
+                block_type = tl.block_type(src.type.element_ty, src.type.shape)
+                tt_local_load = _semantic.builder.create_local_load(block_type.to_ir(_semantic.builder), src.handle)
+                load = tl.tensor(tt_local_load, block_type)
+                _semantic.store(dst, load, mask, boundary_check, cache_modifier, eviction_policy)
+        except Exception as e:
+            raise RuntimeError(f"copy operation failed: {str(e)}") from e
+
+
+    # this api is use for tma copy
+    def tmacopy(
+        src: tle.buffered_tensor | tl.tensor_descriptor,
+        dst: tle.buffered_tensor | tl.tensor_descriptor,
+        direction,
+        shape: tuple,
+        offsets: Sequence[constexpr | tensor],
+        _semantic=None,
+    ) -> None:
+        # Parameter validation
+        valid_types = (tle.buffered_tensor, tl.tensor_descriptor)
+
+        if not isinstance(src, valid_types):
+            raise ValueError(f"Source parameter must be tle.buffered_tensor or tl.tensor_descriptor, but got {type(src).__name__}")
+
+        if not isinstance(dst, valid_types):
+            raise ValueError(f"Destination parameter must be tle.buffered_tensor or tl.tensor_descriptor, but got {type(dst).__name__}")
+
+        # Auto-determine copy direction based on operand types
+        if isinstance(src, tle.buffered_tensor) and isinstance(dst, tl.tensor_descriptor):
+            direction = CopyDirection.LOCAL_TO_GM
+            desc = dst
+        elif isinstance(src, tl.tensor_descriptor) and isinstance(dst, tle.buffered_tensor):
+            direction = CopyDirection.GM_TO_LOCAL
+            desc = src
+        else:
+            raise ValueError(
+                f"Invalid copy combination: src={type(src).__name__}, dst={type(dst).__name__}. "
+                "One operand must be tl.tensor_descriptor (global memory) and the other must be tle.buffered_tensor (local memory)"
+            )
+
+        if not isinstance(shape, (tuple, list)):
+            # Try to handle Triton tuple-like objects
+            if hasattr(shape, '__iter__'):
+                shape = tuple(shape)
+            else:
+                raise ValueError(f"Shape parameter must be tuple or list, but got {type(shape)}")
+
+        if not isinstance(offsets, (tuple, list)):
+            # Try to handle Triton tuple-like objects
+            if hasattr(offsets, '__iter__'):
+                offsets = tuple(offsets)
+            else:
+                raise ValueError(f"Shape parameter must be tuple or list, but got {type(shape)}")
+
+        # Note: Skip shape assertion at this level since it requires _semantic context
+        # assert desc.shape == shape, "Shape mismatch between descriptor and provided shape"
+        assert len(offsets) == len(desc.shape), "Offsets and shape must have the same length"
+        offsets = _semantic._convert_to_ir_values(offsets, require_i64=False)
+        _semantic.builder.create_tma_copy(src.handle, dst.handle , offsets)
+        return 
 
 
     # Parameter validation
-    valid_types = (tl.tensor, tle.buffered_tensor)
-
+    valid_types = (tl.tensor, tle.buffered_tensor, tl.tensor_descriptor)
+ 
     if not isinstance(src, valid_types):
-        raise ValueError(f"Source parameter must be tl.tensor or tle.buffered_tensor, but got {type(src).__name__}")
+        raise ValueError(f"Source parameter must be tl.tensor or tle.buffered_tensor  tl.tensor_descriptor , but got {type(src).__name__}")
 
-    if not isinstance(result, valid_types):
-        raise ValueError(f"Destination parameter must be tl.tensor or tle.buffered_tensor, but got {type(result).__name__}")
+    if not isinstance(dst, valid_types):
+        raise ValueError(f"Destination parameter must be tl.tensor or tle.buffered_tensor  tl.tensor_descriptor, but got {type(dst).__name__}")
 
     # Auto-determine copy direction based on operand types
-    if isinstance(src, tle.buffered_tensor) and isinstance(result, tl.tensor):
+    if isinstance(src, tle.buffered_tensor) and isinstance(dst, tl.tensor):
         direction = CopyDirection.LOCAL_TO_GM
-    elif isinstance(src, tl.tensor) and isinstance(result, tle.buffered_tensor):
+        is_normcopy = True
+    elif isinstance(src, tl.tensor) and isinstance(dst, tle.buffered_tensor):
         direction = CopyDirection.GM_TO_LOCAL
+        is_normcopy = True
+    elif isinstance(src, tle.buffered_tensor) and isinstance(dst, tl.tensor_descriptor):
+        direction = CopyDirection.LOCAL_TO_GM
+        is_normcopy = False
+    elif isinstance(src, tl.tensor_descriptor) and isinstance(dst, tle.buffered_tensor):
+        direction = CopyDirection.GM_TO_LOCAL
+        is_normcopy = False
     else:
         raise ValueError(
-            f"Invalid copy combination: src={type(src).__name__}, result={type(result).__name__}. "
+            f"Invalid copy combination: src={type(src).__name__}, dst={type(dst).__name__}. "
             "One operand must be tl.tensor (global memory) and the other must be tle.buffered_tensor (local memory)"
         )
 
@@ -197,40 +331,12 @@ def copy(
             shape = tuple(shape)
         else:
             raise ValueError(f"Shape parameter must be tuple or list, but got {type(shape)}")
+    if is_normcopy:
+        return normcopy(src, dst, shape, direction, _semantic)
+    else:
+        return tmacopy(src, dst,direction, shape,  offsets, _semantic)
+    
 
-    # Semantic analysis
-    try:
-        from .semantic import TLESemantic
-        if isinstance(_semantic, TLESemantic):
-            _semantic.analyze_copy_operation(src, result, shape)
-    except ImportError:
-        # If semantic analysis module is not available, continue with warning
-        import warnings
-        warnings.warn("TLE semantic analysis module not available, skipping validation", UserWarning)
-
-    mask=None
-    other=None
-    boundary_check=()
-    padding_option=""
-    cache_modifier=""
-    eviction_policy=""
-    volatile=False
-
-    try:
-        if (direction == CopyDirection.GM_TO_LOCAL):
-            # src is global tensor
-            tt_load = _semantic.load(src, mask, other, boundary_check, padding_option, cache_modifier, eviction_policy,
-                                    volatile, None)
-            _semantic.builder.create_local_store(result.handle, tt_load.handle)
-        else:
-            # src is local buffer - copy from shared memory to global memory
-            block_type = tl.block_type(src.type.element_ty, src.type.shape)
-            tt_local_load = _semantic.builder.create_local_load(block_type.to_ir(_semantic.builder), src.handle)
-            load = tl.tensor(tt_local_load, block_type)
-            _semantic.store(result, load, mask, boundary_check, cache_modifier, eviction_policy)
-    except Exception as e:
-        raise RuntimeError(f"copy operation failed: {str(e)}") from e
-    return 
 
 @tl.builtin
 def local_load(

@@ -7,7 +7,7 @@ from .core import (
     local_store,
 )
 from .types import (layout, shared_layout, swizzled_shared_layout,
-                    tensor_memory_layout, scope, buffered_tensor,
+                    tensor_memory_layout, nv_mma_shared_layout, scope, buffered_tensor,
                     buffered_tensor_type,smem, tmem)
 __all__ = [
     "pipeline",
@@ -19,6 +19,7 @@ __all__ = [
     "shared_layout",
     "swizzled_shared_layout",
     "tensor_memory_layout",
+    "nv_mma_shared_layout",
     "scope",
     "buffered_tensor",
     "buffered_tensor_type",

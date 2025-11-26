@@ -55,9 +55,15 @@ void setAsyncTaskIds(mlir::Operation *op,
   op->setAttr("async_task_id",
               DenseI32ArrayAttr::get(op->getContext(), sortedAsyncTaskIds));
 }
+ 
+// Pointer to the TritonOpBuilder class, used to register IR ops for third-party
+// dialects.
+static py::class_<TritonOpBuilder> *builderClassPtr = nullptr;
+namespace ir {
+py::class_<TritonOpBuilder> *getBuilderClass() { return builderClassPtr; }
+} // namespace ir
 
 namespace {
-
 namespace py = pybind11;
 using namespace mlir;
 using namespace triton;
@@ -204,7 +210,7 @@ ReproducerStreamFactory makeConsoleReproducer() {
 
 OpPrintingFlags getOpPrintingFlags() {
   auto printingFlags = OpPrintingFlags();
-  // printingFlags.enableDebugInfo();
+  printingFlags.enableDebugInfo();
   printingFlags.printNameLocAsPrefix(true);
   return printingFlags;
 }
@@ -780,9 +786,10 @@ void init_triton_ir(py::module &&m) {
 
   py::class_<OpBuilder::InsertPoint>(m, "InsertPoint", py::module_local());
 
-  py::class_<TritonOpBuilder>(m, "builder", py::module_local(),
-                              py::dynamic_attr())
-      .def(py::init<MLIRContext *>())
+  static py::class_<TritonOpBuilder> builderClass(m, "builder", py::module_local(),
+                              py::dynamic_attr());
+      builderClassPtr = &builderClass;
+      builderClass.def(py::init<MLIRContext *>())
       .def("get_op_builder", &TritonOpBuilder::getBuilder, ret::reference)
       // getters
       .def("create_module",
@@ -1847,67 +1854,7 @@ void init_triton_ir(py::module &&m) {
                                                   tensorShape, isSignedInteger,
                                                   paddingOption);
            })
-       // tle extensions
-      .def("make_swizzled_shared_encoding_attr",
-           [](TritonOpBuilder &self, unsigned vectorSize, unsigned perPhase,
-              unsigned maxPhase, std::vector<unsigned> order,
-              std::vector<unsigned> CTAsPerCGA,
-              std::vector<unsigned> CTASplitNum,
-              std::vector<unsigned> CTAOrder) {
-             assert(order.size() == CTAsPerCGA.size() && "shape mismatch");
-             assert(order.size() == CTASplitNum.size() && "shape mismatch");
-             assert(order.size() == CTAOrder.size() && "shape mismatch");
-             auto context = self.getBuilder().getContext();
-             auto CTALayout = ttg::CTALayoutAttr::get(context, CTAsPerCGA,
-                                                      CTASplitNum, CTAOrder);
-             return mlir::cast<Attribute>(ttg::SwizzledSharedEncodingAttr::get(
-                 context, vectorSize, perPhase, maxPhase, order, CTALayout));
-           })
-      .def("make_tensor_memory_encoding_attr",
-           [](TritonOpBuilder &self, unsigned blockM, unsigned blockN,
-              bool unpacked, unsigned CTASplitM, unsigned CTASplitN) {
-             auto context = self.getBuilder().getContext();
-             return mlir::cast<Attribute>(ttng::TensorMemoryEncodingAttr::get(
-                 context, blockM, blockN, unpacked, CTASplitM, CTASplitN));
-           })
-      .def("create_local_alloc",
-           [](TritonOpBuilder &self, std::vector<int64_t> shape,
-              Type &elementType, Attribute &encoding) -> mlir::Value {
-             auto context = self.getBuilder().getContext();
-             auto memorySpace = ttg::SharedMemorySpaceAttr::get(context);
-             auto memDesc =
-                 ttg::MemDescType::get(shape, elementType, encoding,
-                                       memorySpace, /*mutableMemory=*/true);
-             return self.create<ttg::LocalAllocOp>(memDesc);
-           })
-      .def("create_local_alloc",
-           [](TritonOpBuilder &self, Type resultTy, Value value) -> Value {
-             return self.create<ttg::LocalAllocOp>(resultTy, value);
-           })
-      .def("create_local_load",
-           [](TritonOpBuilder &self, Type resultTy, Value memDesc) -> Value {
-             return self.create<ttg::LocalLoadOp>(resultTy, memDesc);
-           })
-      .def("create_local_store",
-           [](TritonOpBuilder &self, Value &dst, Value &regValues) -> void {
-             self.create<ttg::LocalStoreOp>(regValues, dst);
-           })
-      .def("get_memdesc_type",
-           [](TritonOpBuilder &self, std::vector<int64_t> shape,
-              Type &elementType, Attribute &encoding,
-              std::string storage) -> Type {
-             auto context = self.getBuilder().getContext();
-             Attribute memorySpace;
-             if (storage == "tmem")
-               memorySpace = ttng::TensorMemorySpaceAttr::get(context);
-             else if (storage == "smem") {
-               memorySpace = ttg::SharedMemorySpaceAttr::get(context);
-             } else {
-               llvm_unreachable("Unknown storage type");
-             }
-             return ttg::MemDescType::get(shape, elementType, encoding,
-                                          memorySpace, /*mutableMemory=*/true);
-           })
+  
            ;
 
   py::class_<PassManager>(m, "pass_manager", py::module_local())

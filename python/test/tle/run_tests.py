@@ -59,6 +59,8 @@ def main():
             integration_tests = [
                 ("integration/test_tle_pipeline_e2e.py", "TLE Pipeline End-to-End Tests"),
                 ("integration/test_tle_local_store.py", "TLE Local Store Integration Tests"),
+                ("integration/test_tle_tma_copy.py", "TLE TMA Copy Integration Tests"),
+                ("integration/test_tle_gemm.py", "TLE TMA gemm Integration Tests"),
             ]
 
             for test_file, description in integration_tests:

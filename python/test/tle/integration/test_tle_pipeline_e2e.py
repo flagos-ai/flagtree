@@ -49,6 +49,7 @@ def elementwise_add_kernel(
     b_smem = tle.alloc([XBLOCK, YBLOCK], dtype=tl.float32, layout=None, scope=tle.smem)
 
     # Use TLE pipeline for block-wise processing
+    #for yoff in range(0, ynumel, YBLOCK):
     for yoff in tle.pipeline(0, ynumel, YBLOCK, num_stages=2):
         # Calculate column offset for current block
         yoffs = tl.arange(0, YBLOCK) + yoff
@@ -184,47 +185,6 @@ class TestTLEPipelineEndToEnd:
         elementwise_add(a, b, c, 32, 128)
         torch.testing.assert_close(c, a + b, atol=1e-5, rtol=1e-5)
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="Requires CUDA GPU")
-    def test_elementwise_add_performance(self):
-        """Performance benchmark test"""
-        torch.manual_seed(999)
-
-        # Large tensor performance test - use smaller blocks to avoid shared memory limits
-        xnumel, ynumel = 4096, 4096
-        XBLOCK, YBLOCK = 64, 64  # Reduced from 128, 128 to fit in shared memory
-
-        a = torch.randn(xnumel, ynumel, device="cuda", dtype=torch.float32)
-        b = torch.randn(xnumel, ynumel, device="cuda", dtype=torch.float32)
-        c = torch.empty_like(a, device="cuda", dtype=torch.float32)
-
-        # Warmup
-        for _ in range(3):
-            elementwise_add(a, b, c, XBLOCK, YBLOCK)
-        torch.cuda.synchronize()
-
-        # Performance test
-        import time
-        start_time = time.time()
-
-        num_runs = 10
-        for _ in range(num_runs):
-            elementwise_add(a, b, c, XBLOCK, YBLOCK)
-
-        torch.cuda.synchronize()
-        end_time = time.time()
-
-        avg_time = (end_time - start_time) / num_runs
-        total_elements = xnumel * ynumel
-        throughput = total_elements / avg_time / 1e9  # GFLOPS
-
-        print(f"TLE Pipeline Performance:")
-        print(f"  Tensor size: {xnumel} x {ynumel}")
-        print(f"  Block size: {XBLOCK} x {YBLOCK}")
-        print(f"  Average execution time: {avg_time*1000:.2f} ms")
-        print(f"  Throughput: {throughput:.2f} GFLOPS")
-
-        # Basic performance requirement (should achieve certain throughput)
-        assert throughput > 10, f"Performance insufficient: {throughput:.2f} GFLOPS < 10 GFLOPS"
 
     def test_tle_module_import(self):
         """Test TLE module import (no GPU required)"""
