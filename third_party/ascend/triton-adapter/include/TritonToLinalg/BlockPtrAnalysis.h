@@ -197,10 +197,10 @@ public:
                           ConversionPatternRewriter &rewriter,
                           const llvm::SmallDenseMap<Value, BlockData> &known);
 
-  static void parseExtractSlice(tensor::ExtractSliceOp op, BlockData &data,
-                            const Location &loc,
-                            ConversionPatternRewriter &rewriter,
-                            const llvm::SmallDenseMap<Value, BlockData> &known);
+  static void
+  parseExtractSlice(tensor::ExtractSliceOp op, BlockData &data,
+                    const Location &loc, ConversionPatternRewriter &rewriter,
+                    const llvm::SmallDenseMap<Value, BlockData> &known);
 
   static void
   parseReinterpretCast(memref::ReinterpretCastOp op, BlockData &data,
@@ -217,10 +217,10 @@ public:
                             ConversionPatternRewriter &rewriter,
                             llvm::SmallDenseMap<Value, BlockData> &known);
 
-  static void rewriteMakeTensorPtrOp(triton::MakeTensorPtrOp op,
-                                     Value base,
-                                     ConversionPatternRewriter &rewriter,
-                                     llvm::SmallDenseMap<Value, BlockData> &known);
+  static void
+  rewriteMakeTensorPtrOp(triton::MakeTensorPtrOp op, Value base,
+                         ConversionPatternRewriter &rewriter,
+                         llvm::SmallDenseMap<Value, BlockData> &known);
 
   static void rewriteAdvanceOp(triton::AdvanceOp op,
                                ConversionPatternRewriter &rewriter,
@@ -228,12 +228,14 @@ public:
 
   static void
   rewriteYieldOp(scf::YieldOp op, ConversionPatternRewriter &rewriter,
-                 const llvm::SmallDenseSet<size_t> &blockArgIdxSet, ArrayRef<int64_t> iterArgIdxMap,
+                 const llvm::SmallDenseSet<size_t> &blockArgIdxSet,
+                 ArrayRef<int64_t> iterArgIdxMap,
                  const llvm::SmallDenseMap<Value, BlockData> &known);
 
-  /// @param known is mainly designed for `rewriteLoop`, and is just non-const in
-  /// `rewriteLoop`, `rewriteAddPtr` and `rewriteAdvance`
-  static void rewriteLoopOp(LoopLikeOpInterface op, ConversionPatternRewriter &rewriter,
+  /// @param known is mainly designed for `rewriteLoop`, and is just non-const
+  /// in `rewriteLoop`, `rewriteAddPtr` and `rewriteAdvance`
+  static void rewriteLoopOp(LoopLikeOpInterface op,
+                            ConversionPatternRewriter &rewriter,
                             llvm::SmallDenseMap<Value, BlockData> &known);
 
   static void rewriteAddPtrToUnstrucMemAcc(triton::AddPtrOp op,

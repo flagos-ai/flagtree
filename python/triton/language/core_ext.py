@@ -26,7 +26,8 @@ from .tensor_descriptor import tensor_descriptor, tensor_descriptor_base
 
 @_tensor_member_fn
 @builtin
-def cast(input, dtype: real_dtype, fp_downcast_rounding: Optional[str] = None, bitcast: bool = False, overflow_mode: Optional[str] = None, _builder=None):
+def cast(input, dtype: real_dtype, fp_downcast_rounding: Optional[str] = None, bitcast: bool = False,
+         overflow_mode: Optional[str] = None, _builder=None):
     """
     Casts a tensor to the given :code:`dtype`.
 
@@ -101,19 +102,12 @@ def dot(
     out_dtype=float32,
     _builder=None,
 ):
-    assert (
-        input_precision is None or allow_tf32 is None
-    ), "Only one of input_precision and allow_tf32 can be specified"
-    assert (
-        not allow_tf32
-    ), "allow_tf32 is deprecated, please use input_precision='hf32' on Ascend instead."
+    assert (input_precision is None
+            or allow_tf32 is None), "Only one of input_precision and allow_tf32 can be specified"
+    assert (not allow_tf32), "allow_tf32 is deprecated, please use input_precision='hf32' on Ascend instead."
     if input_precision is None:
-        supports_tf32 = (
-            _builder and "tf32" in _builder.options.allowed_dot_input_precisions
-        )
-        default_precision = (
-            "tf32" if (supports_tf32 and (allow_tf32 or allow_tf32 is None)) else "ieee"
-        )
+        supports_tf32 = (_builder and "tf32" in _builder.options.allowed_dot_input_precisions)
+        default_precision = ("tf32" if (supports_tf32 and (allow_tf32 or allow_tf32 is None)) else "ieee")
         input_precision = os.getenv("TRITON_F32_DEFAULT", default_precision)
     else:
         assert input_precision not in [
@@ -123,9 +117,7 @@ def dot(
     input_precision = _constexpr_to_value(input_precision)
     out_dtype = _constexpr_to_value(out_dtype)
     max_num_imprecise_acc = _constexpr_to_value(max_num_imprecise_acc)
-    return semantic.dot(
-        input, other, acc, input_precision, max_num_imprecise_acc, out_dtype, _builder
-    )
+    return semantic.dot(input, other, acc, input_precision, max_num_imprecise_acc, out_dtype, _builder)
 
 
 @_tensor_member_fn
@@ -162,10 +154,7 @@ def insert_slice(ful, sub, offsets, sizes, strides, _builder=None, _generator=No
     """
     assert len(ful.shape) > 0
     assert len(ful.shape) == len(sub.shape)
-    new_offsets = [
-        real_semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
-        for o in offsets
-    ]
+    new_offsets = [real_semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o for o in offsets]
     out = semantic.insert_slice(ful, sub, new_offsets, sizes, strides, _builder)
     return out
 
@@ -186,12 +175,10 @@ def extract_slice(ful, offsets, sizes, strides, _builder=None, _generator=None) 
     :type strides: tuple of ints
     """
     assert len(ful.shape) > 0
-    new_offsets = [
-        real_semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
-        for o in offsets
-    ]
+    new_offsets = [real_semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o for o in offsets]
     sub = semantic.extract_slice(ful, new_offsets, sizes, strides, _builder)
     return sub
+
 
 @_tensor_member_fn
 @builtin
@@ -207,31 +194,34 @@ def get_element(src, indice, _builder=None, _generator=None):
     :type indice: tuple of ints
     """
     assert len(src.shape) > 0
-    new_indice = [
-        real_semantic.to_tensor(i, _builder) if isinstance(i, constexpr) else i
-        for i in indice
-    ]
+    new_indice = [real_semantic.to_tensor(i, _builder) if isinstance(i, constexpr) else i for i in indice]
     return semantic.get_element(src, new_indice, _builder)
+
 
 @builtin
 def __add__(self, other, _builder=None):
     return add(self, other, sanitize_overflow=False, _builder=_builder)
 
+
 @builtin
 def __radd__(self, other, _builder=None):
     return add(other, self, sanitize_overflow=False, _builder=_builder)
+
 
 @builtin
 def __sub__(self, other, _builder=None):
     return sub(self, other, sanitize_overflow=False, _builder=_builder)
 
+
 @builtin
 def __rsub__(self, other, _builder=None):
     return sub(other, self, sanitize_overflow=False, _builder=_builder)
 
+
 @builtin
 def __mul__(self, other, _builder=None):
     return mul(self, other, sanitize_overflow=False, _builder=_builder)
+
 
 @builtin
 def __rmul__(self, other, _builder=None):
@@ -269,13 +259,16 @@ class parallel(range):
         This is used in the mixed cube-vector kernel on 910B. The number of vector cores is determined by the number of
         iteration in this loop. Currently on 910B, max 2 vector cores could be used.
     """
-    def __init__(self, arg1, arg2=None, step=None, num_stages=None, loop_unroll_factor=None, bind_sub_block: bool = False):
+
+    def __init__(self, arg1, arg2=None, step=None, num_stages=None, loop_unroll_factor=None,
+                 bind_sub_block: bool = False):
         super().__init__(arg1, arg2, step, num_stages, loop_unroll_factor)
         self.bind_sub_block = bind_sub_block
 
 
 @builtin
 def compile_hint(ptr, hint_name, hint_val=None, _builder=None):
+
     def _unwrap(val):
         return _unwrap_if_constexpr(val) if val else val
 
@@ -319,7 +312,7 @@ def sort(ptr, dim=-1, descending=False, _builder=None):
         semantic.compile_hint(ret, "overflow_mode", constexpr("saturate"), _builder)
     return ret
 
-    
+
 @builtin
 def multibuffer(src: tensor, size, _builder=None):
     """
@@ -328,7 +321,7 @@ def multibuffer(src: tensor, size, _builder=None):
     :size: number of copies
     """
     buffer_size = _constexpr_to_value(size)
-    assert isinstance(buffer_size, int) and buffer_size == 2, f"only support bufferize equals 2"
+    assert isinstance(buffer_size, int) and buffer_size == 2, "only support bufferize equals 2"
     semantic.compile_hint(src, "multi_buffer", buffer_size, _builder)
 
 
@@ -347,8 +340,10 @@ def sync_block_set(sender, receiver, event_id, _builder=None):
     sender = _constexpr_to_value(sender)
     receiver = _constexpr_to_value(receiver)
     event_id = _constexpr_to_value(event_id)
-    assert isinstance(sender, str) and (sender == "cube" or sender == "vector"), f"ERROR: sender = {sender}, only supports cube/vector"
-    assert isinstance(receiver, str) and (receiver == "cube" or receiver == "vector"), f"ERROR: receiver = {receiver}, only supports cube/vector"
+    assert isinstance(sender, str) and (sender == "cube"
+                                        or sender == "vector"), f"ERROR: sender = {sender}, only supports cube/vector"
+    assert isinstance(receiver, str) and (receiver == "cube" or receiver
+                                          == "vector"), f"ERROR: receiver = {receiver}, only supports cube/vector"
     assert isinstance(event_id, int) and (event_id >= 0) and (event_id < 16), f"event_id: {event_id} should be 0 ~ 15"
     if sender == receiver:
         raise ValueError(f'Unexpected pair: {sender} -> {receiver}, only supports cube -> vector or vector -> cube')
@@ -360,8 +355,10 @@ def sync_block_wait(sender, receiver, event_id, _builder=None):
     sender = _constexpr_to_value(sender)
     receiver = _constexpr_to_value(receiver)
     event_id = _constexpr_to_value(event_id)
-    assert isinstance(sender, str) and (sender == "cube" or sender == "vector"), f"ERROR: sender = {sender}, only supports cube/vector"
-    assert isinstance(receiver, str) and (receiver == "cube" or receiver == "vector"), f"ERROR: receiver = {receiver}, only supports cube/vector"
+    assert isinstance(sender, str) and (sender == "cube"
+                                        or sender == "vector"), f"ERROR: sender = {sender}, only supports cube/vector"
+    assert isinstance(receiver, str) and (receiver == "cube" or receiver
+                                          == "vector"), f"ERROR: receiver = {receiver}, only supports cube/vector"
     assert isinstance(event_id, int) and (event_id >= 0) and (event_id < 16), f"event_id: {event_id} should be 0 ~ 15"
     if sender == receiver:
         raise ValueError(f'Unexpected pair: {sender} -> {receiver}, only supports cube -> vector or vector -> cube')
@@ -442,7 +439,7 @@ def make_tensor_descriptor(
 
 def dtype_to_ir(self, builder: ir.builder) -> ir.type:
     if self.name.startswith("fp8"):
-        raise ValueError(f'unexpected type fp8.')
+        raise ValueError('unexpected type fp8.')
 
     if self.name == 'void':
         return builder.get_void_ty()
@@ -475,4 +472,3 @@ def dtype_to_ir(self, builder: ir.builder) -> ir.type:
     elif self.name == 'fp64':
         return builder.get_double_ty()
     raise ValueError(f'fail to convert {self} to ir type')
-    

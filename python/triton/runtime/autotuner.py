@@ -37,9 +37,7 @@ class Autotuner(KernelInterface):
             'prune_num_stages_by'(optional): a function used to prune num_stages. It takes configs:List[Config] as its input, and returns pruned configs.
         """
         if not configs:
-            self.configs = [
-                Config({})
-            ]
+            self.configs = [Config({})]
         else:
             self.configs = configs
         self.keys = key
@@ -199,9 +197,7 @@ class Autotuner(KernelInterface):
 
             self.post_hook(full_nargs, exception=None)
 
-        do_bench_npu(
-            kernel_call, prof_dir=self.auto_profile_dir, keep_res=True
-        )
+        do_bench_npu(kernel_call, prof_dir=self.auto_profile_dir, keep_res=True)
 
     def run(self, *args, **kwargs):
         self.nargs = dict(zip(self.arg_names, args))
@@ -302,8 +298,9 @@ class Config:
     :ivar bishengir_options: dict of options that pass to bishengir.
     """
 
-    def __init__(self, kwargs, num_warps=None, num_stages=None, num_ctas=None, num_buffers_warp_spec=None, num_consumer_groups=None,
-                 reg_dec_producer=None, reg_inc_consumer=None, maxnreg=None, pre_hook=None, **bishengir_options):
+    def __init__(self, kwargs, num_warps=None, num_stages=None, num_ctas=None, num_buffers_warp_spec=None,
+                 num_consumer_groups=None, reg_dec_producer=None, reg_inc_consumer=None, maxnreg=None, pre_hook=None,
+                 **bishengir_options):
         self.kwargs = kwargs
         self.num_warps = num_warps
         self.num_ctas = num_ctas
@@ -315,16 +312,18 @@ class Config:
         self.maxnreg = maxnreg
         self.pre_hook = pre_hook
 
-                    
         # BiShengIR Options allowed for autotune
-        self.multibuffer = bishengir_options.get("multibuffer", None) # Compiler Default True
-        self.unit_flag = bishengir_options.get("unit_flag", None) # Compiler Default False
-        self.limit_auto_multi_buffer_only_for_local_buffer = bishengir_options.get("limit_auto_multi_buffer_only_for_local_buffer", None) # Compiler Default False
-        self.limit_auto_multi_buffer_of_local_buffer = bishengir_options.get("limit_auto_multi_buffer_of_local_buffer", None) # Compiler Default no-limit
-        self.set_workspace_multibuffer = bishengir_options.get("set_workspace_multibuffer", None) # Compiler Default 1
-        self.enable_hivm_auto_cv_balance = bishengir_options.get("enable_hivm_auto_cv_balance", None) # Compiler Default True
-        self.tile_mix_vector_loop = bishengir_options.get("tile_mix_vector_loop", None) # Compiler Default 1
-        self.tile_mix_cube_loop = bishengir_options.get("tile_mix_cube_loop", None) # Compiler Default 1
+        self.multibuffer = bishengir_options.get("multibuffer", None)  # Compiler Default True
+        self.unit_flag = bishengir_options.get("unit_flag", None)  # Compiler Default False
+        self.limit_auto_multi_buffer_only_for_local_buffer = bishengir_options.get(
+            "limit_auto_multi_buffer_only_for_local_buffer", None)  # Compiler Default False
+        self.limit_auto_multi_buffer_of_local_buffer = bishengir_options.get("limit_auto_multi_buffer_of_local_buffer",
+                                                                             None)  # Compiler Default no-limit
+        self.set_workspace_multibuffer = bishengir_options.get("set_workspace_multibuffer", None)  # Compiler Default 1
+        self.enable_hivm_auto_cv_balance = bishengir_options.get("enable_hivm_auto_cv_balance",
+                                                                 None)  # Compiler Default True
+        self.tile_mix_vector_loop = bishengir_options.get("tile_mix_vector_loop", None)  # Compiler Default 1
+        self.tile_mix_cube_loop = bishengir_options.get("tile_mix_cube_loop", None)  # Compiler Default 1
 
     def all_kwargs(self):
         return {
@@ -378,9 +377,9 @@ class Config:
         return ", ".join(res)
 
 
-def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_value=None,
-             pre_hook=None, post_hook=None, warmup=None, rep=None, use_cuda_graph=False, do_bench=None, auto_profile_dir=None,
-             split_params=None, tiling_params=None, low_dims=None, dual_reduction=False, persistent_reduction=False):
+def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_value=None, pre_hook=None, post_hook=None,
+             warmup=None, rep=None, use_cuda_graph=False, do_bench=None, auto_profile_dir=None, split_params=None,
+             tiling_params=None, low_dims=None, dual_reduction=False, persistent_reduction=False):
     """
     Decorator for auto-tuning a :code:`triton.jit`'d function.
 

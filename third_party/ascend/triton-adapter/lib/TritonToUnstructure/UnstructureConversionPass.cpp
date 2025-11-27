@@ -134,7 +134,7 @@ void UnstructuredMemAccessConverter<triton::LoadOp>::splatAndLoadScenario<
 
 template <typename MemAccOpTy>
 void UnstructuredMemAccessConverter<MemAccOpTy>::AddAssertForAddPtr(
-  MemAccOpTy op, const Value &opoffset, PatternRewriter &rewriter) const {
+    MemAccOpTy op, const Value &opoffset, PatternRewriter &rewriter) const {
   auto loc = op.getLoc();
   auto opoffsetType = opoffset.getType();
   Value constantZero;
@@ -144,14 +144,14 @@ void UnstructuredMemAccessConverter<MemAccOpTy>::AddAssertForAddPtr(
     constantZero = rewriter.create<arith::ConstantOp>(
         loc, rewriter.getZeroAttr(tensorType));
   } else {
-    constantZero = rewriter.create<arith::ConstantIntOp>(
-        loc, 0, opoffset.getType());
+    constantZero =
+        rewriter.create<arith::ConstantIntOp>(loc, 0, opoffset.getType());
   }
   Value cmpResult = rewriter.create<arith::CmpIOp>(
       loc, arith::CmpIPredicate::sge, opoffset, constantZero);
 
-  mlir::StringAttr assertMsg = rewriter.getStringAttr(
-      "AddPtr offset (from subi) must be >= 0");
+  mlir::StringAttr assertMsg =
+      rewriter.getStringAttr("AddPtr offset (from subi) must be >= 0");
 
   rewriter.create<triton::AssertOp>(loc, cmpResult, assertMsg);
 }
@@ -169,8 +169,8 @@ LogicalResult UnstructuredMemAccessConverter<MemAccOpTy>::matchAndRewrite(
   auto ptr = op.getPtr();
   auto ptrType = dyn_cast<RankedTensorType>(ptr.getType());
 
-  if (!ptrType || op->hasAttr(ConverterUtils::discreteAttrName)
-      || op->hasAttr("Negative")) {
+  if (!ptrType || op->hasAttr(ConverterUtils::discreteAttrName) ||
+      op->hasAttr("Negative")) {
     return failure();
   }
   if (!offsetMap.contains(ptr))
@@ -184,7 +184,8 @@ LogicalResult UnstructuredMemAccessConverter<MemAccOpTy>::matchAndRewrite(
 
   if (ptrOffsetInfo.isStructured() &&
       (!ptrOffsetInfo.isScalarLike() ||
-       llvm::all_of(ptrType.getShape(), [](int64_t dim) { return dim == 1; }))) {
+       llvm::all_of(ptrType.getShape(),
+                    [](int64_t dim) { return dim == 1; }))) {
     if (flag) {
       AddAssertForAddPtr(op, ptrOffsetInfo.getOffset(), rewriter);
       return success();
@@ -197,14 +198,14 @@ LogicalResult UnstructuredMemAccessConverter<MemAccOpTy>::matchAndRewrite(
     auto &os = llvm::dbgs();
     os << "Converting " << op->getName() << "\n";
     os << op << "\n";
-    os << "isStructured = " << ptrOffsetInfo.isStructured() \
-      << ",isScalarLike = " << ptrOffsetInfo.isScalarLike() \
-      << ", isNegativeFlag = " << ptrOffsetInfo.isNegativeFlag() << "\n";
+    os << "isStructured = " << ptrOffsetInfo.isStructured()
+       << ",isScalarLike = " << ptrOffsetInfo.isScalarLike()
+       << ", isNegativeFlag = " << ptrOffsetInfo.isNegativeFlag() << "\n";
   });
 
   if constexpr (std::is_same_v<MemAccOpTy, triton::LoadOp>)
     if (ptrOffsetInfo.isScalarLike()) {
-     if (flag) {
+      if (flag) {
         AddAssertForAddPtr(op, ptrOffsetInfo.getOffset(), rewriter);
       }
       splatAndLoadScenario(op, ptrOffsetInfo.getRank(), rewriter);
@@ -420,8 +421,7 @@ void TritonToUnstructurePass::runPreparse(LoopLikeOpInterface op) {
       offsetMap[regionIterArg] = PtrOffsetInfo(resOffsetInfo.getPtr());
       SmallVector<bool> &regionIterArgOffset =
           offsetMap[regionIterArg].getStructuredRef();
-      SmallVector<bool> &resOffset =
-          resOffsetInfo.getStructuredRef();
+      SmallVector<bool> &resOffset = resOffsetInfo.getStructuredRef();
       regionIterArgOffset.resize(resOffset.size());
       for (size_t i = 0; i < resOffset.size(); i++)
         regionIterArgOffset[i] = resOffset[i];

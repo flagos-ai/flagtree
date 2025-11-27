@@ -636,14 +636,13 @@ void init_triton_ir(py::module &&m) {
            [](TritonOpBuilder &self, std::string value) {
              return self.getBuilder().getStringAttr(value);
            })
-      .def("get_unit_attr",
-          [](TritonOpBuilder &self) {
-            return self.getBuilder().getUnitAttr();
-          })
+      .def(
+          "get_unit_attr",
+          [](TritonOpBuilder &self) { return self.getBuilder().getUnitAttr(); })
       .def("get_i64_array_attr",
-          [](TritonOpBuilder &self, const std::vector<int64_t>& array) {
-            return self.getBuilder().getI64ArrayAttr(array);
-          })
+           [](TritonOpBuilder &self, const std::vector<int64_t> &array) {
+             return self.getBuilder().getI64ArrayAttr(array);
+           })
       // Use arith.ConstantOp to create constants
       // Constants
       .def("get_int1",
@@ -1280,19 +1279,23 @@ void init_triton_ir(py::module &&m) {
            })
       .def("create_tensor_descriptor_type",
            [](TritonOpBuilder &self, Type blockTy, bool isSigned) -> Type {
-               auto ctx = self.getBuilder().getContext();
-               return triton::TensorDescType::get(ctx, cast<RankedTensorType>(blockTy), isSigned);
+             auto ctx = self.getBuilder().getContext();
+             return triton::TensorDescType::get(
+                 ctx, cast<RankedTensorType>(blockTy), isSigned);
            })
       .def("create_descriptor_load",
-           [](TritonOpBuilder &self, Value desc, std::vector<Value> &indices, CacheModifier cacheModifier,
+           [](TritonOpBuilder &self, Value desc, std::vector<Value> &indices,
+              CacheModifier cacheModifier,
               EvictionPolicy evictionPolicy) -> Value {
-                auto descTy = cast<triton::TensorDescType>(desc.getType());
-                auto resTy = descTy.getSignlessBlockType();
-                return self.create<DescriptorLoadOp>(resTy, desc, indices, cacheModifier, evictionPolicy);
+             auto descTy = cast<triton::TensorDescType>(desc.getType());
+             auto resTy = descTy.getSignlessBlockType();
+             return self.create<DescriptorLoadOp>(
+                 resTy, desc, indices, cacheModifier, evictionPolicy);
            })
       .def("create_descriptor_store",
-           [](TritonOpBuilder &self, Value desc, Value value, std::vector<Value> &indices) -> void {
-               self.create<DescriptorStoreOp>(desc, value, indices);
+           [](TritonOpBuilder &self, Value desc, Value value,
+              std::vector<Value> &indices) -> void {
+             self.create<DescriptorStoreOp>(desc, value, indices);
            })
       .def("create_tensormap_create",
            [](TritonOpBuilder &self, Value desc_ptr, Value global_address,
@@ -1351,52 +1354,55 @@ void init_triton_ir(py::module &&m) {
              return std::vector<Value>(op->result_begin(), op->result_end());
            })
       .def("create_extract_scalar",
-           [](TritonOpBuilder &self, Value &src, std::vector<Value> &indices) -> Value {
-            llvm::SmallVector<Value> arg_indices;
-            for (const auto &i : indices) {
-                auto iTy = i.getType();
-                if (!iTy.isIndex()) {
-                    auto v = self.create<arith::IndexCastOp>(
-                        self.getBuilder().getIndexType(), i);
-                    arg_indices.push_back(v);
-                } else {
-                    arg_indices.push_back(i);
-                }
-            }
-            auto ret = self.create<tensor::ExtractOp>(src, arg_indices);
-            return ret;
-        })
+           [](TritonOpBuilder &self, Value &src,
+              std::vector<Value> &indices) -> Value {
+             llvm::SmallVector<Value> arg_indices;
+             for (const auto &i : indices) {
+               auto iTy = i.getType();
+               if (!iTy.isIndex()) {
+                 auto v = self.create<arith::IndexCastOp>(
+                     self.getBuilder().getIndexType(), i);
+                 arg_indices.push_back(v);
+               } else {
+                 arg_indices.push_back(i);
+               }
+             }
+             auto ret = self.create<tensor::ExtractOp>(src, arg_indices);
+             return ret;
+           })
       .def("create_extract_slice",
-        [](TritonOpBuilder &self, Value &ful, std::vector<Value> &offs_vec,
-            std::vector<int> &sizs_vec, std::vector<int> &strd_vec) -> Value {
-            llvm::SmallVector<Value> offsets;
-            for (const auto &o : offs_vec) {
-                auto oTy = o.getType();
-                if (!oTy.isIndex()) {
-                    auto v = self.create<arith::IndexCastOp>(
-                        self.getBuilder().getIndexType(), o);
-                    offsets.push_back(v);
-                } else {
-                    offsets.push_back(o);
-                }
-            }
-            llvm::SmallVector<Value> sizes;
-            llvm::SmallVector<int64_t> retSizes;
-            for (const auto &s : sizs_vec) {
-                auto v = self.create<arith::ConstantIndexOp>(s);
-                sizes.push_back(v);
-                retSizes.push_back(s);
-            }
-            llvm::SmallVector<Value> strides;
-            for (const auto &s : strd_vec) {
-                auto v = self.create<arith::ConstantIndexOp>(s);
-                strides.push_back(v);
-            }
-            auto retTy = RankedTensorType::get(retSizes,
-                cast<RankedTensorType>(ful.getType()).getElementType());
+           [](TritonOpBuilder &self, Value &ful, std::vector<Value> &offs_vec,
+              std::vector<int> &sizs_vec, std::vector<int> &strd_vec) -> Value {
+             llvm::SmallVector<Value> offsets;
+             for (const auto &o : offs_vec) {
+               auto oTy = o.getType();
+               if (!oTy.isIndex()) {
+                 auto v = self.create<arith::IndexCastOp>(
+                     self.getBuilder().getIndexType(), o);
+                 offsets.push_back(v);
+               } else {
+                 offsets.push_back(o);
+               }
+             }
+             llvm::SmallVector<Value> sizes;
+             llvm::SmallVector<int64_t> retSizes;
+             for (const auto &s : sizs_vec) {
+               auto v = self.create<arith::ConstantIndexOp>(s);
+               sizes.push_back(v);
+               retSizes.push_back(s);
+             }
+             llvm::SmallVector<Value> strides;
+             for (const auto &s : strd_vec) {
+               auto v = self.create<arith::ConstantIndexOp>(s);
+               strides.push_back(v);
+             }
+             auto retTy = RankedTensorType::get(
+                 retSizes,
+                 cast<RankedTensorType>(ful.getType()).getElementType());
 
-            return self.create<tensor::ExtractSliceOp>(retTy, ful, offsets, sizes, strides);
-        })
+             return self.create<tensor::ExtractSliceOp>(retTy, ful, offsets,
+                                                        sizes, strides);
+           })
       .def("create_insert_slice",
            [](TritonOpBuilder &self, Value &ful, Value &sub,
               std::vector<Value> &offs_vec, std::vector<int> &sizs_vec,
@@ -1690,17 +1696,18 @@ void init_triton_ir(py::module &&m) {
       .def("create_custom_op_for_inter_core_sync",
            [](TritonOpBuilder &self, std::string &op_name,
               std::string &mode_or_sender, int id) -> void {
-                auto args = self.getBuilder().getArrayAttr(
-                    {self.getBuilder().getStringAttr(mode_or_sender),
-                    self.getBuilder().getI32IntegerAttr(id)}
-                );
-                self.create<CustomOp>(op_name, args, ValueRange());
+             auto args = self.getBuilder().getArrayAttr(
+                 {self.getBuilder().getStringAttr(mode_or_sender),
+                  self.getBuilder().getI32IntegerAttr(id)});
+             self.create<CustomOp>(op_name, args, ValueRange());
            })
       // Make a tensor descriptor
       .def("create_make_tensor_descriptor",
-           [](TritonOpBuilder &self, Value &base, std::vector<Value> &shape, std::vector<Value> &strides,
-              std::vector<int32_t> &tensorShape, bool isSignedInteger) -> Value {
-                return self.create<MakeTensorDescOp>(base, shape, strides, tensorShape, isSignedInteger);
+           [](TritonOpBuilder &self, Value &base, std::vector<Value> &shape,
+              std::vector<Value> &strides, std::vector<int32_t> &tensorShape,
+              bool isSignedInteger) -> Value {
+             return self.create<MakeTensorDescOp>(base, shape, strides,
+                                                  tensorShape, isSignedInteger);
            })
       // Add an annotation
       .def("create_annotation",
@@ -1712,17 +1719,19 @@ void init_triton_ir(py::module &&m) {
            })
       // Add sort
       .def("create_sort",
-           [](TritonOpBuilder &self, Value src, int64_t dim, bool descending) -> Value {
-               auto &builder = self.getBuilder();
-               auto loc = self.getLastLoc();
+           [](TritonOpBuilder &self, Value src, int64_t dim,
+              bool descending) -> Value {
+             auto &builder = self.getBuilder();
+             auto loc = self.getLastLoc();
 
-               auto dimAttr = builder.getI64IntegerAttr(dim);
-               auto descendingAttr = builder.getBoolAttr(descending);
+             auto dimAttr = builder.getI64IntegerAttr(dim);
+             auto descendingAttr = builder.getBoolAttr(descending);
 
-               auto op = builder.create<triton::SortOp>(loc, src, dimAttr, descendingAttr);
+             auto op = builder.create<triton::SortOp>(loc, src, dimAttr,
+                                                      descendingAttr);
 
-               return op->getResult(0);
-            });
+             return op->getResult(0);
+           });
 
   py::class_<PassManager>(m, "pass_manager", py::module_local())
       .def(py::init<MLIRContext *>())

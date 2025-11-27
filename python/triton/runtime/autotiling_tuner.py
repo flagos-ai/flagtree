@@ -86,9 +86,7 @@ class AutoTilingTuner(Autotuner):
         self.dual_reduction = dual_reduction
         self.persistent_reduction = persistent_reduction
 
-    def _gen_tile_configs(
-        self, kv_dict: Dict[str, int], dtype: torch.dtype
-    ) -> List[Config]:
+    def _gen_tile_configs(self, kv_dict: Dict[str, int], dtype: torch.dtype) -> List[Config]:
         from .tile_generator import KernelMeta, TileGenerator
 
         axis_sizes = {}
@@ -96,9 +94,7 @@ class AutoTilingTuner(Autotuner):
             if not is_valid_axis_name(k):
                 continue
             if not isinstance(v, int):
-                raise ValueError(
-                    f"Not supported dim type: {type(v)}, `int` is the only supported type"
-                )
+                raise ValueError(f"Not supported dim type: {type(v)}, `int` is the only supported type")
             axis_sizes[k] = v
 
         kernel_meta = KernelMeta(
@@ -116,14 +112,10 @@ class AutoTilingTuner(Autotuner):
         self.gen_configs.clear()
         self.gen_configs = list(tile_gen.configs.values())
         if len(self.gen_configs) == 0:
-            print(
-                "[WARNING] The generated candidate tiling configs are empty based on provided parameters!"
-            )
+            print("[WARNING] The generated candidate tiling configs are empty based on provided parameters!")
 
         if len(self.gen_configs) == 0 and len(self.user_configs) == 0:
-            return [
-                Config({})
-            ]
+            return [Config({})]
         else:
             return self.gen_configs + self.user_configs
 
@@ -142,11 +134,7 @@ class AutoTilingTuner(Autotuner):
         for _, arg in _args.items():
             if hasattr(arg, "dtype"):
                 key.append(str(arg.dtype))
-                dtype = (
-                    arg.dtype
-                    if get_byte_per_numel(arg.dtype) >= get_byte_per_numel(dtype)
-                    else dtype
-                )
+                dtype = (arg.dtype if get_byte_per_numel(arg.dtype) >= get_byte_per_numel(dtype) else dtype)
         if dtype is None:
             raise NotImplementedError("Not support for non-Tensor inputs")
 
@@ -158,10 +146,7 @@ class AutoTilingTuner(Autotuner):
             if len(pruned_configs) > 1:
                 used_cached_result = False
                 bench_start = time.time()
-                timings = {
-                    config: self._bench(*args, config=config, **kwargs)
-                    for config in pruned_configs
-                }
+                timings = {config: self._bench(*args, config=config, **kwargs) for config in pruned_configs}
                 bench_end = time.time()
                 self.bench_time = bench_end - bench_start
                 self.cache[key] = builtins.min(timings, key=timings.get)
@@ -176,10 +161,8 @@ class AutoTilingTuner(Autotuner):
 
         self.best_config = config
         if os.getenv("TRITON_PRINT_AUTOTUNING", None) == "1" and not used_cached_result:
-            print(
-                f"Triton autotuning for function {self.base_fn.__name__} finished after "
-                f"{self.bench_time:.2f}s; best config selected: {self.best_config};"
-            )
+            print(f"Triton autotuning for function {self.base_fn.__name__} finished after "
+                  f"{self.bench_time:.2f}s; best config selected: {self.best_config};")
 
         if not used_cached_result and self.auto_profile_dir is not None:
             self._profile(*args, config=self.best_config, **kwargs)

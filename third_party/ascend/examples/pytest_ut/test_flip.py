@@ -22,21 +22,15 @@ from triton.runtime.libentry import libentry
 def test_flip(para_type, data_type, shape):
 
     def torch_func(x):
-        return torch.flip(x, dims=(2,))
+        return torch.flip(x, dims=(2, ))
 
     @libentry()
     @triton.jit
-    def triton_kernel(
-        output_ptr0, in_ptr0, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr
-    ):
+    def triton_kernel(output_ptr0, in_ptr0, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
         xidx = tl.arange(0, XB)
         yidx = tl.arange(0, YB)
         zidx = tl.arange(0, ZB)
-        idx = (
-            xidx[:, None, None] * YB * ZB
-            + yidx[None, :, None] * ZB
-            + zidx[None, None, :]
-        )
+        idx = (xidx[:, None, None] * YB * ZB + yidx[None, :, None] * ZB + zidx[None, None, :])
         tmp0 = tl.load(in_ptr0 + idx)
         tmp1 = tl.flip(tmp0, 2)
         tl.store(output_ptr0 + idx, tmp1)

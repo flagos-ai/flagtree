@@ -297,7 +297,7 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location &loc,
 
   if (!(!lhsState.scalar && rhsState.scalar)) {
     InFlightDiagnostic diag = emitError(loc)
-                                << "[MaskState] Unsupported cmpi scenario";
+                              << "[MaskState] Unsupported cmpi scenario";
     return failure();
   }
 
@@ -332,7 +332,8 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location &loc,
   }
   case arith::CmpIPredicate::sle: {
     // lhs <= rhs  <=>  lhs < rhs + 1
-    auto rhsPlusOne = addOpFoldResult(rhsState.scalar, builder.getIndexAttr(1), loc, builder);
+    auto rhsPlusOne =
+        addOpFoldResult(rhsState.scalar, builder.getIndexAttr(1), loc, builder);
     auto realBound = maxOpFoldResult(lhsState.start, rhsPlusOne, loc, builder);
     auto newEnd = minOpFoldResult(lhsState.end, realBound, loc, builder);
     auto newDim = subOpFoldResult(newEnd, lhsState.start, loc, builder);

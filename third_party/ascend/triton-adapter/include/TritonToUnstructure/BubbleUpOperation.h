@@ -64,8 +64,7 @@ private:
                                           PatternRewriter &rewriter) const;
 
   template <>
-  void bubbleUpOperation<arith::ExtFOp>(Operation *op,
-                                        arith::ExtFOp parentOp,
+  void bubbleUpOperation<arith::ExtFOp>(Operation *op, arith::ExtFOp parentOp,
                                         ArrayRef<Value> indices, Location loc,
                                         PatternRewriter &rewriter) const;
 

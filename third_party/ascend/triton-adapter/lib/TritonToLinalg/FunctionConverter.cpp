@@ -5,7 +5,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 #include "TritonToLinalg/FunctionConverter.h"
 
 namespace FunctionConverter {

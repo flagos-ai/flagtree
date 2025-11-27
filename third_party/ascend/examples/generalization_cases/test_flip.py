@@ -12,6 +12,7 @@ import logging
 from test_common import TestUtils, check_ub_mem_overflow
 import triton.language.extra.ascend.libdevice as libdevice
 
+
 @triton.jit
 def fn_npu_1d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
     xidx = tl.arange(0, XB)
@@ -20,6 +21,7 @@ def fn_npu_1d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.cons
     ret = libdevice.flip(X, 0)
     oidx = xidx
     tl.store(output_ptr + oidx, ret)
+
 
 @triton.jit
 def fn_npu_2d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
@@ -31,9 +33,10 @@ def fn_npu_2d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.cons
     oidx = xidx[:, None] * YB + yidx[None, :]
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
 def fn_npu_3d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, XNUMEL: tl.constexpr,
-            YNUMEL: tl.constexpr, ZNUMEL: tl.constexpr):
+              YNUMEL: tl.constexpr, ZNUMEL: tl.constexpr):
     xidx = tl.arange(0, XB) + tl.program_id(0) * XB
     yidx = tl.arange(0, YB) + tl.program_id(1) * YB
     zidx = tl.arange(0, ZB) + tl.program_id(2) * ZB
@@ -43,7 +46,8 @@ def fn_npu_3d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.cons
     oidx = xidx[:, None, None] * YNUMEL * ZNUMEL + yidx[None, :, None] * ZNUMEL + zidx[None, None, :]
     tl.store(output_ptr + oidx, ret)
 
-typelist = ['int8','int16','int32','int64','float16','bfloat16','float32', 'bool']
+
+typelist = ['int8', 'int16', 'int32', 'int64', 'float16', 'bfloat16', 'float32', 'bool']
 #typelist = ['int64', 'bool', 'bfloat16'] # error dtypes
 
 dtype_mapping = {
@@ -58,8 +62,9 @@ dtype_mapping = {
     'bool': (torch.bool),
 }
 
+
 @pytest.mark.parametrize('shape', TestUtils.test_shape1_2_3d)
-@pytest.mark.parametrize('dtype',typelist)
+@pytest.mark.parametrize('dtype', typelist)
 def test_flip(shape, dtype):
     logging.debug(f'dtype:{dtype} shape:{shape}')
     data_dtype = eval('torch.' + dtype)
@@ -70,9 +75,9 @@ def test_flip(shape, dtype):
         x = torch.randint(low=0, high=128, size=shape, dtype=data_dtype).npu()
 
     torch_input = x if x.dtype != torch.uint32 else x.to(torch.float32)
-    torch_res = torch.flip(torch_input, dims=(-1,))
+    torch_res = torch.flip(torch_input, dims=(-1, ))
     triton_res = torch.empty(shape, dtype=data_dtype).npu()
-    
+
     if len(shape) == 1:
         fn_npu_1d[1, 1, 1](triton_res, x, shape[0], 1, 1)
     elif len(shape) == 2:
@@ -89,7 +94,8 @@ def test_flip(shape, dtype):
 
 
 @triton.jit
-def fn_npu_multi_d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, NB: tl.constexpr, DIMS: tl.constexpr, AXIS: tl.constexpr):
+def fn_npu_multi_d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr,
+                   NB: tl.constexpr, DIMS: tl.constexpr, AXIS: tl.constexpr):
     offsets = tl.arange(0, XB) * (YB * ZB * MB * NB)
     if DIMS > 1:
         offsets = offsets[:, None] + tl.arange(0, YB)[None, :] * (ZB * MB * NB)
@@ -109,7 +115,6 @@ def fn_npu_multi_d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl
 @pytest.mark.parametrize('shape', [
     (4, 2, 8, 4),
     (2, 4, 2, 8, 4),
-
     (4, 3, 8, 1),
     (3, 4, 2, 8, 1),
 ])
@@ -123,9 +128,9 @@ def test_flip_4d_5d(shape, dtype):
         x = torch.randint(low=0, high=128, size=shape, dtype=data_dtype).npu()
 
     torch_input = x if x.dtype != torch.uint32 else x.to(torch.float32)
-    torch_res = torch.flip(torch_input, dims=(-1,))
+    torch_res = torch.flip(torch_input, dims=(-1, ))
     triton_res = torch.empty(shape, dtype=data_dtype).npu()
-    
+
     triton_shape = [*shape]
     while len(triton_shape) < 5:
         triton_shape.append(1)

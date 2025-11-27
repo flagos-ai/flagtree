@@ -9,6 +9,8 @@ import test_common
 from test_common import TestUtils, check_ub_mem_overflow
 import math
 import logging
+
+
 @triton.jit
 def fn_npu_102(output_ptr, x_ptr, YB: tl.constexpr, ZB: tl.constexpr, KB: tl.constexpr):
     yidx = tl.arange(0, YB)
@@ -23,6 +25,7 @@ def fn_npu_102(output_ptr, x_ptr, YB: tl.constexpr, ZB: tl.constexpr, KB: tl.con
     oidx = zidx[:, None, None] * YB * KB + yidx[None, :, None] * KB + kidx[None, None, :]
 
     tl.store(output_ptr + oidx, ret)
+
 
 @triton.jit
 def fn_npu_210(output_ptr, x_ptr, YB: tl.constexpr, ZB: tl.constexpr, KB: tl.constexpr):
@@ -39,6 +42,7 @@ def fn_npu_210(output_ptr, x_ptr, YB: tl.constexpr, ZB: tl.constexpr, KB: tl.con
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
 def fn_npu_021(output_ptr, x_ptr, YB: tl.constexpr, ZB: tl.constexpr, KB: tl.constexpr):
     yidx = tl.arange(0, YB)
@@ -54,8 +58,11 @@ def fn_npu_021(output_ptr, x_ptr, YB: tl.constexpr, ZB: tl.constexpr, KB: tl.con
 
     tl.store(output_ptr + oidx, ret)
 
+
 bisheng_notsupport_dtype = []
 tritonascend_notsupport_dtype = ['bool']
+
+
 @pytest.mark.parametrize('shape', TestUtils.test_shape3d)
 @pytest.mark.parametrize('dtype', TestUtils.dtype_list)
 def test_permute_3d(shape, dtype):
@@ -83,6 +90,7 @@ def test_permute_3d(shape, dtype):
     torch_res = torch.permute(x, (0, 2, 1))
     fn_npu_021[1, 1, 1](triton_res, x, shape[0], shape[1], shape[2])
     test_common.validate_cmp(dtype, triton_res, torch_res)
+
 
 if __name__ == "__main__":
     for shape in [(1, 22, 39)]:

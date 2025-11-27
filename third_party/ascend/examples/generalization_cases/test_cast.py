@@ -12,9 +12,10 @@ import pytest
 import test_common
 from test_common import TestUtils, check_ub_mem_overflow, get_dtype_size
 
+
 @triton.jit
-def cast_to_bool(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_bool(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr,
+                 ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -32,9 +33,10 @@ def cast_to_bool(output_ptr, x_ptr, x_stride, y_stride, z_stride,
     ret = tl.cast(X, dtype=tl.int1)
     tl.store(output_ptr + idx, ret)
 
+
 @triton.jit
-def cast_to_i8(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_i8(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr,
+               ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -52,9 +54,10 @@ def cast_to_i8(output_ptr, x_ptr, x_stride, y_stride, z_stride,
     ret = tl.cast(X, dtype=tl.int8)
     tl.store(output_ptr + idx, ret)
 
+
 @triton.jit
-def cast_to_i16(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_i16(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr,
+                ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -72,9 +75,10 @@ def cast_to_i16(output_ptr, x_ptr, x_stride, y_stride, z_stride,
     ret = tl.cast(X, dtype=tl.int16)
     tl.store(output_ptr + idx, ret)
 
+
 @triton.jit
-def cast_to_i32(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_i32(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr,
+                ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -92,9 +96,10 @@ def cast_to_i32(output_ptr, x_ptr, x_stride, y_stride, z_stride,
     ret = tl.cast(X, dtype=tl.int32)
     tl.store(output_ptr + idx, ret)
 
+
 @triton.jit
-def cast_to_i64(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_i64(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr,
+                ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -112,9 +117,10 @@ def cast_to_i64(output_ptr, x_ptr, x_stride, y_stride, z_stride,
     ret = tl.cast(X, dtype=tl.int64)
     tl.store(output_ptr + idx, ret)
 
+
 @triton.jit
-def cast_to_fp32(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_fp32(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr,
+                 ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -134,8 +140,8 @@ def cast_to_fp32(output_ptr, x_ptr, x_stride, y_stride, z_stride,
 
 
 @triton.jit
-def cast_to_fp16(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_fp16(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr,
+                 ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -155,8 +161,8 @@ def cast_to_fp16(output_ptr, x_ptr, x_stride, y_stride, z_stride,
 
 
 @triton.jit
-def cast_to_bf16(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_bf16(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr,
+                 ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -174,9 +180,10 @@ def cast_to_bf16(output_ptr, x_ptr, x_stride, y_stride, z_stride,
     ret = tl.cast(X, dtype=tl.bfloat16)
     tl.store(output_ptr + idx, ret)
 
+
 @triton.jit
-def cast_to_uint32(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_uint32(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr,
+                   YB: tl.constexpr, ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -194,9 +201,10 @@ def cast_to_uint32(output_ptr, x_ptr, x_stride, y_stride, z_stride,
     ret = tl.cast(X, dtype=tl.uint32)
     tl.store(output_ptr + idx, ret)
 
+
 @triton.jit
-def cast_to_int64(output_ptr, x_ptr, x_stride, y_stride, z_stride,
-                 DIM: tl.constexpr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
+def cast_to_int64(output_ptr, x_ptr, x_stride, y_stride, z_stride, DIM: tl.constexpr, XB: tl.constexpr,
+                  YB: tl.constexpr, ZB: tl.constexpr):
     if DIM == 1:
         xidx = tl.arange(0, XB)
         idx = xidx * x_stride
@@ -214,17 +222,12 @@ def cast_to_int64(output_ptr, x_ptr, x_stride, y_stride, z_stride,
     ret = tl.cast(X, dtype=tl.int64)
     tl.store(output_ptr + idx, ret)
 
+
 triton_func_map = {
-    "bool": cast_to_bool,
-    "int8": cast_to_i8,
-    "int16": cast_to_i16,
-    "int32": cast_to_i32,
-    "float16": cast_to_fp16,
-    "bfloat16": cast_to_bf16,
-    "float32": cast_to_fp32,
-    "uint32": cast_to_uint32,
-    "int64": cast_to_int64
+    "bool": cast_to_bool, "int8": cast_to_i8, "int16": cast_to_i16, "int32": cast_to_i32, "float16": cast_to_fp16,
+    "bfloat16": cast_to_bf16, "float32": cast_to_fp32, "uint32": cast_to_uint32, "int64": cast_to_int64
 }
+
 
 def structParam(x0):
     dim = x0.dim()
@@ -258,7 +261,7 @@ def test_cast(srcDtype, dstDtype, shape):
     elif dtype_size * math.prod(shape) >= (TestUtils.ub_size / 12):
         print(f"srcDtype:{srcDtype}, dstDtype:{dstDtype}, shape:{shape} mem overflow")
         return
-    
+
     x0 = test_common.generate_tensor(shape, srcDtype)
     torch_res = x0.to(eval("torch." + dstDtype))
     x0 = x0.npu()
@@ -272,7 +275,8 @@ def test_cast(srcDtype, dstDtype, shape):
 
 
 @triton.jit
-def cast_to_multi_d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, NB: tl.constexpr):
+def cast_to_multi_d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr,
+                    NB: tl.constexpr):
     dtype = output_ptr.type.element_ty
 
     offsets = tl.arange(0, XB) * (YB * ZB * MB * NB)
@@ -297,12 +301,8 @@ def cast_to_multi_d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: t
     (4, 2, 8, 4),
     (4, 3, 8, 4),
 ])
-@pytest.mark.parametrize('srcDtype', 
-    ['int8', 'float16', 'float32']
-)
-@pytest.mark.parametrize('dstDtype', 
-    ['int8', 'float16', 'float32']
-)
+@pytest.mark.parametrize('srcDtype', ['int8', 'float16', 'float32'])
+@pytest.mark.parametrize('dstDtype', ['int8', 'float16', 'float32'])
 def test_cast_4d(srcDtype, dstDtype, shape):
     if srcDtype == dstDtype:
         return
@@ -316,7 +316,7 @@ def test_cast_4d(srcDtype, dstDtype, shape):
     elif dtype_size * math.prod(shape) >= (TestUtils.ub_size / 12):
         print(f"srcDtype:{srcDtype}, dstDtype:{dstDtype}, shape:{shape} mem overflow")
         return
-    
+
     x0 = test_common.generate_tensor(shape, srcDtype)
     torch_res = x0.to(eval("torch." + dstDtype))
     x0 = x0.npu()
@@ -337,12 +337,8 @@ def test_cast_4d(srcDtype, dstDtype, shape):
     (2, 4, 2, 8, 4),
     (3, 4, 2, 8, 4),
 ])
-@pytest.mark.parametrize('srcDtype', 
-    ['int8', 'float16', 'float32']
-)
-@pytest.mark.parametrize('dstDtype', 
-    ['int8', 'float16', 'float32']
-)
+@pytest.mark.parametrize('srcDtype', ['int8', 'float16', 'float32'])
+@pytest.mark.parametrize('dstDtype', ['int8', 'float16', 'float32'])
 def test_cast_5d(srcDtype, dstDtype, shape):
     if srcDtype == dstDtype:
         return
@@ -356,7 +352,7 @@ def test_cast_5d(srcDtype, dstDtype, shape):
     elif dtype_size * math.prod(shape) >= (TestUtils.ub_size / 12):
         print(f"srcDtype:{srcDtype}, dstDtype:{dstDtype}, shape:{shape} mem overflow")
         return
-    
+
     x0 = test_common.generate_tensor(shape, srcDtype)
     torch_res = x0.to(eval("torch." + dstDtype))
     x0 = x0.npu()

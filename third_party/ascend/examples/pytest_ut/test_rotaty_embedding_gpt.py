@@ -1,6 +1,5 @@
 # Copyright (c) 2023 by Microsoft Corporation.
 # Licensed under the MIT license.
-
 """Rotary embedding kernel implemented by Triton.
 
 GPT-NeoX style
@@ -38,21 +37,12 @@ def rotary_embedding_kernel(
     dim_range_x = tl.arange(0, BLOCK_D // 2)
     dim_range_y = tl.arange(BLOCK_D // 2, BLOCK_D)
 
-    state_x_offset = (
-        token_range[:, None, None] * stride_state_n
-        + head_range[None, :, None] * stride_state_h
-        + dim_range_x[None, None, :] * stride_state_d
-    )
-    state_y_offset = (
-        token_range[:, None, None] * stride_state_n
-        + head_range[None, :, None] * stride_state_h
-        + dim_range_y[None, None, :] * stride_state_d
-    )
+    state_x_offset = (token_range[:, None, None] * stride_state_n + head_range[None, :, None] * stride_state_h +
+                      dim_range_x[None, None, :] * stride_state_d)
+    state_y_offset = (token_range[:, None, None] * stride_state_n + head_range[None, :, None] * stride_state_h +
+                      dim_range_y[None, None, :] * stride_state_d)
 
-    cos_sim_offset = (
-        token_range[:, None, None] * stride_cos_n
-        + dim_range_x[None, None, :] * stride_cos_d
-    )
+    cos_sim_offset = (token_range[:, None, None] * stride_cos_n + dim_range_x[None, None, :] * stride_cos_d)
 
     state_x = tl.load(
         state + state_x_offset,
@@ -136,8 +126,8 @@ def rotary_embedding(state, cos, sin):
 
 def torch_rotary_embedding(state, cos, sin):
     _, _, dim = state.shape
-    state_x = state[:, :, 0 : dim // 2]
-    state_y = state[:, :, dim // 2 : dim]
+    state_x = state[:, :, 0:dim // 2]
+    state_y = state[:, :, dim // 2:dim]
     out_x = state_x * cos - state_y * sin
     out_y = state_x * sin + state_y * cos
     return torch.cat((out_x, out_y), dim=-1)
@@ -160,6 +150,7 @@ def rotary_emb(tokens, heads, headdim, dtype):
     rotary_embedding(state, cos, sin)
     triton_result = state  # state is modified in-place
     torch.testing.assert_close(torch_result, triton_result, rtol=1e-3, atol=1e-3)
+
 
 def test_cases():
     rotary_emb(256, 96, 128, torch.float16)

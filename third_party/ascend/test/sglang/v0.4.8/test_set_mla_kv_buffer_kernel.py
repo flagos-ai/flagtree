@@ -48,7 +48,6 @@ def set_mla_kv_buffer_kernel(
     tl.store(dst_ptr, src, mask=mask)
 
 
-
 def test_set_mla_kv_buffer_kernel(ptfile_path):
     try:
         data = torch.load(ptfile_path, map_location=torch.device('cpu'), weights_only=False)

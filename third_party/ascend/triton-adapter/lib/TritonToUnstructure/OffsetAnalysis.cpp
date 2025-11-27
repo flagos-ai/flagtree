@@ -12,15 +12,12 @@ namespace triton {
 
 PtrOffsetInfo::PtrOffsetInfo() : ptr(nullptr), offset(nullptr) {}
 
-PtrOffsetInfo::PtrOffsetInfo(const PtrOffsetInfo &other) {
-  *this = other;
-}
+PtrOffsetInfo::PtrOffsetInfo(const PtrOffsetInfo &other) { *this = other; }
 
-PtrOffsetInfo::PtrOffsetInfo(const Value &ptr) : ptr(ptr) {
-  setZeroOffset();
-}
+PtrOffsetInfo::PtrOffsetInfo(const Value &ptr) : ptr(ptr) { setZeroOffset(); }
 
-PtrOffsetInfo::PtrOffsetInfo(ArrayRef<bool> structured) : ptr(nullptr), offset(nullptr) {
+PtrOffsetInfo::PtrOffsetInfo(ArrayRef<bool> structured)
+    : ptr(nullptr), offset(nullptr) {
   setStructured(structured);
 }
 
@@ -30,16 +27,21 @@ PtrOffsetInfo::PtrOffsetInfo(const Value &ptr, bool structured) : ptr(ptr) {
     this->structured.resize(tensorType.getRank(), structured);
 }
 
-PtrOffsetInfo::PtrOffsetInfo(const Value &ptr, ArrayRef<bool> structured) : ptr(ptr) {
+PtrOffsetInfo::PtrOffsetInfo(const Value &ptr, ArrayRef<bool> structured)
+    : ptr(ptr) {
   setStructured(structured);
 }
 
-PtrOffsetInfo::PtrOffsetInfo(const Value &ptr, const Value &offset, bool structured) : ptr(ptr), offset(offset) {
+PtrOffsetInfo::PtrOffsetInfo(const Value &ptr, const Value &offset,
+                             bool structured)
+    : ptr(ptr), offset(offset) {
   if (auto tensorType = dyn_cast<RankedTensorType>(ptr.getType()))
     this->structured.resize(tensorType.getRank(), structured);
 }
 
-PtrOffsetInfo::PtrOffsetInfo(const Value &ptr, const Value &offset, ArrayRef<bool> structured) : ptr(ptr), offset(offset) {
+PtrOffsetInfo::PtrOffsetInfo(const Value &ptr, const Value &offset,
+                             ArrayRef<bool> structured)
+    : ptr(ptr), offset(offset) {
   setStructured(structured);
 }
 
@@ -57,14 +59,14 @@ Value PtrOffsetInfo::getOffset() const { return this->offset; }
 bool PtrOffsetInfo::isScalarLike() const { return this->scalarLike; }
 bool PtrOffsetInfo::isNegativeFlag() const { return this->negativeFlag; }
 
-SmallVector<bool> &PtrOffsetInfo::getStructuredRef() { return this->structured; }
+SmallVector<bool> &PtrOffsetInfo::getStructuredRef() {
+  return this->structured;
+}
 const SmallVector<bool> &PtrOffsetInfo::getStructured() const {
   return this->structured;
 }
 
-int PtrOffsetInfo::getRank() const {
-  return structured.size();
-}
+int PtrOffsetInfo::getRank() const { return structured.size(); }
 
 void PtrOffsetInfo::setPtr(const Value &ptr) { this->ptr = ptr; }
 void PtrOffsetInfo::setOffset(const Value &offset) { this->offset = offset; }
@@ -132,24 +134,22 @@ void PtrOffsetInfo::setZeroOffset() {
   builder.setInsertionPointToStart(ptr.getParentBlock());
   if (auto tensorType = dyn_cast<RankedTensorType>(ptr.getType())) {
     offset = builder.create<arith::ConstantOp>(
-          ptr.getLoc(), DenseElementsAttr::get(
-                   RankedTensorType::get(tensorType.getShape(),
-                                         builder.getIntegerType(64)),
-                   builder.getZeroAttr(builder.getIntegerType(64))));
+        ptr.getLoc(), DenseElementsAttr::get(
+                          RankedTensorType::get(tensorType.getShape(),
+                                                builder.getIntegerType(64)),
+                          builder.getZeroAttr(builder.getIntegerType(64))));
   } else {
-    offset = builder.create<arith::ConstantOp>(
-        ptr.getLoc(), builder.getI64IntegerAttr(0));
+    offset = builder.create<arith::ConstantOp>(ptr.getLoc(),
+                                               builder.getI64IntegerAttr(0));
   }
   setOffset(offset);
 }
 
 PtrOffsetInfo combineInfo(const PtrOffsetInfo &lhs, const PtrOffsetInfo &rhs) {
   PtrOffsetInfo info;
-  assert(lhs.getRank() == rhs.getRank() &&
-         "Rank must be same to be combined");
+  assert(lhs.getRank() == rhs.getRank() && "Rank must be same to be combined");
 
-  info.setScalarLike(lhs.isScalarLike() &&
-                     rhs.isScalarLike());
+  info.setScalarLike(lhs.isScalarLike() && rhs.isScalarLike());
   SmallVector<bool> &structuredRef = info.getStructuredRef();
   structuredRef.resize(lhs.getRank());
   for (size_t i = 0; i < structuredRef.size(); i++)
@@ -188,7 +188,7 @@ void parse(Value operand, const Location &loc, RewriterBase &rewriter,
       } else if (auto extractOp = dyn_cast<tensor::ExtractOp>(defOp)) {
         parseExtract(extractOp, loc, rewriter, offsetMap);
       }
-    } 
+    }
   } else if (auto ptrType = dyn_cast<triton::PointerType>(operand.getType())) {
     offsetMap[operand] = PtrOffsetInfo(operand, true);
   } else if (auto blockArgument = dyn_cast<BlockArgument>(operand)) {
@@ -219,7 +219,8 @@ void parse(Value operand, const Location &loc, RewriterBase &rewriter,
     for (auto s : data.getStructuredRef())
       os << s;
     os << "\n";
-    os <<  "FNparse: " << operand << " ,isNegativeFlag: " << data.isNegativeFlag() << "\n";
+    os << "FNparse: " << operand
+       << " ,isNegativeFlag: " << data.isNegativeFlag() << "\n";
   });
 }
 
@@ -394,10 +395,10 @@ void parseAddPtr(triton::AddPtrOp op, const Location &loc,
       os << offsetStructured[i];
     os << "\n";
     os << "[parseAddPtr] offsetOffsetInfo.isNegativeFlag(): ";
-      os << offsetOffsetInfo.isNegativeFlag();
+    os << offsetOffsetInfo.isNegativeFlag();
     os << "\n";
     os << "[parseAddPtr] ptrOffsetInfo.isNegativeFlag(): ";
-      os << ptrOffsetInfo.isNegativeFlag();
+    os << ptrOffsetInfo.isNegativeFlag();
     os << "\n";
   });
 }
@@ -448,7 +449,7 @@ void parseBinaryOp(BinOpTy op, const Location &loc, RewriterBase &rewriter,
   auto dst = op->getResult(0);
   PtrOffsetInfo dstOffsetInfo;
   dstOffsetInfo.setScalarLike(lhsOffsetInfo.isScalarLike() &&
-                               rhsOffsetInfo.isScalarLike());
+                              rhsOffsetInfo.isScalarLike());
   if (dstOffsetInfo.isScalarLike())
     dstOffsetInfo.setStructured(lhsStructured.size());
   else
@@ -458,7 +459,7 @@ void parseBinaryOp(BinOpTy op, const Location &loc, RewriterBase &rewriter,
     dstOffsetInfo.setNegativeFlag(true);
   } else {
     dstOffsetInfo.setNegativeFlag(lhsOffsetInfo.isNegativeFlag() ||
-                                     rhsOffsetInfo.isNegativeFlag());
+                                  rhsOffsetInfo.isNegativeFlag());
   }
   offsetMap[dst] = dstOffsetInfo;
 }
@@ -495,13 +496,13 @@ bool isConstantNegative(AttrTy attr, TypeTy type) {
                 std::is_same_v<TypeTy, mlir::IntegerType>) {
     return attr.getInt() < 0;
   } else if constexpr (std::is_same_v<AttrTy, mlir::FloatAttr> &&
-                     std::is_same_v<TypeTy, mlir::FloatType>) {
+                       std::is_same_v<TypeTy, mlir::FloatType>) {
     return attr.getValueAsDouble() < 0.0;
-  } else if constexpr(std::is_same_v<AttrTy, mlir::IntegerAttr> &&
-                    std::is_same_v<TypeTy, mlir::IndexType>) {
-      return attr.getInt() < 0;
-  }  else if constexpr (std::is_base_of_v<mlir::DenseElementsAttr, AttrTy> &&
-                     std::is_base_of_v<mlir::RankedTensorType, TypeTy>) {
+  } else if constexpr (std::is_same_v<AttrTy, mlir::IntegerAttr> &&
+                       std::is_same_v<TypeTy, mlir::IndexType>) {
+    return attr.getInt() < 0;
+  } else if constexpr (std::is_base_of_v<mlir::DenseElementsAttr, AttrTy> &&
+                       std::is_base_of_v<mlir::RankedTensorType, TypeTy>) {
     auto tensorType = mlir::cast<mlir::RankedTensorType>(type);
     auto elemType = tensorType.getElementType();
 
@@ -511,7 +512,9 @@ bool isConstantNegative(AttrTy attr, TypeTy type) {
           auto elemAttr = mlir::IntegerAttr::get(intElemType, elemVal);
           if (isConstantNegative(elemAttr, intElemType)) {
             LLVM_DEBUG({
-              llvm::dbgs() << DEBUG_TYPE << " PCO: Tensor has negative element: " << elemAttr << "\n";
+              llvm::dbgs() << DEBUG_TYPE
+                           << " PCO: Tensor has negative element: " << elemAttr
+                           << "\n";
             });
             return true;
           }
@@ -522,11 +525,14 @@ bool isConstantNegative(AttrTy attr, TypeTy type) {
 
     else if (auto denseFloatAttr = dyn_cast<mlir::DenseFPElementsAttr>(attr)) {
       if (auto floatElemType = dyn_cast<mlir::FloatType>(elemType)) {
-        for (auto elemVal : denseFloatAttr.template getValues<mlir::APFloat>()) {
+        for (auto elemVal :
+             denseFloatAttr.template getValues<mlir::APFloat>()) {
           auto elemAttr = mlir::FloatAttr::get(floatElemType, elemVal);
           if (isConstantNegative(elemAttr, floatElemType)) {
             LLVM_DEBUG({
-              llvm::dbgs() << DEBUG_TYPE << " PCO: Tensor has negative element: " << elemAttr << "\n";
+              llvm::dbgs() << DEBUG_TYPE
+                           << " PCO: Tensor has negative element: " << elemAttr
+                           << "\n";
             });
             return true;
           }
@@ -536,22 +542,22 @@ bool isConstantNegative(AttrTy attr, TypeTy type) {
     }
 
     LLVM_DEBUG({
-      llvm::dbgs() << DEBUG_TYPE << " PCO: Unsupported tensor elemType: " << elemType
-                  << ",tensorType:" << tensorType << "\n";
+      llvm::dbgs() << DEBUG_TYPE
+                   << " PCO: Unsupported tensor elemType: " << elemType
+                   << ",tensorType:" << tensorType << "\n";
     });
     return false;
   } else {
     LLVM_DEBUG({
       llvm::dbgs() << DEBUG_TYPE << " PCO, Unsupported: attr: " << attr
-                  << ", type: " << type << " \n";
+                   << ", type: " << type << " \n";
     });
     return false;
   }
 }
 
 template <typename ConstOpTy>
-void parseConstantOp(ConstOpTy dst, const Location &loc,
-                     RewriterBase &rewriter,
+void parseConstantOp(ConstOpTy dst, const Location &loc, RewriterBase &rewriter,
                      llvm::DenseMap<Value, PtrOffsetInfo> &offsetMap) {
   mlir::Operation *opPtr = nullptr;
   if constexpr (std::is_pointer_v<ConstOpTy>) {
@@ -566,7 +572,8 @@ void parseConstantOp(ConstOpTy dst, const Location &loc,
 
   offsetMap[opResult] = PtrOffsetInfo();
   offsetMap[opResult].setScalarLike(true);
-  if (auto tensorType = mlir::dyn_cast<mlir::RankedTensorType>(opResult.getType())) {
+  if (auto tensorType =
+          mlir::dyn_cast<mlir::RankedTensorType>(opResult.getType())) {
     offsetMap[opResult].setStructured(tensorType.getRank());
   }
 
@@ -588,15 +595,18 @@ void parseConstantOp(ConstOpTy dst, const Location &loc,
     }
   } else if (auto floatType = dyn_cast<mlir::FloatType>(resultType)) {
     if (auto floatAttr = dyn_cast<mlir::FloatAttr>(constAttr)) {
-      offsetMap[opResult].setNegativeFlag(isConstantNegative(floatAttr, floatType));
+      offsetMap[opResult].setNegativeFlag(
+          isConstantNegative(floatAttr, floatType));
     }
   } else if (auto indexType = dyn_cast<mlir::IndexType>(resultType)) {
     if (auto intAttr = dyn_cast<mlir::IntegerAttr>(constAttr)) {
-      offsetMap[opResult].setNegativeFlag(isConstantNegative(intAttr, indexType));
+      offsetMap[opResult].setNegativeFlag(
+          isConstantNegative(intAttr, indexType));
     }
   } else if (auto indexType = dyn_cast<mlir::RankedTensorType>(resultType)) {
     if (auto intAttr = dyn_cast<mlir::DenseIntElementsAttr>(constAttr)) {
-      offsetMap[opResult].setNegativeFlag(isConstantNegative(intAttr, indexType));
+      offsetMap[opResult].setNegativeFlag(
+          isConstantNegative(intAttr, indexType));
     }
   } else {
     llvm_unreachable("PCO: Non-ConstantOp passed to parseConstantOp \n");
@@ -638,7 +648,8 @@ void parseBitcast(triton::BitcastOp op, const Location &loc,
       ptrType = tensorType.getElementType();
     rewriter.setInsertionPoint(op);
     ptr = rewriter.create<triton::BitcastOp>(loc, ptrType, ptr);
-    offsetMap[dst] = PtrOffsetInfo(ptr, srcOffsetInfo.getOffset(), srcStructured);
+    offsetMap[dst] =
+        PtrOffsetInfo(ptr, srcOffsetInfo.getOffset(), srcStructured);
   } else {
     offsetMap[dst] = PtrOffsetInfo(srcStructured);
   }
@@ -681,8 +692,8 @@ void parseMulI(arith::MulIOp op, const Location &loc, RewriterBase &rewriter,
   auto dst = op.getResult();
   offsetMap[dst] = PtrOffsetInfo();
   offsetMap[dst].setScalarLike(lhsScalarLike && rhsScalarLike);
-  offsetMap[dst].setNegativeFlag(lhsOffsetInfo.isNegativeFlag()
-                                  || rhsOffsetInfo.isNegativeFlag());
+  offsetMap[dst].setNegativeFlag(lhsOffsetInfo.isNegativeFlag() ||
+                                 rhsOffsetInfo.isNegativeFlag());
   SmallVector<bool> &dstStructured = offsetMap[dst].getStructuredRef();
   dstStructured.resize(maxSize);
   for (size_t i = 0; i < maxSize; i++)
@@ -793,8 +804,8 @@ void parseClampF(triton::ClampFOp op, const Location &loc,
                                minOffsetInfo.isScalarLike() &&
                                maxOffsetInfo.isScalarLike());
   offsetMap[dst].setNegativeFlag(srcOffsetInfo.isNegativeFlag() ||
-                               minOffsetInfo.isNegativeFlag() ||
-                               maxOffsetInfo.isNegativeFlag());
+                                 minOffsetInfo.isNegativeFlag() ||
+                                 maxOffsetInfo.isNegativeFlag());
   auto dstType = dyn_cast<ShapedType>(dst.getType());
   if (!dstType)
     return;
@@ -813,13 +824,15 @@ void parseSelect(arith::SelectOp op, const Location &loc,
   auto trueValue = op.getTrueValue();
   parse(trueValue, op.getLoc(), rewriter, offsetMap);
   PtrOffsetInfo trueValueOffsetInfo = offsetMap.at(trueValue);
-  SmallVector<bool> &trueValueStructured = trueValueOffsetInfo.getStructuredRef();
+  SmallVector<bool> &trueValueStructured =
+      trueValueOffsetInfo.getStructuredRef();
   bool trueValueScalarLike = trueValueOffsetInfo.isScalarLike();
   // Get select falseValue
   auto falseValue = op.getFalseValue();
   parse(falseValue, op.getLoc(), rewriter, offsetMap);
   PtrOffsetInfo falseValueOffsetInfo = offsetMap.at(falseValue);
-  SmallVector<bool> &falseValueStructured = falseValueOffsetInfo.getStructuredRef();
+  SmallVector<bool> &falseValueStructured =
+      falseValueOffsetInfo.getStructuredRef();
   bool falseValueScalarLike = falseValueOffsetInfo.isScalarLike();
   // Set select offset map
   auto dst = op.getResult();
@@ -827,8 +840,8 @@ void parseSelect(arith::SelectOp op, const Location &loc,
   offsetMap[dst].setScalarLike(conditionScalarLike && trueValueScalarLike &&
                                falseValueScalarLike);
   auto dstType = dyn_cast<ShapedType>(dst.getType());
-  offsetMap[dst].setNegativeFlag(trueValueOffsetInfo.isNegativeFlag() || 
-                                   falseValueOffsetInfo.isNegativeFlag());
+  offsetMap[dst].setNegativeFlag(trueValueOffsetInfo.isNegativeFlag() ||
+                                 falseValueOffsetInfo.isNegativeFlag());
   if (!dstType)
     return;
   if (offsetMap[dst].isScalarLike())
@@ -1007,7 +1020,8 @@ void parseYield(scf::YieldOp op, const Location &loc, RewriterBase &rewriter,
     parse(src, op.getLoc(), rewriter, offsetMap);
 }
 
-void parseLoopOp(LoopLikeOpInterface op, const Location &loc, RewriterBase &rewriter,
+void parseLoopOp(LoopLikeOpInterface op, const Location &loc,
+                 RewriterBase &rewriter,
                  llvm::DenseMap<Value, PtrOffsetInfo> &offsetMap, Value dst) {
   auto resNum = cast<OpResult>(dst).getResultNumber();
   Value yieldedValue = op.getYieldedValues()[resNum];

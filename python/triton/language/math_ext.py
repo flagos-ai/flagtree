@@ -45,6 +45,7 @@ def umulhi(x, y, _builder=None):
     x, y = core.binary_op_type_legalization(x, y, _builder)
     return core.tensor(_builder.create_umulhi(x.handle, y.handle), x.type)
 
+
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
 @_add_math_1arg_docstr("exponential")
@@ -52,6 +53,7 @@ def umulhi(x, y, _builder=None):
 def exp(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_exp(x.handle), x.type)
+
 
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
@@ -61,6 +63,7 @@ def exp2(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_exp2(x.handle), x.type)
 
+
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
 @_add_math_1arg_docstr("natural logarithm")
@@ -68,6 +71,7 @@ def exp2(x, _builder=None):
 def log(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_log(x.handle), x.type)
+
 
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
@@ -77,6 +81,7 @@ def log2(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_log2(x.handle), x.type)
 
+
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
 @_add_math_1arg_docstr("cosine")
@@ -84,6 +89,7 @@ def log2(x, _builder=None):
 def cos(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_cos(x.handle), x.type)
+
 
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
@@ -93,6 +99,7 @@ def sin(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_sin(x.handle), x.type)
 
+
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
 @_add_math_1arg_docstr("fast square root")
@@ -100,6 +107,7 @@ def sin(x, _builder=None):
 def sqrt(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_sqrt(x.handle), x.type)
+
 
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
@@ -109,6 +117,7 @@ def sqrt_rn(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_precise_sqrt(x.handle), x.type)
 
+
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
 @_add_math_1arg_docstr("inverse square root")
@@ -116,6 +125,7 @@ def sqrt_rn(x, _builder=None):
 def rsqrt(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_rsqrt(x.handle), x.type)
+
 
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
@@ -126,6 +136,7 @@ def div_rn(x, y, _builder=None):
     x, y = core.binary_op_type_legalization(x, y, _builder)
     return core.tensor(_builder.create_precise_divf(x.handle, y.handle), x.type)
 
+
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
 @_add_math_1arg_docstr("error function")
@@ -134,6 +145,7 @@ def erf(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_erf(x.handle), x.type)
 
+
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
 @_add_math_1arg_docstr("error function")
@@ -141,6 +153,7 @@ def erf(x, _builder=None):
 def tanh(x, _builder=None):
     x = semantic.to_tensor(x, _builder)
     return core.tensor(_builder.create_tanh(x.handle), x.type)
+
 
 @core.builtin
 @_check_dtype(dtypes=["bf16", "fp16", "fp32"])
@@ -171,4 +184,3 @@ def fma(x, y, z, _builder=None):
     z, x = core.binary_op_type_legalization(z, x, _builder)
     z, y = core.binary_op_type_legalization(z, y, _builder)
     return core.tensor(_builder.create_fma(x.handle, y.handle, z.handle), x.type)
-

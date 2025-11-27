@@ -21,8 +21,7 @@ BubbleUpExtract::matchAndRewrite(tensor::ExtractOp op,
       SmallVector<Value>(op.getIndices().begin(), op.getIndices().end());
   auto loc = op.getLoc();
 
-  if (!parentOp ||
-      (!enableAggressiveMode && !parentOp->hasOneUse())) {
+  if (!parentOp || (!enableAggressiveMode && !parentOp->hasOneUse())) {
     return failure();
   }
 
@@ -217,7 +216,7 @@ void BubbleUpExtract::bubbleUpOperation<arith::ExtFOp>(
   auto in = createExtractOp(parentOp.getIn(), indices, loc, rewriter);
   auto resultType = cast<RankedTensorType>(parentOp.getOut().getType());
   rewriter.replaceOpWithNewOp<arith::ExtFOp>(op, resultType.getElementType(),
-                                               in);
+                                             in);
 }
 
 template <>

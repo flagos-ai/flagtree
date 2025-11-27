@@ -20,6 +20,7 @@ from test_common import TestUtils, check_ub_mem_overflow, get_dtype_size
     ([128, 64], [128, 128], 1),
 ])
 def test_gather(src_shape, indices_shape, axis):
+
     @triton.jit
     def gather_kernel(src_ptr, idx_ptr, out_ptr, axis: tl.constexpr, src_dim0: tl.constexpr, src_dim1: tl.constexpr,
                       src_stride0: tl.constexpr, src_stride1: tl.constexpr, idx_dim0: tl.constexpr,
@@ -39,13 +40,9 @@ def test_gather(src_shape, indices_shape, axis):
 
     def triton_gather(src: torch.Tensor, axis: int, indices: torch.Tensor):
         output = torch.empty(indices.shape, dtype=src.dtype, device=src.device)
-        gather_kernel[(1, )](src, indices, output, axis,
-                             src.shape[0], src.shape[1],
-                             src.stride(0), src.stride(1),
-                             indices.shape[0], indices.shape[1],
-                             indices.stride(0), indices.stride(1),
-                             output.shape[0], output.shape[1],
-                             output.stride(0), output.stride(1))
+        gather_kernel[(1, )](src, indices, output, axis, src.shape[0], src.shape[1],
+                             src.stride(0), src.stride(1), indices.shape[0], indices.shape[1], indices.stride(0),
+                             indices.stride(1), output.shape[0], output.shape[1], output.stride(0), output.stride(1))
         return output
 
     DEV = "npu"
@@ -62,21 +59,19 @@ def test_gather(src_shape, indices_shape, axis):
     torch.testing.assert_close(result, ref, rtol=0, atol=0)
 
 
-@pytest.mark.parametrize('param_list',
-                         [
-                             ['float16', (11, 12, 256, 512), 48],
-                             ['bfloat16', (11, 12, 256, 512), 48],
-                             ['float32', (11, 12, 256, 512), 48],   
-                         ])
+@pytest.mark.parametrize('param_list', [
+    ['float16', (11, 12, 256, 512), 48],
+    ['bfloat16', (11, 12, 256, 512), 48],
+    ['float32', (11, 12, 256, 512), 48],
+])
 def test_gather_flip(param_list):
 
     def torch_func(inp, idx):
         return torch.gather(input=inp, dim=-1, index=idx)
 
     @triton.jit
-    def triton_kernel(dst_ptr, src_ptr, idx_ptr,
-                    XBLOCK: tl.constexpr, XBLOCK_SUB: tl.constexpr,
-                    R0_BLOCK: tl.constexpr, R1_BLOCK: tl.constexpr):
+    def triton_kernel(dst_ptr, src_ptr, idx_ptr, XBLOCK: tl.constexpr, XBLOCK_SUB: tl.constexpr, R0_BLOCK: tl.constexpr,
+                      R1_BLOCK: tl.constexpr):
         pid = tl.program_id(0)
         poff = pid * XBLOCK
         x0_idx_base = 0
@@ -96,25 +91,23 @@ def test_gather_flip(param_list):
     def triton_func(p2c_out, p2c_att, p2c_pos, ncore):
         nrows = p2c_att.shape[0] * p2c_att.shape[1] * p2c_att.shape[2]
         xs = nrows // ncore
-        assert(xs * ncore == nrows)
-        xss = 1 # must be 1
+        assert (xs * ncore == nrows)
+        xss = 1  # must be 1
         r0s = p2c_att.shape[3]
         r1s = p2c_att.shape[2]
-        triton_kernel[ncore, 1, 1](p2c_out, p2c_att, p2c_pos,
-                    XBLOCK=xs, XBLOCK_SUB=xss,
-                    R0_BLOCK=r0s, R1_BLOCK=r1s)
+        triton_kernel[ncore, 1, 1](p2c_out, p2c_att, p2c_pos, XBLOCK=xs, XBLOCK_SUB=xss, R0_BLOCK=r0s, R1_BLOCK=r1s)
         return p2c_out
 
     dtype, shape, ncore = param_list
     M0, M1, N0, N1 = shape
     r0 = torch.arange(N0)
     c0 = torch.arange(N0)
-    p2c_pos = r0[:, None] - c0[None, :] + N0-1
+    p2c_pos = r0[:, None] - c0[None, :] + N0 - 1
     p2c_pos = p2c_pos.broadcast_to((M0, M1, N0, N0))
     p2c_pos = p2c_pos.npu()
     if (p2c_pos.dtype == torch.int64):
         p2c_pos = p2c_pos.to(torch.int32)
-    assert(np.all(np.diff(p2c_pos.cpu()) == -1))
+    assert (np.all(np.diff(p2c_pos.cpu()) == -1))
     p2c_att = test_common.generate_tensor(shape, dtype).npu()
     p2c_out = test_common.generate_tensor(p2c_pos.shape, dtype).npu()
 
@@ -124,7 +117,10 @@ def test_gather_flip(param_list):
 
 
 @triton.jit
-def gather_kernel_multi_d(src_ptr, idx_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, NB: tl.constexpr, I_XB: tl.constexpr, I_YB: tl.constexpr, I_ZB: tl.constexpr, I_MB: tl.constexpr, I_NB: tl.constexpr, DIMS: tl.constexpr, AXIS: tl.constexpr):
+def gather_kernel_multi_d(src_ptr, idx_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr,
+                          MB: tl.constexpr, NB: tl.constexpr, I_XB: tl.constexpr, I_YB: tl.constexpr,
+                          I_ZB: tl.constexpr, I_MB: tl.constexpr, I_NB: tl.constexpr, DIMS: tl.constexpr,
+                          AXIS: tl.constexpr):
     in_offsets = tl.arange(0, XB) * (YB * ZB * MB * NB)
     if DIMS > 1:
         in_offsets = in_offsets[:, None] + tl.arange(0, YB)[None, :] * (ZB * MB * NB)

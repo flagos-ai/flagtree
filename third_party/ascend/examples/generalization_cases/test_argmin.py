@@ -45,9 +45,11 @@ def test_argmin_1d(dtype, shape):
 
 # >>>>>>> test_argmin_1d
 
+
 # <<<<<<< test_argmin_2d
 @triton.jit
-def triton_argmin_2d(in_ptr0, out_ptr0, dim : tl.constexpr, M : tl.constexpr, N : tl.constexpr, MNUMEL: tl.constexpr, NNUMEL: tl.constexpr):
+def triton_argmin_2d(in_ptr0, out_ptr0, dim: tl.constexpr, M: tl.constexpr, N: tl.constexpr, MNUMEL: tl.constexpr,
+                     NNUMEL: tl.constexpr):
     mblk_idx = tl.arange(0, MNUMEL)
     nblk_idx = tl.arange(0, NNUMEL)
     mmask = mblk_idx < M
@@ -72,13 +74,16 @@ def test_argmin_2d(dtype, shape, dim):
         return
     shapex, shapey = shape
     x0 = test_common.generate_tensor(shape, dtype).npu()
-    triton_res = torch.empty([shape[1 - dim], ], dtype=torch.int32).npu()
+    triton_res = torch.empty([
+        shape[1 - dim],
+    ], dtype=torch.int32).npu()
     triton_argmin_2d[1, 1, 1](x0, triton_res, dim, shapex, shapey, shapex, shapey)
     torch_res = torch_argmin(x0, dim=dim, keepdim=False)
     test_common.validate_cmp("int32", triton_res, torch_res)
 
 
 # >>>>>>> test_argmin_2d
+
 
 # <<<<<<< test_argmin_3d
 def torch_argmin_3d(x0, no_reduce_dim):
@@ -95,8 +100,7 @@ def torch_argmin_3d(x0, no_reduce_dim):
 
 
 @triton.jit
-def triton_argmin_3d_0_1(in_ptr, out_ptr,
-                         xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def triton_argmin_3d_0_1(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                          XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
@@ -113,8 +117,7 @@ def triton_argmin_3d_0_1(in_ptr, out_ptr,
 
 
 @triton.jit
-def triton_argmin_3d_0_2(in_ptr, out_ptr,
-                         xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def triton_argmin_3d_0_2(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                          XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
@@ -131,8 +134,7 @@ def triton_argmin_3d_0_2(in_ptr, out_ptr,
 
 
 @triton.jit
-def triton_argmin_3d_1_2(in_ptr, out_ptr,
-                         xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def triton_argmin_3d_1_2(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                          XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
@@ -162,10 +164,13 @@ def triton_argmin_3d(in_ptr, out_ptr, xnumel, ynumel, znumel, XB, YB, ZB, no_red
 @pytest.mark.parametrize('no_reduce_dim', [0, 1, 2])
 def test_argmin_3d(dtype, shape, no_reduce_dim):
     x0 = test_common.generate_tensor(shape, dtype).npu()
-    triton_res = torch.empty([shape[no_reduce_dim], ], dtype=torch.int32).npu()
+    triton_res = torch.empty([
+        shape[no_reduce_dim],
+    ], dtype=torch.int32).npu()
     triton_argmin_3d(x0, triton_res, shape[0], shape[1], shape[2], shape[0], shape[1], shape[2], no_reduce_dim)
     torch_res = torch_argmin_3d(x0, no_reduce_dim)
     test_common.validate_cmp("int32", triton_res, torch_res)
+
 
 # >>>>>>> test_argmin_3d
 
@@ -199,13 +204,15 @@ def argmin_4d(out_ptr, x, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, 
 
 
 @triton.jit
-def triton_argmin_kernel_4d(in_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, DIM: tl.constexpr):
+def triton_argmin_kernel_4d(in_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr,
+                            DIM: tl.constexpr):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
     zidx = tl.arange(0, ZB)
     midx = tl.arange(0, MB)
 
-    idx = xidx[:, None, None, None] * YB * ZB * MB + yidx[None, :, None, None] * ZB * MB + zidx[None, None, :, None] * MB + midx[None, None, None, :]
+    idx = xidx[:, None, None, None] * YB * ZB * MB + yidx[None, :, None, None] * ZB * MB + zidx[
+        None, None, :, None] * MB + midx[None, None, None, :]
 
     x = tl.load(in_ptr + idx)
 
@@ -213,7 +220,7 @@ def triton_argmin_kernel_4d(in_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr,
 
 
 def triton_argmin_4d(in_ptr, out_ptr, XB, YB, ZB, MB, dim):
-    triton_argmin_kernel_4d[(1,)](in_ptr, out_ptr, XB, YB, ZB, MB, dim)
+    triton_argmin_kernel_4d[(1, )](in_ptr, out_ptr, XB, YB, ZB, MB, dim)
 
 
 @pytest.mark.shape_4d_5d
@@ -230,6 +237,8 @@ def test_argmin_4d(dtype, shape, dim):
     triton_argmin_4d(x0, triton_res, shape[0], shape[1], shape[2], shape[3], dim)
 
     test_common.validate_cmp("int32", triton_res, torch_res)
+
+
 # >>>>>>> test_argmin_4d
 
 
@@ -242,7 +251,8 @@ def torch_argmin_5d(x0, dim):
 
 
 @triton.jit
-def argmin_5d(out_ptr, x, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, NB: tl.constexpr, DIM: tl.constexpr):
+def argmin_5d(out_ptr, x, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, NB: tl.constexpr,
+              DIM: tl.constexpr):
     if DIM == 0:
         ret = tl.reshape(tl.argmin(x, DIM), XB * YB * ZB * MB * NB // XB)
         o_idx = tl.arange(0, XB * YB * ZB * MB * NB // XB)
@@ -266,14 +276,16 @@ def argmin_5d(out_ptr, x, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, 
 
 
 @triton.jit
-def triton_argmin_kernel_5d(in_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, NB: tl.constexpr, DIM: tl.constexpr):
+def triton_argmin_kernel_5d(in_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr,
+                            NB: tl.constexpr, DIM: tl.constexpr):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
     zidx = tl.arange(0, ZB)
     midx = tl.arange(0, MB)
     nidx = tl.arange(0, NB)
 
-    idx = xidx[:, None, None, None, None] * YB * ZB * MB * NB + yidx[None, :, None, None, None] * ZB * MB * NB + zidx[None, None, :, None, None] * MB * NB + midx[None, None, None, :, None] * NB + nidx[None, None, None, None, :] 
+    idx = xidx[:, None, None, None, None] * YB * ZB * MB * NB + yidx[None, :, None, None, None] * ZB * MB * NB + zidx[
+        None, None, :, None, None] * MB * NB + midx[None, None, None, :, None] * NB + nidx[None, None, None, None, :]
 
     x = tl.load(in_ptr + idx)
 
@@ -281,7 +293,7 @@ def triton_argmin_kernel_5d(in_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr,
 
 
 def triton_argmin_5d(in_ptr, out_ptr, XB, YB, ZB, MB, NB, dim):
-    triton_argmin_kernel_5d[(1,)](in_ptr, out_ptr, XB, YB, ZB, MB, NB, dim)
+    triton_argmin_kernel_5d[(1, )](in_ptr, out_ptr, XB, YB, ZB, MB, NB, dim)
 
 
 @pytest.mark.shape_4d_5d
@@ -298,6 +310,8 @@ def test_argmin_5d(dtype, shape, dim):
     triton_argmin_5d(x0, triton_res, shape[0], shape[1], shape[2], shape[3], shape[4], dim)
 
     test_common.validate_cmp("int32", triton_res, torch_res)
+
+
 # >>>>>>> test_argmin_5d
 
 
@@ -323,4 +337,6 @@ def test_argmin_1d_bool(dtype, shape):
     triton_argmin_1d_bool[1, 1, 1](x0.npu(), triton_res, numel, numel)
     np_res = np.argmin(x0.numpy())
     np.equal(triton_res.item(), np_res)
+
+
 # >>>>>>> test_argmin_1d_bool

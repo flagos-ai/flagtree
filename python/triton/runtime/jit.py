@@ -663,7 +663,9 @@ class JITFunction(KernelInterface[T]):
             grid_all_size = grid_0 * grid_1 * grid_2
             if os.getenv("TRITON_ALL_BLOCKS_PARALLEL", "0") == "0":
                 if grid_all_size > 65535:
-                    raise RuntimeError("grid should be less than 65536! You can try \"export TRITON_ALL_BLOCKS_PARALLEL=1\" to avoid this problem.")
+                    raise RuntimeError(
+                        "grid should be less than 65536! You can try \"export TRITON_ALL_BLOCKS_PARALLEL=1\" to avoid this problem."
+                    )
             if ('stream' in kwargs.keys()):
                 stream = kwargs["stream"]
             # launch kernel
@@ -787,7 +789,7 @@ class JITFunction(KernelInterface[T]):
                     # Record the line number of the comment
                     line_num = start[0]
                     line_flagtree_hints[line_num] = flagtree_hints
-                    
+
                     # print(f"[FLAGTREE] Parsed hint at line {line_num}: {flagtree_hints}")
 
         tree = ast.parse(self.src)
@@ -797,7 +799,7 @@ class JITFunction(KernelInterface[T]):
 
         # Attach the line number to comment mapping to the function definition node
         tree.body[0].line_flagtree_hints = line_flagtree_hints
-        
+
         return tree
 
     def __call__(self, *args, **kwargs):

@@ -11,7 +11,6 @@ import triton.language as tl
 import torch
 import torch_npu
 
-
 _AUTO_PROF_DIR1 = "./TEST_AUTO_PROF1"
 _AUTO_PROF_DIR2 = "./TEST_AUTO_PROF2"
 
@@ -19,43 +18,38 @@ _AUTO_PROF_DIR2 = "./TEST_AUTO_PROF2"
 def get_autotune_config():
     configs = []
     block_size_list = [1024, 2048]
-    
+
     multibuffer_list = [False]
     for combo in itertools.product(
-        block_size_list,
-        multibuffer_list,
+            block_size_list,
+            multibuffer_list,
     ):
         (
             block_size,
             multibuffer,
         ) = combo
 
-        configs.append(
-            triton.Config(
-                {
-                    "BLOCK_SIZE": block_size,
-                },
-                multibuffer=multibuffer,
-            )
-        )
+        configs.append(triton.Config(
+            {
+                "BLOCK_SIZE": block_size,
+            },
+            multibuffer=multibuffer,
+        ))
 
     return configs
 
 
-@triton.autotune(
-    configs=get_autotune_config(),
-    key=["n_elements"],
-    auto_profile_dir=_AUTO_PROF_DIR1,  # auto profile the best configuration and store the result
-)
+@triton.autotune(configs=get_autotune_config(), key=["n_elements"],
+                 auto_profile_dir=_AUTO_PROF_DIR1,  # auto profile the best configuration and store the result
+                 )
 @triton.jit
-def add_kernel_1(
-    x_ptr,  # *Pointer* to first input vector.
-    y_ptr,  # *Pointer* to second input vector.
-    output_ptr,  # *Pointer* to output vector.
-    n_elements,  # Size of the vector.
-    BLOCK_SIZE: tl.constexpr,  # Number of elements each program should process.
-    # NOTE: `constexpr` so it can be used as a shape value.
-):
+def add_kernel_1(x_ptr,  # *Pointer* to first input vector.
+                 y_ptr,  # *Pointer* to second input vector.
+                 output_ptr,  # *Pointer* to output vector.
+                 n_elements,  # Size of the vector.
+                 BLOCK_SIZE: tl.constexpr,  # Number of elements each program should process.
+                 # NOTE: `constexpr` so it can be used as a shape value.
+                 ):
     # There are multiple 'programs' processing different data. We identify which program
     # we are here:
     pid = tl.program_id(axis=0)  # We use a 1D launch grid so axis is 0.
@@ -88,14 +82,13 @@ def add_kernel_1(
     auto_profile_dir=_AUTO_PROF_DIR2,
 )
 @triton.jit
-def add_kernel_2(
-    x_ptr,  # *Pointer* to first input vector.
-    y_ptr,  # *Pointer* to second input vector.
-    output_ptr,  # *Pointer* to output vector.
-    n_elements,  # Size of the vector.
-    BLOCK_SIZE: tl.constexpr,  # Number of elements each program should process.
-    # NOTE: `constexpr` so it can be used as a shape value.
-):
+def add_kernel_2(x_ptr,  # *Pointer* to first input vector.
+                 y_ptr,  # *Pointer* to second input vector.
+                 output_ptr,  # *Pointer* to output vector.
+                 n_elements,  # Size of the vector.
+                 BLOCK_SIZE: tl.constexpr,  # Number of elements each program should process.
+                 # NOTE: `constexpr` so it can be used as a shape value.
+                 ):
     # There are multiple 'programs' processing different data. We identify which program
     # we are here:
     pid = tl.program_id(axis=0)  # We use a 1D launch grid so axis is 0.
@@ -146,7 +139,7 @@ def test(size, fn, prof_dir):
 
     output = torch.empty_like(x)
     n_elements = output.numel()
-    grid = lambda meta: (triton.cdiv(n_elements, meta["BLOCK_SIZE"]),)
+    grid = lambda meta: (triton.cdiv(n_elements, meta["BLOCK_SIZE"]), )
     fn[grid](x, y, output, n_elements)
 
     assert os.path.exists(prof_dir), f"Profiling directory {prof_dir} was not created!"

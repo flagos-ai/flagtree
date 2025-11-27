@@ -1,6 +1,6 @@
+#include "DiscreteMaskAccessConversion/Passes.h"
 #include "TritonToAnnotation/Passes.h"
 #include "TritonToHIVM/Passes.h"
-#include "DiscreteMaskAccessConversion/Passes.h"
 #include "TritonToLinalg/Passes.h"
 #include "TritonToUnstructure/Passes.h"
 #include "bishengir/InitAllDialects.h"

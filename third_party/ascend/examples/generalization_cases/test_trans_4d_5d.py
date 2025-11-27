@@ -13,10 +13,21 @@ import logging
 
 @triton.jit
 def triton_trans_4d(
-        output_ptr, x_ptr, PERM: tl.constexpr,
-        BLOCK_0: tl.constexpr, BLOCK_1: tl.constexpr, BLOCK_2: tl.constexpr, BLOCK_3: tl.constexpr,
-        SHAPE_0: tl.constexpr, SHAPE_1: tl.constexpr, SHAPE_2: tl.constexpr, SHAPE_3: tl.constexpr,
-        STRIDE_0: tl.constexpr, STRIDE_1: tl.constexpr, STRIDE_2: tl.constexpr, STRIDE_3: tl.constexpr,
+    output_ptr,
+    x_ptr,
+    PERM: tl.constexpr,
+    BLOCK_0: tl.constexpr,
+    BLOCK_1: tl.constexpr,
+    BLOCK_2: tl.constexpr,
+    BLOCK_3: tl.constexpr,
+    SHAPE_0: tl.constexpr,
+    SHAPE_1: tl.constexpr,
+    SHAPE_2: tl.constexpr,
+    SHAPE_3: tl.constexpr,
+    STRIDE_0: tl.constexpr,
+    STRIDE_1: tl.constexpr,
+    STRIDE_2: tl.constexpr,
+    STRIDE_3: tl.constexpr,
 ):
     pid = tl.program_id(0)
     tmp0 = tl.arange(0, BLOCK_0)[:, None, None, None]
@@ -70,15 +81,11 @@ def triton_trans_4d(
 
 
 @triton.jit
-def triton_trans_5d(
-        output_ptr, x_ptr, PERM: tl.constexpr,
-        BLOCK_0: tl.constexpr, BLOCK_1: tl.constexpr, BLOCK_2: tl.constexpr, BLOCK_3: tl.constexpr,
-        BLOCK_4: tl.constexpr,
-        SHAPE_0: tl.constexpr, SHAPE_1: tl.constexpr, SHAPE_2: tl.constexpr, SHAPE_3: tl.constexpr,
-        SHAPE_4: tl.constexpr,
-        STRIDE_0: tl.constexpr, STRIDE_1: tl.constexpr, STRIDE_2: tl.constexpr, STRIDE_3: tl.constexpr,
-        STRIDE_4: tl.constexpr
-):
+def triton_trans_5d(output_ptr, x_ptr, PERM: tl.constexpr, BLOCK_0: tl.constexpr, BLOCK_1: tl.constexpr,
+                    BLOCK_2: tl.constexpr, BLOCK_3: tl.constexpr, BLOCK_4: tl.constexpr, SHAPE_0: tl.constexpr,
+                    SHAPE_1: tl.constexpr, SHAPE_2: tl.constexpr, SHAPE_3: tl.constexpr, SHAPE_4: tl.constexpr,
+                    STRIDE_0: tl.constexpr, STRIDE_1: tl.constexpr, STRIDE_2: tl.constexpr, STRIDE_3: tl.constexpr,
+                    STRIDE_4: tl.constexpr):
     pid = tl.program_id(0)
     tmp0 = tl.arange(0, BLOCK_0)[:, None, None, None, None]
     tmp1 = tl.arange(0, BLOCK_1)[None, :, None, None, None]
@@ -158,7 +165,7 @@ def triton_trans_5d(
 def test_trans_4d_5d(shape, dtype, perm):
     logging.log(logging.DEBUG, f"shape = {shape}")
     x = torch.randint(low=0, high=2, size=shape, dtype=eval('torch.' + dtype)).npu()
-    grid = (1,)
+    grid = (1, )
     if len(shape) == 4:
         blocks = list(x.size())
         strides = list(x.stride())
@@ -182,7 +189,7 @@ def test_trans_4d_5d(shape, dtype, perm):
     else:
         blocks = list(x.size())
         strides = list(x.stride())
-        
+
         if perm == 0:  # 1, 0, 2, 3, 4; exchange axis 0, 1
             output = torch.empty((shape[1], shape[0], shape[2], shape[3], shape[4]), dtype=eval('torch.' + dtype)).npu()
             ans_5d = torch.permute(x, (1, 0, 2, 3, 4))

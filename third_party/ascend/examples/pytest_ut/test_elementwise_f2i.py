@@ -12,21 +12,26 @@ import shutil
 import torch
 import torch_npu
 
+
 def standard_f2i32(x0):
     res = x0.to(torch.int32)
     return res
+
 
 def standard_f2i8(x0):
     res = x0.to(torch.int8)
     return res
 
+
 def standard_f2i16(x0):
     res = x0.to(torch.int16)
     return res
 
+
 def standard_f2i64(x0):
     res = x0.to(torch.int64)
     return res
+
 
 @triton.jit
 def triton_f2i8(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
@@ -36,6 +41,7 @@ def triton_f2i8(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
     res = tl.cast(x, tl.int8)
     tl.store(out_ptr0 + idx_block, res, mask=mask)
 
+
 @triton.jit
 def triton_f2i16(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
     idx_block = tl.arange(0, NUMEL)
@@ -43,6 +49,7 @@ def triton_f2i16(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
     x = tl.load(in_ptr0 + idx_block, mask=mask)
     res = tl.cast(x, tl.int16)
     tl.store(out_ptr0 + idx_block, res, mask=mask)
+
 
 @triton.jit
 def triton_f2i32(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
@@ -52,6 +59,7 @@ def triton_f2i32(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
     res = tl.cast(x, tl.int32)
     tl.store(out_ptr0 + idx_block, res, mask=mask)
 
+
 @triton.jit
 def triton_f2i64(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
     idx_block = tl.arange(0, NUMEL)
@@ -59,6 +67,7 @@ def triton_f2i64(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
     x = tl.load(in_ptr0 + idx_block, mask=mask)
     res = tl.cast(x, tl.int64)
     tl.store(out_ptr0 + idx_block, res, mask=mask)
+
 
 types = [
     (torch.float32, 'float32'),
@@ -99,12 +108,12 @@ def test_elementwise_common(opName, tritonOp, standOp, dst_sigtype, dtype, sigty
     if sigtype == 'int64':
         N = map_for_64_t[N] if N in map_for_64_t else N
 
-    x0 = test_common.generate_tensor(shape=(N,), dtype=sigtype)
+    x0 = test_common.generate_tensor(shape=(N, ), dtype=sigtype)
 
     ans = standOp(x0)
     x0 = x0.npu()
 
-    output = test_common.generate_tensor(shape=(N,), dtype=dst_sigtype).npu()
+    output = test_common.generate_tensor(shape=(N, ), dtype=dst_sigtype).npu()
     tritonOp[1, 1, 1](x0, output, N=N, NUMEL=NUMEL, debug=True)
 
     test_common.validate_cmp(dst_sigtype, output, ans)

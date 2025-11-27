@@ -12,6 +12,7 @@ import pytest
 import math
 import random
 
+
 @triton.jit
 def fn_npu_int8_3d(output_ptr, X: tl.constexpr, Y: tl.constexpr, Z: tl.constexpr):
     xidx = tl.arange(0, X)
@@ -195,7 +196,7 @@ def fn_npu_bool_2d(output_ptr, Y: tl.constexpr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_int8_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=100, dtype=tl.int8)
+    ret = tl.full((Z, ), value=100, dtype=tl.int8)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -203,7 +204,7 @@ def fn_npu_int8_1d(output_ptr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_int16_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=100, dtype=tl.int16)
+    ret = tl.full((Z, ), value=100, dtype=tl.int16)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -211,7 +212,7 @@ def fn_npu_int16_1d(output_ptr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_uint32_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=100, dtype=tl.uint32)
+    ret = tl.full((Z, ), value=100, dtype=tl.uint32)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -219,7 +220,7 @@ def fn_npu_uint32_1d(output_ptr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_int32_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=100, dtype=tl.int32)
+    ret = tl.full((Z, ), value=100, dtype=tl.int32)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -227,7 +228,7 @@ def fn_npu_int32_1d(output_ptr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_int64_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=100, dtype=tl.int64)
+    ret = tl.full((Z, ), value=100, dtype=tl.int64)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -235,7 +236,7 @@ def fn_npu_int64_1d(output_ptr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_fp16_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=100, dtype=tl.float16)
+    ret = tl.full((Z, ), value=100, dtype=tl.float16)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -243,7 +244,7 @@ def fn_npu_fp16_1d(output_ptr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_fp32_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=100, dtype=tl.float32)
+    ret = tl.full((Z, ), value=100, dtype=tl.float32)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -251,7 +252,7 @@ def fn_npu_fp32_1d(output_ptr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_bf16_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=100, dtype=tl.bfloat16)
+    ret = tl.full((Z, ), value=100, dtype=tl.bfloat16)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -259,7 +260,7 @@ def fn_npu_bf16_1d(output_ptr, Z: tl.constexpr):
 @triton.jit
 def fn_npu_bool_1d(output_ptr, Z: tl.constexpr):
     zidx = tl.arange(0, Z)
-    ret = tl.full((Z,), value=0, dtype=tl.int1)
+    ret = tl.full((Z, ), value=0, dtype=tl.int1)
     oidx = zidx
     tl.store(output_ptr + oidx, ret)
 
@@ -305,26 +306,24 @@ dtype_mapping1d = {
 }
 
 # 生成测试用例
-testlist = [
-    (func, sigtype, dtype, shape)
-    for sigtype in test_dtype
-    for shape in test_shape1d
-    for func, dtype in [dtype_mapping1d[sigtype]]  # 直接解包映射结果
-]
+testlist = [(func, sigtype, dtype, shape)
+            for sigtype in test_dtype
+            for shape in test_shape1d
+            for func, dtype in [dtype_mapping1d[sigtype]]  # 直接解包映射结果
+            ]
 
-testlist += [
-    (func, sigtype, dtype, shape)
-    for sigtype in test_dtype
-    for shape in test_shape2d
-    for func, dtype in [dtype_mapping2d[sigtype]]  # 直接解包映射结果
-]
+testlist += [(func, sigtype, dtype, shape)
+             for sigtype in test_dtype
+             for shape in test_shape2d
+             for func, dtype in [dtype_mapping2d[sigtype]]  # 直接解包映射结果
+             ]
 
-testlist += [
-    (func, sigtype, dtype, shape)
-    for sigtype in test_dtype
-    for shape in test_shape3d
-    for func, dtype in [dtype_mapping3d[sigtype]]  # 直接解包映射结果
-]
+testlist += [(func, sigtype, dtype, shape)
+             for sigtype in test_dtype
+             for shape in test_shape3d
+             for func, dtype in [dtype_mapping3d[sigtype]]  # 直接解包映射结果
+             ]
+
 
 @pytest.mark.parametrize('testfunc, sigtype, dtype, shape', testlist)
 def test_npu(testfunc, sigtype, dtype, shape):
@@ -356,13 +355,14 @@ def test_npu(testfunc, sigtype, dtype, shape):
             x = torch.full((shape[0], ), 0, dtype=dtype).npu()
         else:
             x = torch.full((shape[0], ), 100, dtype=dtype).npu()
-        output = torch.randint(1, (shape[0],), dtype=dtype).npu()
+        output = torch.randint(1, (shape[0], ), dtype=dtype).npu()
         testfunc[1, 1, 1](output, shape[0], debug=True)
     test_common.validate_cmp(sigtype, output, x)
 
 
 @triton.jit
-def fn_npu_multi_d(output_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, NB: tl.constexpr):
+def fn_npu_multi_d(output_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr,
+                   NB: tl.constexpr):
     dtype = output_ptr.type.element_ty
 
     offsets = tl.arange(0, XB) * (YB * ZB * MB * NB)
@@ -392,10 +392,8 @@ def fn_npu_multi_d(output_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.conste
 testlist_multi_d = [
     (fn_npu_multi_d, 'float32', torch.float32, (4, 2, 16, 16)),
     (fn_npu_multi_d, 'float32', torch.float32, (2, 4, 2, 16, 16)),
-
     (fn_npu_multi_d, 'float32', torch.float16, (4, 2, 16, 16)),
     (fn_npu_multi_d, 'float32', torch.float16, (2, 4, 2, 16, 16)),
-
     (fn_npu_multi_d, 'float32', torch.int8, (4, 2, 16, 16)),
     (fn_npu_multi_d, 'float32', torch.int8, (2, 4, 2, 16, 16)),
 ]
@@ -417,15 +415,15 @@ def test_npu_4d_5d(testfunc, sigtype, dtype, shape):
     triton_shape = [*shape]
     while len(triton_shape) < 5:
         triton_shape.append(1)
-    testfunc[(1,)](output, *triton_shape)
+    testfunc[(1, )](output, *triton_shape)
     print(torch.flatten(output)[0:16])
 
     test_common.validate_cmp(sigtype, output, x)
 
 
 @triton.jit
-def fn_npu_bf16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr):
+def fn_npu_bf16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -435,24 +433,17 @@ def fn_npu_bf16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F), value=10, dtype=tl.bfloat16)
 
-    oidx = (aidx[:, None, None, None, None, None] *
-            B * C * D * E * F +
-            bidx[None, :, None, None, None, None] *
-            C * D * E * F +
-            cidx[None, None, :, None, None, None] *
-            D * E * F +
-            didx[None, None, None, :, None, None] *
-            E * F +
-            eidx[None, None, None, None, :, None] *
-            F +
+    oidx = (aidx[:, None, None, None, None, None] * B * C * D * E * F +
+            bidx[None, :, None, None, None, None] * C * D * E * F + cidx[None, None, :, None, None, None] * D * E * F +
+            didx[None, None, None, :, None, None] * E * F + eidx[None, None, None, None, :, None] * F +
             fidx[None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_int8_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr):
+def fn_npu_int8_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -462,24 +453,17 @@ def fn_npu_int8_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F), value=10, dtype=tl.int8)
 
-    oidx = (aidx[:, None, None, None, None, None] *
-            B * C * D * E * F +
-            bidx[None, :, None, None, None, None] *
-            C * D * E * F +
-            cidx[None, None, :, None, None, None] *
-            D * E * F +
-            didx[None, None, None, :, None, None] *
-            E * F +
-            eidx[None, None, None, None, :, None] *
-            F +
+    oidx = (aidx[:, None, None, None, None, None] * B * C * D * E * F +
+            bidx[None, :, None, None, None, None] * C * D * E * F + cidx[None, None, :, None, None, None] * D * E * F +
+            didx[None, None, None, :, None, None] * E * F + eidx[None, None, None, None, :, None] * F +
             fidx[None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_int16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                    D: tl.constexpr, E: tl.constexpr, F: tl.constexpr):
+def fn_npu_int16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -489,24 +473,17 @@ def fn_npu_int16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F), value=10, dtype=tl.int16)
 
-    oidx = (aidx[:, None, None, None, None, None] *
-            B * C * D * E * F +
-            bidx[None, :, None, None, None, None] *
-            C * D * E * F +
-            cidx[None, None, :, None, None, None] *
-            D * E * F +
-            didx[None, None, None, :, None, None] *
-            E * F +
-            eidx[None, None, None, None, :, None] *
-            F +
+    oidx = (aidx[:, None, None, None, None, None] * B * C * D * E * F +
+            bidx[None, :, None, None, None, None] * C * D * E * F + cidx[None, None, :, None, None, None] * D * E * F +
+            didx[None, None, None, :, None, None] * E * F + eidx[None, None, None, None, :, None] * F +
             fidx[None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_int32_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                    D: tl.constexpr, E: tl.constexpr, F: tl.constexpr):
+def fn_npu_int32_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -516,24 +493,17 @@ def fn_npu_int32_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F), value=10, dtype=tl.int32)
 
-    oidx = (aidx[:, None, None, None, None, None] *
-            B * C * D * E * F +
-            bidx[None, :, None, None, None, None] *
-            C * D * E * F +
-            cidx[None, None, :, None, None, None] *
-            D * E * F +
-            didx[None, None, None, :, None, None] *
-            E * F +
-            eidx[None, None, None, None, :, None] *
-            F +
+    oidx = (aidx[:, None, None, None, None, None] * B * C * D * E * F +
+            bidx[None, :, None, None, None, None] * C * D * E * F + cidx[None, None, :, None, None, None] * D * E * F +
+            didx[None, None, None, :, None, None] * E * F + eidx[None, None, None, None, :, None] * F +
             fidx[None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_int64_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                    D: tl.constexpr, E: tl.constexpr, F: tl.constexpr):
+def fn_npu_int64_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -543,24 +513,17 @@ def fn_npu_int64_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F), value=10, dtype=tl.int64)
 
-    oidx = (aidx[:, None, None, None, None, None] *
-            B * C * D * E * F +
-            bidx[None, :, None, None, None, None] *
-            C * D * E * F +
-            cidx[None, None, :, None, None, None] *
-            D * E * F +
-            didx[None, None, None, :, None, None] *
-            E * F +
-            eidx[None, None, None, None, :, None] *
-            F +
+    oidx = (aidx[:, None, None, None, None, None] * B * C * D * E * F +
+            bidx[None, :, None, None, None, None] * C * D * E * F + cidx[None, None, :, None, None, None] * D * E * F +
+            didx[None, None, None, :, None, None] * E * F + eidx[None, None, None, None, :, None] * F +
             fidx[None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_fp16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr):
+def fn_npu_fp16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -570,24 +533,17 @@ def fn_npu_fp16_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F), value=10, dtype=tl.float16)
 
-    oidx = (aidx[:, None, None, None, None, None] *
-            B * C * D * E * F +
-            bidx[None, :, None, None, None, None] *
-            C * D * E * F +
-            cidx[None, None, :, None, None, None] *
-            D * E * F +
-            didx[None, None, None, :, None, None] *
-            E * F +
-            eidx[None, None, None, None, :, None] *
-            F +
+    oidx = (aidx[:, None, None, None, None, None] * B * C * D * E * F +
+            bidx[None, :, None, None, None, None] * C * D * E * F + cidx[None, None, :, None, None, None] * D * E * F +
+            didx[None, None, None, :, None, None] * E * F + eidx[None, None, None, None, :, None] * F +
             fidx[None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_fp32_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr):
+def fn_npu_fp32_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -597,24 +553,17 @@ def fn_npu_fp32_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F), value=10, dtype=tl.float32)
 
-    oidx = (aidx[:, None, None, None, None, None] *
-            B * C * D * E * F +
-            bidx[None, :, None, None, None, None] *
-            C * D * E * F +
-            cidx[None, None, :, None, None, None] *
-            D * E * F +
-            didx[None, None, None, :, None, None] *
-            E * F +
-            eidx[None, None, None, None, :, None] *
-            F +
+    oidx = (aidx[:, None, None, None, None, None] * B * C * D * E * F +
+            bidx[None, :, None, None, None, None] * C * D * E * F + cidx[None, None, :, None, None, None] * D * E * F +
+            didx[None, None, None, :, None, None] * E * F + eidx[None, None, None, None, :, None] * F +
             fidx[None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_bool_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr):
+def fn_npu_bool_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -624,16 +573,9 @@ def fn_npu_bool_6d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F), value=0, dtype=tl.int1)
 
-    oidx = (aidx[:, None, None, None, None, None] *
-            B * C * D * E * F +
-            bidx[None, :, None, None, None, None] *
-            C * D * E * F +
-            cidx[None, None, :, None, None, None] *
-            D * E * F +
-            didx[None, None, None, :, None, None] *
-            E * F +
-            eidx[None, None, None, None, :, None] *
-            F +
+    oidx = (aidx[:, None, None, None, None, None] * B * C * D * E * F +
+            bidx[None, :, None, None, None, None] * C * D * E * F + cidx[None, None, :, None, None, None] * D * E * F +
+            didx[None, None, None, :, None, None] * E * F + eidx[None, None, None, None, :, None] * F +
             fidx[None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
@@ -652,12 +594,10 @@ dtype_mapping6d = {
     'bool': (fn_npu_bool_6d, torch.bool),
 }
 
-testlist6d = [
-    (func, sigtype, dtype, shape)
-    for sigtype in test_dtype
-    for shape in test_shape6d
-    for func, dtype in [dtype_mapping6d[sigtype]]
-]
+testlist6d = [(func, sigtype, dtype, shape)
+              for sigtype in test_dtype
+              for shape in test_shape6d
+              for func, dtype in [dtype_mapping6d[sigtype]]]
 
 
 @pytest.mark.parametrize('testfunc, sigtype, dtype, shape', testlist6d)
@@ -675,9 +615,8 @@ def test_npu_6d(testfunc, sigtype, dtype, shape):
 
 
 @triton.jit
-def fn_npu_bf16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr):
+def fn_npu_bf16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -688,26 +627,19 @@ def fn_npu_bf16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G), value=10, dtype=tl.bfloat16)
 
-    oidx = (aidx[:, None, None, None, None, None, None] *
-            B * C * D * E * F * G +
-            bidx[None, :, None, None, None, None, None] *
-            C * D * E * F * G +
-            cidx[None, None, :, None, None, None, None] *
-            D * E * F * G +
-            didx[None, None, None, :, None, None, None] *
-            E * F * G +
-            eidx[None, None, None, None, :, None, None] *
-            F * G +
-            fidx[None, None, None, None, None, :, None] *
-            G +
+    oidx = (aidx[:, None, None, None, None, None, None] * B * C * D * E * F * G +
+            bidx[None, :, None, None, None, None, None] * C * D * E * F * G +
+            cidx[None, None, :, None, None, None, None] * D * E * F * G +
+            didx[None, None, None, :, None, None, None] * E * F * G +
+            eidx[None, None, None, None, :, None, None] * F * G + fidx[None, None, None, None, None, :, None] * G +
             gidx[None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_int8_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr):
+def fn_npu_int8_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -719,26 +651,19 @@ def fn_npu_int8_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G), value=10, dtype=tl.int8)
 
-    oidx = (aidx[:, None, None, None, None, None, None] *
-            B * C * D * E * F * G +
-            bidx[None, :, None, None, None, None, None] *
-            C * D * E * F * G +
-            cidx[None, None, :, None, None, None, None] *
-            D * E * F * G +
-            didx[None, None, None, :, None, None, None] *
-            E * F * G +
-            eidx[None, None, None, None, :, None, None] *
-            F * G +
-            fidx[None, None, None, None, None, :, None] *
-            G +
+    oidx = (aidx[:, None, None, None, None, None, None] * B * C * D * E * F * G +
+            bidx[None, :, None, None, None, None, None] * C * D * E * F * G +
+            cidx[None, None, :, None, None, None, None] * D * E * F * G +
+            didx[None, None, None, :, None, None, None] * E * F * G +
+            eidx[None, None, None, None, :, None, None] * F * G + fidx[None, None, None, None, None, :, None] * G +
             gidx[None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_int16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr):
+def fn_npu_int16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr, G: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -750,27 +675,19 @@ def fn_npu_int16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F, G), value=10, dtype=tl.int16)
 
-    oidx = (aidx[:, None, None, None, None, None, None] *
-            B * C * D * E * F * G +
-            bidx[None, :, None, None, None, None, None] *
-            C * D * E * F * G +
-            cidx[None, None, :, None, None, None, None] *
-            D * E * F * G +
-            didx[None, None, None, :, None, None, None] *
-            E * F * G +
-            eidx[None, None, None, None, :, None, None] *
-            F * G +
-            fidx[None, None, None, None, None, :, None] *
-            G +
+    oidx = (aidx[:, None, None, None, None, None, None] * B * C * D * E * F * G +
+            bidx[None, :, None, None, None, None, None] * C * D * E * F * G +
+            cidx[None, None, :, None, None, None, None] * D * E * F * G +
+            didx[None, None, None, :, None, None, None] * E * F * G +
+            eidx[None, None, None, None, :, None, None] * F * G + fidx[None, None, None, None, None, :, None] * G +
             gidx[None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_int32_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr):
+def fn_npu_int32_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr, G: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -782,27 +699,19 @@ def fn_npu_int32_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F, G), value=10, dtype=tl.int32)
 
-    oidx = (aidx[:, None, None, None, None, None, None] *
-            B * C * D * E * F * G +
-            bidx[None, :, None, None, None, None, None] *
-            C * D * E * F * G +
-            cidx[None, None, :, None, None, None, None] *
-            D * E * F * G +
-            didx[None, None, None, :, None, None, None] *
-            E * F * G +
-            eidx[None, None, None, None, :, None, None] *
-            F * G +
-            fidx[None, None, None, None, None, :, None] *
-            G +
+    oidx = (aidx[:, None, None, None, None, None, None] * B * C * D * E * F * G +
+            bidx[None, :, None, None, None, None, None] * C * D * E * F * G +
+            cidx[None, None, :, None, None, None, None] * D * E * F * G +
+            didx[None, None, None, :, None, None, None] * E * F * G +
+            eidx[None, None, None, None, :, None, None] * F * G + fidx[None, None, None, None, None, :, None] * G +
             gidx[None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_int64_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr):
+def fn_npu_int64_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr, G: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -814,26 +723,19 @@ def fn_npu_int64_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F, G), value=10, dtype=tl.int64)
 
-    oidx = (aidx[:, None, None, None, None, None, None] *
-            B * C * D * E * F * G +
-            bidx[None, :, None, None, None, None, None] *
-            C * D * E * F * G +
-            cidx[None, None, :, None, None, None, None] *
-            D * E * F * G +
-            didx[None, None, None, :, None, None, None] *
-            E * F * G +
-            eidx[None, None, None, None, :, None, None] *
-            F * G +
-            fidx[None, None, None, None, None, :, None] *
-            G +
+    oidx = (aidx[:, None, None, None, None, None, None] * B * C * D * E * F * G +
+            bidx[None, :, None, None, None, None, None] * C * D * E * F * G +
+            cidx[None, None, :, None, None, None, None] * D * E * F * G +
+            didx[None, None, None, :, None, None, None] * E * F * G +
+            eidx[None, None, None, None, :, None, None] * F * G + fidx[None, None, None, None, None, :, None] * G +
             gidx[None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_fp16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr):
+def fn_npu_fp16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -845,26 +747,19 @@ def fn_npu_fp16_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G), value=10, dtype=tl.float16)
 
-    oidx = (aidx[:, None, None, None, None, None, None] *
-            B * C * D * E * F * G +
-            bidx[None, :, None, None, None, None, None] *
-            C * D * E * F * G +
-            cidx[None, None, :, None, None, None, None] *
-            D * E * F * G +
-            didx[None, None, None, :, None, None, None] *
-            E * F * G +
-            eidx[None, None, None, None, :, None, None] *
-            F * G +
-            fidx[None, None, None, None, None, :, None] *
-            G +
+    oidx = (aidx[:, None, None, None, None, None, None] * B * C * D * E * F * G +
+            bidx[None, :, None, None, None, None, None] * C * D * E * F * G +
+            cidx[None, None, :, None, None, None, None] * D * E * F * G +
+            didx[None, None, None, :, None, None, None] * E * F * G +
+            eidx[None, None, None, None, :, None, None] * F * G + fidx[None, None, None, None, None, :, None] * G +
             gidx[None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_fp32_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr):
+def fn_npu_fp32_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -876,26 +771,19 @@ def fn_npu_fp32_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G), value=10, dtype=tl.float32)
 
-    oidx = (aidx[:, None, None, None, None, None, None] *
-            B * C * D * E * F * G +
-            bidx[None, :, None, None, None, None, None] *
-            C * D * E * F * G +
-            cidx[None, None, :, None, None, None, None] *
-            D * E * F * G +
-            didx[None, None, None, :, None, None, None] *
-            E * F * G +
-            eidx[None, None, None, None, :, None, None] *
-            F * G +
-            fidx[None, None, None, None, None, :, None] *
-            G +
+    oidx = (aidx[:, None, None, None, None, None, None] * B * C * D * E * F * G +
+            bidx[None, :, None, None, None, None, None] * C * D * E * F * G +
+            cidx[None, None, :, None, None, None, None] * D * E * F * G +
+            didx[None, None, None, :, None, None, None] * E * F * G +
+            eidx[None, None, None, None, :, None, None] * F * G + fidx[None, None, None, None, None, :, None] * G +
             gidx[None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_bool_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr):
+def fn_npu_bool_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -907,21 +795,15 @@ def fn_npu_bool_7d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G), value=0, dtype=tl.int1)
 
-    oidx = (aidx[:, None, None, None, None, None, None] *
-            B * C * D * E * F * G +
-            bidx[None, :, None, None, None, None, None] *
-            C * D * E * F * G +
-            cidx[None, None, :, None, None, None, None] *
-            D * E * F * G +
-            didx[None, None, None, :, None, None, None] *
-            E * F * G +
-            eidx[None, None, None, None, :, None, None] *
-            F * G +
-            fidx[None, None, None, None, None, :, None] *
-            G +
+    oidx = (aidx[:, None, None, None, None, None, None] * B * C * D * E * F * G +
+            bidx[None, :, None, None, None, None, None] * C * D * E * F * G +
+            cidx[None, None, :, None, None, None, None] * D * E * F * G +
+            didx[None, None, None, :, None, None, None] * E * F * G +
+            eidx[None, None, None, None, :, None, None] * F * G + fidx[None, None, None, None, None, :, None] * G +
             gidx[None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
+
 
 test_dtype = ['int8', 'int16', 'int32', 'int64', 'float16', 'float32', 'bfloat16', 'bool']
 test_shape7d = TestUtils.test_shape7d
@@ -936,12 +818,11 @@ dtype_mapping7d = {
     'bool': (fn_npu_bool_7d, torch.bool),
 }
 
-testlist7d = [
-    (func, sigtype, dtype, shape)
-    for sigtype in test_dtype
-    for shape in test_shape7d
-    for func, dtype in [dtype_mapping7d[sigtype]]
-]
+testlist7d = [(func, sigtype, dtype, shape)
+              for sigtype in test_dtype
+              for shape in test_shape7d
+              for func, dtype in [dtype_mapping7d[sigtype]]]
+
 
 @pytest.mark.parametrize('testfunc, sigtype, dtype, shape', testlist7d)
 def test_npu_7d(testfunc, sigtype, dtype, shape):
@@ -958,9 +839,8 @@ def test_npu_7d(testfunc, sigtype, dtype, shape):
 
 
 @triton.jit
-def fn_npu_bf16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr, H: tl.constexpr):
+def fn_npu_bf16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr, H: tl.constexpr):
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
     cidx = tl.arange(0, C)
@@ -972,28 +852,20 @@ def fn_npu_bf16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G, H), value=10, dtype=tl.bfloat16)
 
-    oidx = (aidx[:, None, None, None, None, None, None, None] *
-            B * C * D * E * F * G * H +
-            bidx[None, :, None, None, None, None, None, None] *
-            C * D * E * F * G * H +
-            cidx[None, None, :, None, None, None, None, None] *
-            D * E * F * G * H +
-            didx[None, None, None, :, None, None, None, None] *
-            E * F * G * H +
-            eidx[None, None, None, None, :, None, None, None] *
-            F * G * H +
-            fidx[None, None, None, None, None, :, None, None] *
-            G * H +
-            gidx[None, None, None, None, None, None, :, None] *
-            H +
-            hidx[None, None, None, None, None, None, None, :])
+    oidx = (aidx[:, None, None, None, None, None, None, None] * B * C * D * E * F * G * H +
+            bidx[None, :, None, None, None, None, None, None] * C * D * E * F * G * H +
+            cidx[None, None, :, None, None, None, None, None] * D * E * F * G * H +
+            didx[None, None, None, :, None, None, None, None] * E * F * G * H +
+            eidx[None, None, None, None, :, None, None, None] * F * G * H +
+            fidx[None, None, None, None, None, :, None, None] * G * H +
+            gidx[None, None, None, None, None, None, :, None] * H + hidx[None, None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_int8_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr, H: tl.constexpr):
+def fn_npu_int8_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr, H: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -1006,28 +878,20 @@ def fn_npu_int8_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G, H), value=10, dtype=tl.int8)
 
-    oidx = (aidx[:, None, None, None, None, None, None, None] *
-            B * C * D * E * F * G * H +
-            bidx[None, :, None, None, None, None, None, None] *
-            C * D * E * F * G * H +
-            cidx[None, None, :, None, None, None, None, None] *
-            D * E * F * G * H +
-            didx[None, None, None, :, None, None, None, None] *
-            E * F * G * H +
-            eidx[None, None, None, None, :, None, None, None] *
-            F * G * H +
-            fidx[None, None, None, None, None, :, None, None] *
-            G * H +
-            gidx[None, None, None, None, None, None, :, None] *
-            H +
-            hidx[None, None, None, None, None, None, None, :])
+    oidx = (aidx[:, None, None, None, None, None, None, None] * B * C * D * E * F * G * H +
+            bidx[None, :, None, None, None, None, None, None] * C * D * E * F * G * H +
+            cidx[None, None, :, None, None, None, None, None] * D * E * F * G * H +
+            didx[None, None, None, :, None, None, None, None] * E * F * G * H +
+            eidx[None, None, None, None, :, None, None, None] * F * G * H +
+            fidx[None, None, None, None, None, :, None, None] * G * H +
+            gidx[None, None, None, None, None, None, :, None] * H + hidx[None, None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_int16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr, H: tl.constexpr):
+def fn_npu_int16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr, G: tl.constexpr, H: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -1040,29 +904,20 @@ def fn_npu_int16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F, G, H), value=10, dtype=tl.int16)
 
-    oidx = (aidx[:, None, None, None, None, None, None, None] *
-            B * C * D * E * F * G * H +
-            bidx[None, :, None, None, None, None, None, None] *
-            C * D * E * F * G * H +
-            cidx[None, None, :, None, None, None, None, None] *
-            D * E * F * G * H +
-            didx[None, None, None, :, None, None, None, None] *
-            E * F * G * H +
-            eidx[None, None, None, None, :, None, None, None] *
-            F * G * H +
-            fidx[None, None, None, None, None, :, None, None] *
-            G * H +
-            gidx[None, None, None, None, None, None, :, None] *
-            H +
-            hidx[None, None, None, None, None, None, None, :])
+    oidx = (aidx[:, None, None, None, None, None, None, None] * B * C * D * E * F * G * H +
+            bidx[None, :, None, None, None, None, None, None] * C * D * E * F * G * H +
+            cidx[None, None, :, None, None, None, None, None] * D * E * F * G * H +
+            didx[None, None, None, :, None, None, None, None] * E * F * G * H +
+            eidx[None, None, None, None, :, None, None, None] * F * G * H +
+            fidx[None, None, None, None, None, :, None, None] * G * H +
+            gidx[None, None, None, None, None, None, :, None] * H + hidx[None, None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_int32_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr, H: tl.constexpr):
+def fn_npu_int32_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr, G: tl.constexpr, H: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -1075,29 +930,20 @@ def fn_npu_int32_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F, G, H), value=10, dtype=tl.int32)
 
-    oidx = (aidx[:, None, None, None, None, None, None, None] *
-            B * C * D * E * F * G * H +
-            bidx[None, :, None, None, None, None, None, None] *
-            C * D * E * F * G * H +
-            cidx[None, None, :, None, None, None, None, None] *
-            D * E * F * G * H +
-            didx[None, None, None, :, None, None, None, None] *
-            E * F * G * H +
-            eidx[None, None, None, None, :, None, None, None] *
-            F * G * H +
-            fidx[None, None, None, None, None, :, None, None] *
-            G * H +
-            gidx[None, None, None, None, None, None, :, None] *
-            H +
-            hidx[None, None, None, None, None, None, None, :])
+    oidx = (aidx[:, None, None, None, None, None, None, None] * B * C * D * E * F * G * H +
+            bidx[None, :, None, None, None, None, None, None] * C * D * E * F * G * H +
+            cidx[None, None, :, None, None, None, None, None] * D * E * F * G * H +
+            didx[None, None, None, :, None, None, None, None] * E * F * G * H +
+            eidx[None, None, None, None, :, None, None, None] * F * G * H +
+            fidx[None, None, None, None, None, :, None, None] * G * H +
+            gidx[None, None, None, None, None, None, :, None] * H + hidx[None, None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
 
 @triton.jit
-def fn_npu_int64_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr, H: tl.constexpr):
+def fn_npu_int64_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                    F: tl.constexpr, G: tl.constexpr, H: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -1110,28 +956,20 @@ def fn_npu_int64_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexp
 
     ret = tl.full((A, B, C, D, E, F, G, H), value=10, dtype=tl.int64)
 
-    oidx = (aidx[:, None, None, None, None, None, None, None] *
-            B * C * D * E * F * G * H +
-            bidx[None, :, None, None, None, None, None, None] *
-            C * D * E * F * G * H +
-            cidx[None, None, :, None, None, None, None, None] *
-            D * E * F * G * H +
-            didx[None, None, None, :, None, None, None, None] *
-            E * F * G * H +
-            eidx[None, None, None, None, :, None, None, None] *
-            F * G * H +
-            fidx[None, None, None, None, None, :, None, None] *
-            G * H +
-            gidx[None, None, None, None, None, None, :, None] *
-            H +
-            hidx[None, None, None, None, None, None, None, :])
+    oidx = (aidx[:, None, None, None, None, None, None, None] * B * C * D * E * F * G * H +
+            bidx[None, :, None, None, None, None, None, None] * C * D * E * F * G * H +
+            cidx[None, None, :, None, None, None, None, None] * D * E * F * G * H +
+            didx[None, None, None, :, None, None, None, None] * E * F * G * H +
+            eidx[None, None, None, None, :, None, None, None] * F * G * H +
+            fidx[None, None, None, None, None, :, None, None] * G * H +
+            gidx[None, None, None, None, None, None, :, None] * H + hidx[None, None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_fp16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr, H: tl.constexpr):
+def fn_npu_fp16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr, H: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -1144,28 +982,20 @@ def fn_npu_fp16_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G, H), value=10, dtype=tl.float16)
 
-    oidx = (aidx[:, None, None, None, None, None, None, None] *
-            B * C * D * E * F * G * H +
-            bidx[None, :, None, None, None, None, None, None] *
-            C * D * E * F * G * H +
-            cidx[None, None, :, None, None, None, None, None] *
-            D * E * F * G * H +
-            didx[None, None, None, :, None, None, None, None] *
-            E * F * G * H +
-            eidx[None, None, None, None, :, None, None, None] *
-            F * G * H +
-            fidx[None, None, None, None, None, :, None, None] *
-            G * H +
-            gidx[None, None, None, None, None, None, :, None] *
-            H +
-            hidx[None, None, None, None, None, None, None, :])
+    oidx = (aidx[:, None, None, None, None, None, None, None] * B * C * D * E * F * G * H +
+            bidx[None, :, None, None, None, None, None, None] * C * D * E * F * G * H +
+            cidx[None, None, :, None, None, None, None, None] * D * E * F * G * H +
+            didx[None, None, None, :, None, None, None, None] * E * F * G * H +
+            eidx[None, None, None, None, :, None, None, None] * F * G * H +
+            fidx[None, None, None, None, None, :, None, None] * G * H +
+            gidx[None, None, None, None, None, None, :, None] * H + hidx[None, None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_fp32_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr, H: tl.constexpr):
+def fn_npu_fp32_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr, H: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -1178,28 +1008,20 @@ def fn_npu_fp32_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G, H), value=10, dtype=tl.float32)
 
-    oidx = (aidx[:, None, None, None, None, None, None, None] *
-            B * C * D * E * F * G * H +
-            bidx[None, :, None, None, None, None, None, None] *
-            C * D * E * F * G * H +
-            cidx[None, None, :, None, None, None, None, None] *
-            D * E * F * G * H +
-            didx[None, None, None, :, None, None, None, None] *
-            E * F * G * H +
-            eidx[None, None, None, None, :, None, None, None] *
-            F * G * H +
-            fidx[None, None, None, None, None, :, None, None] *
-            G * H +
-            gidx[None, None, None, None, None, None, :, None] *
-            H +
-            hidx[None, None, None, None, None, None, None, :])
+    oidx = (aidx[:, None, None, None, None, None, None, None] * B * C * D * E * F * G * H +
+            bidx[None, :, None, None, None, None, None, None] * C * D * E * F * G * H +
+            cidx[None, None, :, None, None, None, None, None] * D * E * F * G * H +
+            didx[None, None, None, :, None, None, None, None] * E * F * G * H +
+            eidx[None, None, None, None, :, None, None, None] * F * G * H +
+            fidx[None, None, None, None, None, :, None, None] * G * H +
+            gidx[None, None, None, None, None, None, :, None] * H + hidx[None, None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
 
+
 @triton.jit
-def fn_npu_bool_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr,
-                   D: tl.constexpr, E: tl.constexpr, F: tl.constexpr,
-                   G: tl.constexpr, H: tl.constexpr):
+def fn_npu_bool_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr, D: tl.constexpr, E: tl.constexpr,
+                   F: tl.constexpr, G: tl.constexpr, H: tl.constexpr):
 
     aidx = tl.arange(0, A)
     bidx = tl.arange(0, B)
@@ -1212,23 +1034,16 @@ def fn_npu_bool_8d(output_ptr, A: tl.constexpr, B: tl.constexpr, C: tl.constexpr
 
     ret = tl.full((A, B, C, D, E, F, G, H), value=0, dtype=tl.int1)
 
-    oidx = (aidx[:, None, None, None, None, None, None, None] *
-            B * C * D * E * F * G * H +
-            bidx[None, :, None, None, None, None, None, None] *
-            C * D * E * F * G * H +
-            cidx[None, None, :, None, None, None, None, None] *
-            D * E * F * G * H +
-            didx[None, None, None, :, None, None, None, None] *
-            E * F * G * H +
-            eidx[None, None, None, None, :, None, None, None] *
-            F * G * H +
-            fidx[None, None, None, None, None, :, None, None] *
-            G * H +
-            gidx[None, None, None, None, None, None, :, None] *
-            H +
-            hidx[None, None, None, None, None, None, None, :])
+    oidx = (aidx[:, None, None, None, None, None, None, None] * B * C * D * E * F * G * H +
+            bidx[None, :, None, None, None, None, None, None] * C * D * E * F * G * H +
+            cidx[None, None, :, None, None, None, None, None] * D * E * F * G * H +
+            didx[None, None, None, :, None, None, None, None] * E * F * G * H +
+            eidx[None, None, None, None, :, None, None, None] * F * G * H +
+            fidx[None, None, None, None, None, :, None, None] * G * H +
+            gidx[None, None, None, None, None, None, :, None] * H + hidx[None, None, None, None, None, None, None, :])
 
     tl.store(output_ptr + oidx, ret)
+
 
 test_dtype = ['int8', 'int16', 'int32', 'int64', 'float16', 'float32', 'bfloat16', 'bool']
 test_shape8d = TestUtils.test_shape8d
@@ -1243,12 +1058,10 @@ dtype_mapping8d = {
     'bool': (fn_npu_bool_8d, torch.bool),
 }
 
-testlist8d = [
-    (func, sigtype, dtype, shape)
-    for sigtype in test_dtype
-    for shape in test_shape8d
-    for func, dtype in [dtype_mapping8d[sigtype]]
-]
+testlist8d = [(func, sigtype, dtype, shape)
+              for sigtype in test_dtype
+              for shape in test_shape8d
+              for func, dtype in [dtype_mapping8d[sigtype]]]
 
 
 @pytest.mark.parametrize('testfunc, sigtype, dtype, shape', testlist8d)
@@ -1257,7 +1070,8 @@ def test_npu_8d(testfunc, sigtype, dtype, shape):
     output = 0
     if len(shape) == 8:
         if dtype == torch.bool:
-            x = torch.full((shape[0], shape[1], shape[2], shape[3], shape[4], shape[5], shape[6], shape[7]), 0, dtype=dtype).npu()
+            x = torch.full((shape[0], shape[1], shape[2], shape[3], shape[4], shape[5], shape[6], shape[7]), 0,
+                           dtype=dtype).npu()
         else:
             x = torch.full(shape, 10, dtype=dtype).npu()
         output = torch.randint(1, shape, dtype=dtype).npu()

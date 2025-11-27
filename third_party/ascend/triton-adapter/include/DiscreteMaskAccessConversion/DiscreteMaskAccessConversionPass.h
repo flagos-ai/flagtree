@@ -12,7 +12,8 @@
 namespace mlir {
 namespace triton {
 
-std::unique_ptr<OperationPass<ModuleOp>> createDiscreteMaskAccessConversionPass();
+std::unique_ptr<OperationPass<ModuleOp>>
+createDiscreteMaskAccessConversionPass();
 
 } // namespace triton
 } // namespace mlir
@@ -23,9 +24,9 @@ using namespace mlir;
 using namespace triton;
 
 class DiscreteMaskAccessConversionPass
-    : public DiscreteMaskAccessConversionBase<DiscreteMaskAccessConversionPass> {
+    : public DiscreteMaskAccessConversionBase<
+          DiscreteMaskAccessConversionPass> {
 public:
-
   void runOnOperation() override;
 };
 

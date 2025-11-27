@@ -47,9 +47,7 @@ def _layer_norm_fwd_fused(
         col_idx = off + tl.arange(0, RBLOCK_SIZE)
         col_mask = col_idx < N
         mask = row_mask[:, None] & col_mask[None, :]
-        a = tl.load(X + row_offsets + col_idx[None, :], mask=mask, other=0.0).to(
-            tl.float32
-        )
+        a = tl.load(X + row_offsets + col_idx[None, :], mask=mask, other=0.0).to(tl.float32)
         _mean += a
     mean = tl.sum(_mean, axis=1, keep_dims=True) / N
     # Compute variance
@@ -58,9 +56,7 @@ def _layer_norm_fwd_fused(
         col_idx = off + tl.arange(0, RBLOCK_SIZE)
         col_mask = col_idx < N
         mask = row_mask[:, None] & col_mask[None, :]
-        x = tl.load(X + row_offsets + col_idx[None, :], mask=mask, other=0.0).to(
-            tl.float32
-        )
+        x = tl.load(X + row_offsets + col_idx[None, :], mask=mask, other=0.0).to(tl.float32)
         x = tl.where(mask, x - mean, 0.0)
         _var += x * x
     var = tl.sum(_var, axis=1, keep_dims=True) / N
@@ -75,9 +71,7 @@ def _layer_norm_fwd_fused(
         mask = row_mask[:, None] & col_mask[None, :]
         w = tl.load(W + col_idx, mask=col_mask).reshape((1, RBLOCK_SIZE))
         b = tl.load(B + col_idx, mask=col_mask).reshape((1, RBLOCK_SIZE))
-        x = tl.load(X + row_offsets + col_idx[None, :], mask=mask, other=0.0).to(
-            tl.float32
-        )
+        x = tl.load(X + row_offsets + col_idx[None, :], mask=mask, other=0.0).to(tl.float32)
         x_hat = (x - mean) * rstd
         y = x_hat * w + b
         # Write output
@@ -96,8 +90,8 @@ def layer_norm_autotune(args):
     # reshape input data into 2D tensor
     x_arg = x.reshape(-1, x.shape[-1])
     M, N = x_arg.shape
-    mean = torch.empty((M,), dtype=torch.float32, device=x.device)
-    rstd = torch.empty((M,), dtype=torch.float32, device=x.device)
+    mean = torch.empty((M, ), dtype=torch.float32, device=x.device)
+    rstd = torch.empty((M, ), dtype=torch.float32, device=x.device)
 
     grid = lambda meta: (triton.cdiv(M, meta["XBLOCK_SIZE"]), 1, 1)
     # enqueue kernel
@@ -114,7 +108,7 @@ def test_layer_norm(shape, dtype, eps=1e-5):
     M, N = shape
     device = "npu"
     x_shape = shape
-    w_shape = (x_shape[-1],)
+    w_shape = (x_shape[-1], )
     weight = torch.rand(w_shape, dtype=dtype, device=device)
     bias = torch.rand(w_shape, dtype=dtype, device=device)
     x = -2.3 + 0.5 * torch.randn(x_shape, dtype=dtype, device=device)

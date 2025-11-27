@@ -3,7 +3,7 @@ import hashlib
 import json
 from .._C.libtriton import get_cache_invalidating_env_vars, ir
 from ..backends import backends
-from ..backends.compiler import GPUTarget, AttrsDescriptor
+from ..backends.compiler import GPUTarget
 from ..backends.ascend.compiler import AscendAttrsDescriptor
 from .. import __version__
 from ..runtime.autotuner import OutOfResources

@@ -12,13 +12,15 @@ import torch
 import torch_npu
 
 
-def standard_round_to_nearest_neighbor_even(x0): # TO BE FIXED round to nearest neighbor even
+def standard_round_to_nearest_neighbor_even(x0):  # TO BE FIXED round to nearest neighbor even
     res = torch.round(x0)
     return res
+
 
 def standard_round(x0):
     res = torch.where(x0 >= 0, torch.floor(x0 + 0.5), torch.ceil(x0 - 0.5))
     return res
+
 
 @triton.jit
 def triton_round(in_ptr0, out_ptr0, N: tl.constexpr, NUMEL: tl.constexpr):
@@ -62,11 +64,11 @@ def test_elementwise_common(opName, tritonOp, standOp, dtype, sigtype, N, NUMEL)
     if sigtype == 'int64':
         N = map_for_64_t[N] if N in map_for_64_t else N
 
-    x0 = test_common.generate_tensor(shape=(N,), dtype=sigtype)
+    x0 = test_common.generate_tensor(shape=(N, ), dtype=sigtype)
 
     ans = standOp(x0)
     x0 = x0.npu()
 
-    output = torch.zeros((N,), dtype=dtype).npu()
+    output = torch.zeros((N, ), dtype=dtype).npu()
     tritonOp[1, 1, 1](x0, output, N=N, NUMEL=NUMEL, debug=True)
     test_common.validate_cmp(sigtype, output, ans)

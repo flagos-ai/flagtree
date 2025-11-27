@@ -26,8 +26,9 @@ def fn_npu_(output_ptr, x_ptr, y_ptr, XB: tl.constexpr):
 
     tl.store(output_ptr + oidx, ret)
 
+
 # The CAT operator in the Triton community also does not support boolean types.
-@pytest.mark.parametrize('shape', TestUtils.test_shape1d) #triton only support 1D cat
+@pytest.mark.parametrize('shape', TestUtils.test_shape1d)  #triton only support 1D cat
 @pytest.mark.parametrize('dtype', ['float32', 'float16', 'bfloat16', 'int32', 'int16', 'int8', 'int64'])
 def test_cat(shape, dtype):
     m = shape[0]
@@ -41,4 +42,3 @@ def test_cat(shape, dtype):
     fn_npu_[1, 1, 1](output, x, y, m)
 
     test_common.validate_cmp(dtype, ans, output)
-

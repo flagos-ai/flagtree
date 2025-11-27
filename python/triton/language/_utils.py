@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 TRITON_MAX_TENSOR_NUMEL = 1048576
 
+
 def validate_block_shape(shape: List[int]):
     numel = 1
     for i, d in enumerate(shape):

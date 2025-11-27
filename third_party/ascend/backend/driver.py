@@ -18,7 +18,9 @@ from triton.backends.ascend.utils import (
     _is_auto_map_parallel_blocks_enabled,
 )
 
+
 class NPUUtils(object):
+
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = super(NPUUtils, cls).__new__(cls)
@@ -73,6 +75,7 @@ class NPUUtils(object):
 
 
 class NPULauncher(object):
+
     def __init__(self, src, metadata):
         debug_mode = metadata.debug
         workspace_size = int(metadata.workspace_size) \
@@ -102,6 +105,7 @@ class NPULauncher(object):
 
 
 class NPUDriver(DriverBase):
+
     def __init__(self):
         self.utils = NPUUtils()
         self.launcher_cls = NPULauncher
@@ -109,11 +113,13 @@ class NPUDriver(DriverBase):
 
     @classmethod
     def is_active(cls):
+
         def test_npucompiler():
             from triton.backends.ascend.utils import _get_bisheng_path
             npucompiler = _get_bisheng_path()
             targets = subprocess.check_output([npucompiler, "-print-targets"]).decode().strip().split()
             return "hiipu64" in targets
+
         try:
             return test_npucompiler()
         except Exception as e_npucompiler:
@@ -188,7 +194,7 @@ def make_npu_launcher_stub(src, debug=False):
     if debug:
         dump_manager = get_dump_manager(so_cache_key)
         print(f"Dumping {name}.cxx to {dump_manager.cache_dir}")
-        dump_manager.put(src, f"{name}.cxx", binary = False)
+        dump_manager.put(src, f"{name}.cxx", binary=False)
 
     cache_path = so_cache_manager.get_file(so_name)
     if cache_path is not None:
@@ -271,7 +277,7 @@ def extract_device_print_code_from_cann():
         new_code = new_code.replace('__CCELIB_RT_MEMCPY_DEVICE_TO_HOST', 'RT_MEMCPY_DEVICE_TO_HOST')
         return new_code
 
-    # the following headers should be included in this order 
+    # the following headers should be included in this order
     return '\n'.join([
         read_header('common/common_impl.h'),
         read_header('internal/debug_tunnel/payload.h'),
@@ -345,14 +351,11 @@ def generate_npu_wrapper_src(constants, signature, workspace_size, mix_mode, loc
 
     grid_info = {'X': 'i32', 'Y': 'i32', 'Z': 'i32'}
 
-    enable_device_print = os.getenv(
-        "TRITON_DEVICE_PRINT", 'false').lower() in ('true', '1')
-    enable_taskqueue = os.getenv(
-        "TRITON_ENABLE_TASKQUEUE", 'true').lower() in ('true', '1')
+    enable_device_print = os.getenv("TRITON_DEVICE_PRINT", 'false').lower() in ('true', '1')
+    enable_taskqueue = os.getenv("TRITON_ENABLE_TASKQUEUE", 'true').lower() in ('true', '1')
     enable_auto_map_parallel_blocks = _is_auto_map_parallel_blocks_enabled()
     npu_utils = NPUUtils()
-    num_physical_blocks = npu_utils.get_aivector_core_num(
-    ) if mix_mode == "aiv" else npu_utils.get_aicore_num()
+    num_physical_blocks = npu_utils.get_aivector_core_num() if mix_mode == "aiv" else npu_utils.get_aicore_num()
     task_type = "MSPROF_GE_TASK_TYPE_AIV" if mix_mode == "aiv" else "MSPROF_GE_TASK_TYPE_AI_CORE"
     LINE_CHANGE_CHAR = chr(10)  # it is \n
     alloc_success_code = 'return 1;'

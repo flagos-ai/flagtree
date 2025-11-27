@@ -1,7 +1,6 @@
 import os
-import shutil
-from pathlib import Path
-from setup_tools.utils.tools import flagtree_root_dir, Module, flagtree_submodule_dir, DownloadManager
+from setup_tools.utils.tools import Module, flagtree_submodule_dir, DownloadManager
+
 
 def precompile_hook_flir(*args, **kargs):
     default_backends = kargs["default_backends"]
@@ -9,12 +8,12 @@ def precompile_hook_flir(*args, **kargs):
         default_backends.remove('amd')
     default_backends.append('flir')
 
+
 downloader = DownloadManager()
 
 submodules = (Module(name="ascendnpu-ir", url="https://gitee.com/ascend/ascendnpu-ir.git",
                      commit_id="1922371c42749fda534d6395b7ed828b5c9f36d4",
                      dst_path=os.path.join(flagtree_submodule_dir, "ascend/third_party/ascendnpu-ir")), )
-
 '''
 def get_backend_cmake_args(*args, **kargs):
     build_ext = kargs['build_ext']
@@ -108,8 +107,10 @@ def get_extra_install_packages():
     ]
 '''
 
+
 def is_compile_ascend_npu_ir():
     return os.getenv("ASCEND_NPU_IR_COMPILE", "1") == "1"
+
 
 '''
 def precompile_hook(*args, **kargs):

@@ -19,8 +19,7 @@ def torch_clamp(x0, min_, max_):
 
 
 @triton.jit
-def tt_clamp_1d(in_ptr, out_ptr, min_ptr, max_ptr,
-                xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_clamp_1d(in_ptr, out_ptr, min_ptr, max_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                 XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
     idx = tl.arange(0, XB)
 
@@ -33,8 +32,7 @@ def tt_clamp_1d(in_ptr, out_ptr, min_ptr, max_ptr,
 
 
 @triton.jit
-def tt_clamp_2d(in_ptr, out_ptr, min_ptr, max_ptr,
-                xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_clamp_2d(in_ptr, out_ptr, min_ptr, max_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                 XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
     xoffs = tl.program_id(0) * XB
     yoffs = tl.program_id(1) * YB
@@ -51,8 +49,7 @@ def tt_clamp_2d(in_ptr, out_ptr, min_ptr, max_ptr,
 
 
 @triton.jit
-def tt_clamp_3d(in_ptr, out_ptr, min_ptr, max_ptr,
-                xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_clamp_3d(in_ptr, out_ptr, min_ptr, max_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                 XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr):
     xoffs = tl.program_id(0) * XB
     yoffs = tl.program_id(1) * YB
@@ -73,15 +70,11 @@ def tt_clamp_3d(in_ptr, out_ptr, min_ptr, max_ptr,
 
 
 @triton.jit
-def triton_clamp_4d_5d(
-        x_ptr, output_ptr, min_ptr, max_ptr,
-        BLOCK_0: tl.constexpr, BLOCK_1: tl.constexpr, BLOCK_2: tl.constexpr, BLOCK_3: tl.constexpr,
-        BLOCK_4: tl.constexpr,
-        SHAPE_0: tl.constexpr, SHAPE_1: tl.constexpr, SHAPE_2: tl.constexpr, SHAPE_3: tl.constexpr,
-        SHAPE_4: tl.constexpr,
-        STRIDE_0: tl.constexpr, STRIDE_1: tl.constexpr, STRIDE_2: tl.constexpr, STRIDE_3: tl.constexpr,
-        STRIDE_4: tl.constexpr
-):
+def triton_clamp_4d_5d(x_ptr, output_ptr, min_ptr, max_ptr, BLOCK_0: tl.constexpr, BLOCK_1: tl.constexpr,
+                       BLOCK_2: tl.constexpr, BLOCK_3: tl.constexpr, BLOCK_4: tl.constexpr, SHAPE_0: tl.constexpr,
+                       SHAPE_1: tl.constexpr, SHAPE_2: tl.constexpr, SHAPE_3: tl.constexpr, SHAPE_4: tl.constexpr,
+                       STRIDE_0: tl.constexpr, STRIDE_1: tl.constexpr, STRIDE_2: tl.constexpr, STRIDE_3: tl.constexpr,
+                       STRIDE_4: tl.constexpr):
     offsets = tl.program_id(0)
 
     offsets = offsets + tl.arange(0, BLOCK_0) * STRIDE_0
@@ -125,7 +118,7 @@ def test_clamp(shape, dtype):
     if len(shape) == 1:
         tt_clamp_1d[grid](x, y_cal, min_, max_, x.numel(), 1, 1, x.numel(), 1, 1)
     elif len(shape) == 2:
-        xnumel, ynumel, znumel = shape + (1,)
+        xnumel, ynumel, znumel = shape + (1, )
         XB, YB, ZB = xnumel, ynumel, znumel
         if x.numel() * x.element_size() > 8192:
             grid = (1, ynumel, 1)
@@ -163,7 +156,7 @@ def test_clamp_4d_5d(shape, dtype):
         blocks.append(1)
         strides.append(1)
 
-    grid = (1,)
+    grid = (1, )
     triton_clamp_4d_5d[grid](x, output, min_, max_, *blocks, *blocks, *strides)
 
     test_common.validate_cmp(dtype, ans, output)

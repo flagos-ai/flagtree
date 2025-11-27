@@ -59,11 +59,12 @@ static std::optional<int64_t> getConstantOfAttr(const OpFoldResult &arg) {
 
 namespace ConverterUtils {
 
-std::optional<int64_t> getLastStrideOfReinterpretCastOp(memref::ReinterpretCastOp op) {
+std::optional<int64_t>
+getLastStrideOfReinterpretCastOp(memref::ReinterpretCastOp op) {
   SmallVector<OpFoldResult> mixedStrides = op.getMixedStrides();
   if (mixedStrides.empty()) {
-      op->emitError("ReinterpretCastOp has no strides");
-      return std::nullopt;
+    op->emitError("ReinterpretCastOp has no strides");
+    return std::nullopt;
   }
 
   OpFoldResult lastStride = mixedStrides.back();
@@ -74,29 +75,32 @@ std::optional<int64_t> getLastStrideOfReinterpretCastOp(memref::ReinterpretCastO
     if (auto constIndexOp = dyn_cast<arith::ConstantIndexOp>(defOp)) {
       int64_t constValue = constIndexOp.value();
       return constValue;
-    }
-    else if (auto constIntOp = dyn_cast<arith::ConstantIntOp>(defOp)) {
+    } else if (auto constIntOp = dyn_cast<arith::ConstantIntOp>(defOp)) {
       int64_t constValue = constIntOp.value();
       return constValue;
     }
-  } 
+  }
   return std::nullopt;
 }
 
 bool isaPermutedMemRefType(MemRefType memRefType) {
   auto [ptrStrides, ptrOffsets] = getStridesAndOffset(memRefType);
   LLVM_DEBUG({
-    llvm::dbgs()<<"---------- [BEG] ptrStrides ----------\n";
-    for(auto stride: ptrStrides)llvm::dbgs()<<stride<<" ";llvm::dbgs()<<"\n";
-    llvm::dbgs()<<"---------- [END] ptrStrides ----------\n";
+    llvm::dbgs() << "---------- [BEG] ptrStrides ----------\n";
+    for (auto stride : ptrStrides)
+      llvm::dbgs() << stride << " ";
+    llvm::dbgs() << "\n";
+    llvm::dbgs() << "---------- [END] ptrStrides ----------\n";
   });
 
   switch (ptrStrides.size()) {
-    case 0: return false;
-    case 1: return false;
-    default: {
-      return ptrStrides[ptrStrides.size()-1] != 1;
-    }
+  case 0:
+    return false;
+  case 1:
+    return false;
+  default: {
+    return ptrStrides[ptrStrides.size() - 1] != 1;
+  }
   }
 }
 
@@ -208,10 +212,9 @@ memref::SubViewOp makeSubViewOp(Value src,
                                             src, offsets, sizes, strides);
 }
 
-tensor::ExtractSliceOp makeExtractSliceOp(Value src,
-                                          const llvm::SmallVector<OpFoldResult> &sizes,
-                                          const Location &loc,
-                                          ConversionPatternRewriter &rewriter) {
+tensor::ExtractSliceOp
+makeExtractSliceOp(Value src, const llvm::SmallVector<OpFoldResult> &sizes,
+                   const Location &loc, ConversionPatternRewriter &rewriter) {
   auto srcType = cast<RankedTensorType>(src.getType());
   SmallVector<OpFoldResult> offsets(srcType.getRank(),
                                     rewriter.getIndexAttr(0));
@@ -461,14 +464,15 @@ void traverseBackwardUpdateOperandChainIf(
                                            builder, handledOperation);
     } else {
       auto blockArgument = cast<BlockArgument>(operand);
-      if (auto loopOp =
-          dyn_cast<LoopLikeOpInterface>(blockArgument.getOwner()->getParentOp())) {
+      if (auto loopOp = dyn_cast<LoopLikeOpInterface>(
+              blockArgument.getOwner()->getParentOp())) {
         OpOperand *initArgOperand = loopOp.getTiedLoopInit(blockArgument);
         if (!initArgOperand)
           return;
         Value initArg = initArgOperand->get();
         handler(initArg);
-        Value yieldedValue = loopOp.getTiedLoopYieldedValue(blockArgument)->get();
+        Value yieldedValue =
+            loopOp.getTiedLoopYieldedValue(blockArgument)->get();
         if (yieldedValue != blockArgument)
           handler(yieldedValue);
       }
@@ -480,7 +484,7 @@ void traverseBackwardUpdateOperandChainIf(
   }
 
   if (auto loopOp = dyn_cast<LoopLikeOpInterface>(op)) {
-    for (auto yieldedValue: loopOp.getYieldedValues())
+    for (auto yieldedValue : loopOp.getYieldedValues())
       handler(yieldedValue);
   }
 }
@@ -494,8 +498,8 @@ void traverseBackwardUpdateOperandChainIf(
   OpBuilder builder(rootOp->getContext());
   DenseSet<Operation *> handledOperation;
 
-  traverseBackwardUpdateOperandChainIf(rootOp, conditionFn, stopFn, actionFn, builder,
-                                       handledOperation);
+  traverseBackwardUpdateOperandChainIf(rootOp, conditionFn, stopFn, actionFn,
+                                       builder, handledOperation);
 }
 
 void traverseForwardUpdateUserChainIf(
@@ -601,7 +605,6 @@ ModuleOp getModuleOpFromOperation(Operation *op) {
 }
 
 } // namespace triton
-
 
 // TODO: imply these function below
 OpFoldResult addOpFoldResult(const OpFoldResult &lhs, const OpFoldResult &rhs,

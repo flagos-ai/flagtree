@@ -10,7 +10,7 @@ from test_common import TestUtils
 
 
 @triton.jit
-def fn_broadcast_1d(output_ptr, x_ptr,  XS: tl.constexpr, YS: tl.constexpr):
+def fn_broadcast_1d(output_ptr, x_ptr, XS: tl.constexpr, YS: tl.constexpr):
     xidx = tl.arange(0, XS)[None, :]
     base = tl.load(x_ptr + xidx)
     out = base.broadcast_to((YS, XS))
@@ -201,7 +201,9 @@ def test_broadcast_to_dim12(shape, dtype):
 
 
 @triton.jit
-def fn_broadcast_multi_d(to_ptr, from_ptr, F_L: tl.constexpr, F_M: tl.constexpr, F_N: tl.constexpr, F_X: tl.constexpr, F_Y: tl.constexpr, T_L: tl.constexpr, T_M: tl.constexpr, T_N: tl.constexpr, T_X: tl.constexpr, T_Y: tl.constexpr):
+def fn_broadcast_multi_d(to_ptr, from_ptr, F_L: tl.constexpr, F_M: tl.constexpr, F_N: tl.constexpr, F_X: tl.constexpr,
+                         F_Y: tl.constexpr, T_L: tl.constexpr, T_M: tl.constexpr, T_N: tl.constexpr, T_X: tl.constexpr,
+                         T_Y: tl.constexpr):
     from_offsets = tl.arange(0, F_L)
     if F_M is not None:
         from_offsets = from_offsets[:, None] * F_M + tl.arange(0, F_M)[None, :]
@@ -250,7 +252,7 @@ def test_broadcast_to_4d(shapes, dtype):
         triton_from_shape.append(None)
         triton_to_shape.append(None)
     fn_broadcast_multi_d[grid](y, x, *triton_from_shape, *triton_to_shape)
-    assert(torch.equal(y, expected))
+    assert (torch.equal(y, expected))
 
 
 @pytest.mark.shape_4d_5d
@@ -274,4 +276,4 @@ def test_broadcast_to_5d(shapes, dtype):
         triton_from_shape.append(None)
         triton_to_shape.append(None)
     fn_broadcast_multi_d[grid](y, x, *triton_from_shape, *triton_to_shape)
-    assert(torch.equal(y, expected))
+    assert (torch.equal(y, expected))

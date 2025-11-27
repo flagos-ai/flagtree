@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
- 
+
 import triton
 import triton.language as tl
 
@@ -8,11 +8,11 @@ import torch
 import torch_npu
 import pytest
 
+
 @triton.jit
 def cat_3d_kernel(x_ptr, y_ptr, output_ptr,  # *Pointers* to input/output vector.
                   XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr,  # *Shape* of input.
-                  dim: tl.constexpr
-                  ):
+                  dim: tl.constexpr):
     if dim == 0:
         X_out: tl.constexpr = 2 * XB
         Y_out: tl.constexpr = YB
@@ -60,9 +60,8 @@ def cat_3d_kernel(x_ptr, y_ptr, output_ptr,  # *Pointers* to input/output vector
 
             tl.store(output_ptr + idx, val)
 
-def cat_3d(x1: torch.Tensor,
-           x2: torch.Tensor,
-           dim: int):
+
+def cat_3d(x1: torch.Tensor, x2: torch.Tensor, dim: int):
     assert x1.dim() == 3 and x2.dim() == 3, "Inputs must be 3D tensors"
     if dim < 0:
         dim += 3
@@ -79,12 +78,9 @@ def cat_3d(x1: torch.Tensor,
 
     output = torch.empty(output_shape, dtype=x1.dtype, device=x1.device)
 
-    cat_3d_kernel[1,1,1](
-        x1, x2, output,
-        XB, YB, ZB,
-        dim=dim
-    )
+    cat_3d_kernel[1, 1, 1](x1, x2, output, XB, YB, ZB, dim=dim)
     return output
+
 
 def test_cat():
     params_list = \
@@ -96,7 +92,7 @@ def test_cat():
             ('int8', torch.int8, 2, 256, 16, -2),
             ('int8', torch.int8, 8, 8, 4, -1),
         ]
-    
+
     for param in params_list:
         [para_type, data_type, XB, YB, ZB, dim] = param
 

@@ -25,9 +25,7 @@ from triton.backends.ascend.utils import (
     _is_auto_map_parallel_blocks_enabled,
     downgrade_llir,
 )
-from triton.backends.ascend.driver import (
-    NPUUtils
-)
+from triton.backends.ascend.driver import (NPUUtils)
 from triton.backends.compiler import (
     AttrsDescriptor,
     BaseBackend,
@@ -87,49 +85,43 @@ def linalg_to_llir(linalg: str, metadata, opt):
         Path(ttadapter_path).write_text(linalg)
         mlir_opt_path = _get_mlir_path("bin", "mlir-opt")
         # TritonAdapter-MLIR to LLVM-MLIR
-        subprocess.check_call(
-            [
-                mlir_opt_path,
-                ttadapter_path,
-                "--convert-linalg-to-affine-loops",
-                "--eliminate-empty-tensors",
-                "--empty-tensor-to-alloc-tensor",
-                "--one-shot-bufferize=allow-return-allocs-from-loops=true",
-                "--lower-affine",
-                "--convert-linalg-to-loops",
-                "--convert-scf-to-cf",
-                "--convert-cf-to-llvm",
-                "--convert-arith-to-llvm",
-                "--convert-math-to-llvm",
-                "--convert-complex-to-llvm",
-                "--convert-vector-to-llvm",
-                "--convert-index-to-llvm",
-                "--memref-expand",
-                "--expand-strided-metadata",
-                "--finalize-memref-to-llvm",
-                "--convert-func-to-llvm",
-                # Lowering memrefs creates more affine.apply ops.
-                # Lowering these affine ops again creates further arith ops,
-                # so we have to run these two passes again here.
-                "--lower-affine",
-                "--convert-arith-to-llvm",
-                # Remove all unrealized casts created
-                "--reconcile-unrealized-casts",
-                "-o",
-                llmlir_path,
-            ]
-        )
+        subprocess.check_call([
+            mlir_opt_path,
+            ttadapter_path,
+            "--convert-linalg-to-affine-loops",
+            "--eliminate-empty-tensors",
+            "--empty-tensor-to-alloc-tensor",
+            "--one-shot-bufferize=allow-return-allocs-from-loops=true",
+            "--lower-affine",
+            "--convert-linalg-to-loops",
+            "--convert-scf-to-cf",
+            "--convert-cf-to-llvm",
+            "--convert-arith-to-llvm",
+            "--convert-math-to-llvm",
+            "--convert-complex-to-llvm",
+            "--convert-vector-to-llvm",
+            "--convert-index-to-llvm",
+            "--memref-expand",
+            "--expand-strided-metadata",
+            "--finalize-memref-to-llvm",
+            "--convert-func-to-llvm",
+            # Lowering memrefs creates more affine.apply ops.
+            # Lowering these affine ops again creates further arith ops,
+            # so we have to run these two passes again here.
+            "--lower-affine",
+            "--convert-arith-to-llvm",
+            # Remove all unrealized casts created
+            "--reconcile-unrealized-casts",
+            "-o",
+            llmlir_path,
+        ])
         if opt.debug:
             dump_manager = get_dump_manager(metadata["hash"])
-            dump_manager.put(
-                Path(llmlir_path).read_text(), "kernel.llir.mlir", binary=False
-            )
+            dump_manager.put(Path(llmlir_path).read_text(), "kernel.llir.mlir", binary=False)
 
         # LLVM-MLIR to LLVM-IR
         mlir_translate_path = _get_mlir_path("bin", "mlir-translate")
-        subprocess.check_call(
-            [mlir_translate_path, llmlir_path, "--mlir-to-llvmir", "-o", llir_path]
-        )
+        subprocess.check_call([mlir_translate_path, llmlir_path, "--mlir-to-llvmir", "-o", llir_path])
         if opt.debug:
             dump_manager = get_dump_manager(metadata["hash"])
             dump_manager.put(Path(llir_path).read_text(), "kernel.ll", binary=False)
@@ -160,22 +152,18 @@ def llir_to_cpuasm(llir: str, metadata, opt):
 
         linker_path = _get_llvm_path("bin", "llvm-link")
         libclc_path = _get_llvm_path("lib", "clc", "libspirv-aarch64--.bc")
-        subprocess.check_call(
-            [
-                linker_path,
-                src_path,
-                libclc_path,
-                "--only-needed",
-                "-S",
-                "-o",
-                linked_path,
-            ]
-        )
+        subprocess.check_call([
+            linker_path,
+            src_path,
+            libclc_path,
+            "--only-needed",
+            "-S",
+            "-o",
+            linked_path,
+        ])
         if opt.debug:
             dump_manager = get_dump_manager(metadata["hash"])
-            dump_manager.put(
-                Path(linked_path).read_text(), "kernel_linked.ll", binary=False
-            )
+            dump_manager.put(Path(linked_path).read_text(), "kernel_linked.ll", binary=False)
 
         llc_path = _get_llvm_path("bin", "llc")
         subprocess.check_call([llc_path, linked_path, "-o", dst_path])
@@ -288,7 +276,7 @@ def linalg_to_bin_enable_npu_compile(linalg: str, metadata, opt):
         if limit_auto_multi_buffer_only_for_local_buffer is not None:
             _compile_option_list += \
                 [f"--limit-auto-multi-buffer-only-for-local-buffer={limit_auto_multi_buffer_only_for_local_buffer}"]
-                
+
         set_workspace_multibuffer = metadata["set_workspace_multibuffer"]
         if set_workspace_multibuffer is not None:
             _compile_option_list += \
@@ -318,11 +306,7 @@ def linalg_to_bin_enable_npu_compile(linalg: str, metadata, opt):
                 bishengir_hivm_opt,
                 "--enable-triton-kernel-compile=true",
             ]
-        cmd_list = (
-            [npu_compiler_path, ttadapter_path]
-            + _compile_option_list
-            + ["-o", bin_file]
-        )
+        cmd_list = ([npu_compiler_path, ttadapter_path] + _compile_option_list + ["-o", bin_file])
         ret = subprocess.run(cmd_list, capture_output=True, check=True)
         if Path(callback_path).is_file():
             lib = ctypes.CDLL(callback_path)
@@ -425,18 +409,10 @@ class AscendBackend(BaseBackend):
     def parse_options(self, opts) -> Any:
         # TODO: get available targets when building options?
         if self.target.backend == "npu":
-            args = {
-                k: opts[k]
-                for k in NPUOptions.__dataclass_fields__.keys()
-                if k in opts
-            }
+            args = {k: opts[k] for k in NPUOptions.__dataclass_fields__.keys() if k in opts}
             options = NPUOptions(**args)
         else:
-            args = {
-                k: opts[k]
-                for k in CPUOptions.__dataclass_fields__.keys()
-                if k in opts
-            }
+            args = {k: opts[k] for k in CPUOptions.__dataclass_fields__.keys() if k in opts}
             options = CPUOptions(**args)
         return options
 
@@ -475,25 +451,13 @@ class AscendBackend(BaseBackend):
     def add_stages(self, stages, options):
         if self.target.backend == "npu":
             stages["ttir"] = lambda src, metadata: make_ttir(src, metadata, options)
-            stages["ttadapter"] = lambda src, metadata: ttir_to_linalg(
-                src, metadata, options, named_ops=True
-            )
-            stages["npubin"] = (
-                lambda src, metadata: linalg_to_bin_enable_npu_compile(
-                    src, metadata, options
-                )
-            )
+            stages["ttadapter"] = lambda src, metadata: ttir_to_linalg(src, metadata, options, named_ops=True)
+            stages["npubin"] = (lambda src, metadata: linalg_to_bin_enable_npu_compile(src, metadata, options))
         else:
             stages["ttir"] = lambda src, metadata: make_ttir(src, metadata, options)
-            stages["ttadapter"] = lambda src, metadata: ttir_to_linalg(
-                src, metadata, options
-            )
-            stages["llir"] = lambda src, metadata: linalg_to_llir(
-                src, metadata, options
-            )
-            stages["cpuasm"] = lambda src, metadata: llir_to_cpuasm(
-                src, metadata, options
-            )
+            stages["ttadapter"] = lambda src, metadata: ttir_to_linalg(src, metadata, options)
+            stages["llir"] = lambda src, metadata: linalg_to_llir(src, metadata, options)
+            stages["cpuasm"] = lambda src, metadata: llir_to_cpuasm(src, metadata, options)
 
     @functools.lru_cache()
     def hash(self):

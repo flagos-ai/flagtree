@@ -11,9 +11,9 @@
 #include "bishengir/Dialect/Annotation/IR/Annotation.h"
 #include "bishengir/Dialect/HIVM/IR/HIVM.h"
 
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Arith/Utils/Utils.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
@@ -31,8 +31,8 @@
 #include "llvm/ADT/SmallVectorExtras.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FormatVariadic.h"
 #include <cassert>
 #include <set>
 
@@ -141,7 +141,8 @@ MemRefType BlockData::getResultMemrefType(int64_t offset,
   dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
 
   auto baseMemrefType = dyn_cast<BaseMemRefType>(this->source.getType());
-  assert(baseMemrefType && "Invalid element type. It should be a base memref type.");
+  assert(baseMemrefType &&
+         "Invalid element type. It should be a base memref type.");
   auto elementType = baseMemrefType.getElementType();
   auto layout =
       StridedLayoutAttr::get(this->source.getContext(), offset, staticStrides);
@@ -921,9 +922,10 @@ void BlockDataParser::rewriteAddPtr(
   rewriter.restoreInsertionPoint(insertPoint);
 }
 
-OpFoldResult accumulatePotentialOffsetOnBase(
-    triton::MakeTensorPtrOp op, Value base, OpFoldResult offset,
-    ConversionPatternRewriter &rewriter) {
+OpFoldResult
+accumulatePotentialOffsetOnBase(triton::MakeTensorPtrOp op, Value base,
+                                OpFoldResult offset,
+                                ConversionPatternRewriter &rewriter) {
   if (auto baseRecast = base.getDefiningOp<memref::ReinterpretCastOp>()) {
     assert(isa<triton::AddPtrOp>(op.getBase().getDefiningOp()) &&
            "base of MakeTensorPtrOp only comes from native ptr or AddPtrOp");
@@ -936,10 +938,9 @@ OpFoldResult accumulatePotentialOffsetOnBase(
 }
 
 // Design for load/store boundary_check.
-memref::ReinterpretCastOp
-createRedundantOp(triton::MakeTensorPtrOp op,
-                  ConversionPatternRewriter &rewriter,
-                  BlockData &data) {
+memref::ReinterpretCastOp createRedundantOp(triton::MakeTensorPtrOp op,
+                                            ConversionPatternRewriter &rewriter,
+                                            BlockData &data) {
   auto loc = op.getLoc();
   // to do boundary_check in tt.load, we need to keep the parent tensor's
   // shape info in the IR.
@@ -983,8 +984,7 @@ createRedundantOp(triton::MakeTensorPtrOp op,
 }
 
 void BlockDataParser::rewriteMakeTensorPtrOp(
-    triton::MakeTensorPtrOp op, Value base,
-    ConversionPatternRewriter &rewriter,
+    triton::MakeTensorPtrOp op, Value base, ConversionPatternRewriter &rewriter,
     llvm::SmallDenseMap<Value, BlockData> &known) {
   Location loc = op.getLoc();
   BlockData data;
@@ -998,7 +998,8 @@ void BlockDataParser::rewriteMakeTensorPtrOp(
     for (auto [first, second] :
          llvm::zip(op.getOrder().slice(0, orderSize - 1),
                    op.getOrder().slice(1, orderSize - 1))) {
-        assert(first == second + 1 && "Currently only support default order on block pointers");
+      assert(first == second + 1 &&
+             "Currently only support default order on block pointers");
     }
   }
 
@@ -1041,8 +1042,8 @@ void BlockDataParser::rewriteMakeTensorPtrOp(
   // Base of MakeTensorPtrOp has been seen as origin base, so it should
   // reserve offset of first recast if it exists.
   // Here extract the offset of first recast and add it to highest dimension
-  newOffsets.front() = accumulatePotentialOffsetOnBase(
-      op, base, newOffsets.front(), rewriter);
+  newOffsets.front() =
+      accumulatePotentialOffsetOnBase(op, base, newOffsets.front(), rewriter);
 
   data.getOffsetsRef().clear();
 
@@ -1227,7 +1228,8 @@ void BlockDataParser::rewriteAdvanceOp(
 
 void BlockDataParser::rewriteYieldOp(
     scf::YieldOp op, ConversionPatternRewriter &rewriter,
-    const llvm::SmallDenseSet<size_t> &blockArgIdxSet, ArrayRef<int64_t> iterArgIdxMap,
+    const llvm::SmallDenseSet<size_t> &blockArgIdxSet,
+    ArrayRef<int64_t> iterArgIdxMap,
     const llvm::SmallDenseMap<Value, BlockData> &known) {
   // Any inserted instruction should be before this yield
   OpBuilder::InsertionGuard insertionGuard{rewriter};
@@ -1239,7 +1241,8 @@ void BlockDataParser::rewriteYieldOp(
   SmallVector<Value> operands;
 
   operands.reserve(op->getNumOperands());
-  for (const auto &[oper, newIterArgIdx]: llvm::zip_equal(adaptor.getOperands(), iterArgIdxMap)) {
+  for (const auto &[oper, newIterArgIdx] :
+       llvm::zip_equal(adaptor.getOperands(), iterArgIdxMap)) {
     if (newIterArgIdx != -1)
       operands.push_back(oper);
   }
@@ -1348,21 +1351,24 @@ void BlockDataParser::rewriteYieldOp(
 // This function is util function for rewriteLoopOp that
 // check if given regionIterArg is used by MemAccOp
 bool isUsedByMemAccOp(Value v, int depth = 0) {
-  for (auto &use: v.getUses()) {
+  for (auto &use : v.getUses()) {
     auto *user = use.getOwner();
     if (user->hasAttr(ConverterUtils::discreteAttrName))
       continue;
-    if (isa<triton::LoadOp, triton::StoreOp, triton::AtomicRMWOp, triton::AtomicCASOp>(user))
+    if (isa<triton::LoadOp, triton::StoreOp, triton::AtomicRMWOp,
+            triton::AtomicCASOp>(user))
       return true;
     if (auto loopOp = dyn_cast<LoopLikeOpInterface>(user);
         loopOp && !loopOp->hasAttr("ExtractedLoadOrStore")) {
-      if(isUsedByMemAccOp(loopOp.getTiedLoopRegionIterArg(&use), depth + 1))
+      if (isUsedByMemAccOp(loopOp.getTiedLoopRegionIterArg(&use), depth + 1))
         return true;
     } else if (auto yieldOp = dyn_cast<scf::YieldOp>(user)) {
-      if (depth && isUsedByMemAccOp(yieldOp->getParentOp()->getResult(use.getOperandNumber()), depth - 1))
+      if (depth && isUsedByMemAccOp(yieldOp->getParentOp()->getResult(
+                                        use.getOperandNumber()),
+                                    depth - 1))
         return true;
     }
-    for (auto res: user->getResults()) {
+    for (auto res : user->getResults()) {
       if (isUsedByMemAccOp(res, depth))
         return true;
     }
@@ -1378,20 +1384,22 @@ bool isUsedforMask(Value v, int depth = 0) {
   if (auto tensorType = dyn_cast<RankedTensorType>(v.getType());
       !(tensorType && tensorType.getRank() == 1))
     return false;
-  for (auto &use: v.getUses()) {
+  for (auto &use : v.getUses()) {
     auto *user = use.getOwner();
     if ((isa<triton::LoadOp>(user) && use.getOperandNumber() == 1) ||
         (isa<triton::StoreOp>(user) && use.getOperandNumber() == 2))
       return true;
     if (auto loopOp = dyn_cast<LoopLikeOpInterface>(user);
         loopOp && !loopOp->hasAttr("ExtractedLoadOrStore")) {
-      if(isUsedforMask(loopOp.getTiedLoopRegionIterArg(&use), depth + 1))
-          return true;
+      if (isUsedforMask(loopOp.getTiedLoopRegionIterArg(&use), depth + 1))
+        return true;
     } else if (auto yieldOp = dyn_cast<scf::YieldOp>(user)) {
-      if (depth && isUsedforMask(yieldOp->getParentOp()->getResult(use.getOperandNumber()), depth - 1))
+      if (depth && isUsedforMask(yieldOp->getParentOp()->getResult(
+                                     use.getOperandNumber()),
+                                 depth - 1))
         return true;
     }
-    for (auto res: user->getResults()) {
+    for (auto res : user->getResults()) {
       if (isUsedforMask(res, depth))
         return true;
     }
@@ -1404,36 +1412,45 @@ bool isUsedforMask(Value v, int depth = 0) {
 //
 // For example,
 //
-// %7 = scf.for %arg2 = %c0_i32 to %c3_i32 step %c1_i32 iter_args(%arg3 = %4) -> (tensor<128xi32>)  : i32 {
+// %7 = scf.for %arg2 = %c0_i32 to %c3_i32 step %c1_i32 iter_args(%arg3 = %4) ->
+// (tensor<128xi32>)  : i32 {
 //    %8 = tt.addptr %5, %arg3 : tensor<128x!tt.ptr<i32>>, tensor<128xi32>
 //    ...
 // }
 //
 // is converted to
 //
-// %7 = scf.for %arg2 = %c0_i32 to %c3_i32 step %c1_i32 iter_args(%arg3 = %4, %arg4 = %5, %arg5 = %6) -> (tensor<128xi32>)  : i32 {
+// %7 = scf.for %arg2 = %c0_i32 to %c3_i32 step %c1_i32 iter_args(%arg3 = %4,
+// %arg4 = %5, %arg5 = %6) -> (tensor<128xi32>)  : i32 {
 //   %scalarOffset = arith.index_cast %arg4 : index to i32
 //   %scalarStride = arith.index_cast %arg5 : index to i32
 //   ...
 //   %newRes = arith.addi %offset, %stride : tensor<128xi32>
 //   %8 = tt.addptr %5, %newRes : tensor<128x!tt.ptr<i32>>, tensor<128xi32>
 // }
-Value createFromData(RankedTensorType resType, const BlockData &data, const Location &loc, OpBuilder &builder, bool isMaskIterArg) {
+Value createFromData(RankedTensorType resType, const BlockData &data,
+                     const Location &loc, OpBuilder &builder,
+                     bool isMaskIterArg) {
   auto resShape = resType.getShape();
   Value newRes = nullptr;
   for (size_t i = 0; i < resShape.size(); i++) {
-    auto axisType = RankedTensorType::get({resShape[i]}, resType.getElementType());
-    auto axisI32Type = RankedTensorType::get({resShape[i]}, builder.getIntegerType(32));
-    Value axisValue = builder.create<triton::MakeRangeOp>(loc, axisI32Type, 0, resShape[i]);
+    auto axisType =
+        RankedTensorType::get({resShape[i]}, resType.getElementType());
+    auto axisI32Type =
+        RankedTensorType::get({resShape[i]}, builder.getIntegerType(32));
+    Value axisValue =
+        builder.create<triton::MakeRangeOp>(loc, axisI32Type, 0, resShape[i]);
     if (axisType != axisI32Type) {
       axisValue = builder.create<arith::ExtSIOp>(loc, axisType, axisValue);
     }
     Value offset = cast<Value>(data.getOffset(i));
-    Value offsetValue = builder.create<arith::IndexCastOp>(loc, resType.getElementType(), offset);
+    Value offsetValue = builder.create<arith::IndexCastOp>(
+        loc, resType.getElementType(), offset);
     offsetValue = builder.create<triton::SplatOp>(loc, axisType, offsetValue);
     Value stride = cast<Value>(data.getStride(i));
     if (!isMaskIterArg) {
-      Value strideValue = builder.create<arith::IndexCastOp>(loc, resType.getElementType(), stride);
+      Value strideValue = builder.create<arith::IndexCastOp>(
+          loc, resType.getElementType(), stride);
       strideValue = builder.create<triton::SplatOp>(loc, axisType, strideValue);
       axisValue = builder.create<arith::MulIOp>(loc, axisValue, strideValue);
     }
@@ -1483,13 +1500,14 @@ void BlockDataParser::rewriteLoopOp(
       assert(!(isa<BlockArgument>(mappedV) &&
                isa<UnrankedMemRefType>(mappedV.getType())) &&
              "cannot take pointer block argument as init arg for for loop");
-      if (auto reinterpretCastOp = mappedV.getDefiningOp<memref::ReinterpretCastOp>()) {
+      if (auto reinterpretCastOp =
+              mappedV.getDefiningOp<memref::ReinterpretCastOp>()) {
         // Record memref::ReinterpretCastOp
         reintCastOp = reinterpretCastOp;
         newInitArgs.push_back(mappedV);
         iterArgIdxMap.push_back(argCnt++);
       } else if (auto defOp = op.getYieldedValues()[i].getDefiningOp();
-                (defOp && defOp->hasAttr("MetaUse"))) {
+                 (defOp && defOp->hasAttr("MetaUse"))) {
         // When argument is MetaUse in the loop,
         // It is removed in iter_args
         newInitArgs.push_back(nullptr);
@@ -1589,7 +1607,8 @@ void BlockDataParser::rewriteLoopOp(
     // offset:
     //  - memref<4x256xbf16, affine_map<(d0, d1)[s0, s1, s2] -> (d0 * s1
     //  + s0 + d1 * s2)>>
-    if (newInitArgs[i] && newInitArgs[i].getDefiningOp<memref::ReinterpretCastOp>()) {
+    if (newInitArgs[i] &&
+        newInitArgs[i].getDefiningOp<memref::ReinterpretCastOp>()) {
       SmallVector<int64_t> resultShape;
       for (auto size : data.getSizesRef()) {
         auto constSize = getConstantIntValue(size);
@@ -1627,10 +1646,14 @@ void BlockDataParser::rewriteLoopOp(
 
   // Create a new LoopOp that uses updated init args and same loop body
   LoopLikeOpInterface newOp;
-  auto newInits = to_vector(make_filter_range(newInitArgs, [](Value v) { return v != nullptr; }));
-  auto commonBodyBuilder = [&](OpBuilder &b, Location loc, ValueRange newRegionArgs, Region &region, Block::BlockArgListType regionArgs) {
+  auto newInits = to_vector(
+      make_filter_range(newInitArgs, [](Value v) { return v != nullptr; }));
+  auto commonBodyBuilder = [&](OpBuilder &b, Location loc,
+                               ValueRange newRegionArgs, Region &region,
+                               Block::BlockArgListType regionArgs) {
     auto newArgIter = newRegionArgs.begin();
-    for (const auto &[initArg, regionArg, newInitArg]: llvm::zip(op.getInits(), regionArgs, newInitArgs)) {
+    for (const auto &[initArg, regionArg, newInitArg] :
+         llvm::zip(op.getInits(), regionArgs, newInitArgs)) {
       if (newInitArg) {
         mapping.map(initArg, newInitArg);
         mapping.map(regionArg, *newArgIter);
@@ -1640,15 +1663,15 @@ void BlockDataParser::rewriteLoopOp(
 
     // Convert the book-keeping data structure to use the correct key and value.
     // Key is converted from init arg index to newly created block arg, and
-    // Value's BlockData fields are converted from init arg to newly created block
-    // arg
+    // Value's BlockData fields are converted from init arg to newly created
+    // block arg
     for (auto [i, data] : knownPtrsTmp) {
-      for (auto &offset: data.getOffsetsRef()) {
+      for (auto &offset : data.getOffsetsRef()) {
         offset = *newArgIter;
         ++newArgIter;
       }
 
-      for (auto &stride: data.getStridesRef()) {
+      for (auto &stride : data.getStridesRef()) {
         stride = *newArgIter;
         ++newArgIter;
       }
@@ -1657,7 +1680,8 @@ void BlockDataParser::rewriteLoopOp(
       auto key = mapping.lookupOrNull(regionArg);
       if (!key) {
         // Create MetaUse regionArg from computed offset and stride data
-        key = createFromData(cast<RankedTensorType>(regionArg.getType()), data, op.getLoc(), rewriter, maskIterArgs[i]);
+        key = createFromData(cast<RankedTensorType>(regionArg.getType()), data,
+                             op.getLoc(), rewriter, maskIterArgs[i]);
         mapping.map(regionArg, key);
       }
       known.insert(std::make_pair(key, data));
@@ -1666,31 +1690,37 @@ void BlockDataParser::rewriteLoopOp(
     for (auto &bodyOp : region.getOps())
       b.clone(bodyOp, mapping);
   };
-  
+
   if (auto forOp = dyn_cast<scf::ForOp>(op.getOperation())) {
     newOp = rewriter.create<scf::ForOp>(
-      forOp.getLoc(), forOp.getLowerBound(), forOp.getUpperBound(),
-      forOp.getStep(), newInits,
-      [&](OpBuilder &b, Location loc, Value iv, ValueRange args) {
-        mapping.map(forOp.getInductionVar(), iv);
-        commonBodyBuilder(b, loc, args, forOp.getRegion(), op.getRegionIterArgs());
-      });
+        forOp.getLoc(), forOp.getLowerBound(), forOp.getUpperBound(),
+        forOp.getStep(), newInits,
+        [&](OpBuilder &b, Location loc, Value iv, ValueRange args) {
+          mapping.map(forOp.getInductionVar(), iv);
+          commonBodyBuilder(b, loc, args, forOp.getRegion(),
+                            op.getRegionIterArgs());
+        });
   } else if (auto whileOp = dyn_cast<scf::WhileOp>(op.getOperation())) {
-    auto resultTypes = map_to_vector(newInits, [](auto v) { return v.getType(); });
+    auto resultTypes =
+        map_to_vector(newInits, [](auto v) { return v.getType(); });
     newOp = rewriter.create<scf::WhileOp>(
-      whileOp.getLoc(), resultTypes, newInits,
-      [&](OpBuilder &b, Location loc, ValueRange args) {
-        commonBodyBuilder(b, loc, args, whileOp.getBefore(), whileOp.getBeforeArguments());
-      },
-      [&](OpBuilder &b, Location loc, ValueRange args) {
-        commonBodyBuilder(b, loc, args, whileOp.getAfter(), whileOp.getAfterArguments());
-      });
+        whileOp.getLoc(), resultTypes, newInits,
+        [&](OpBuilder &b, Location loc, ValueRange args) {
+          commonBodyBuilder(b, loc, args, whileOp.getBefore(),
+                            whileOp.getBeforeArguments());
+        },
+        [&](OpBuilder &b, Location loc, ValueRange args) {
+          commonBodyBuilder(b, loc, args, whileOp.getAfter(),
+                            whileOp.getAfterArguments());
+        });
   }
 
   // Replace only the results that correspond to the original scf.for
   auto newResultIter = newOp->result_begin();
   rewriter.setInsertionPointAfter(newOp);
-  for (const auto &[res, regionArg, newIterArgIdx, mask]: llvm::zip_equal(op->getResults(), op.getRegionIterArgs(), iterArgIdxMap, maskIterArgs)) {
+  for (const auto &[res, regionArg, newIterArgIdx, mask] :
+       llvm::zip_equal(op->getResults(), op.getRegionIterArgs(), iterArgIdxMap,
+                       maskIterArgs)) {
     if (newIterArgIdx != -1) {
       rewriter.replaceAllUsesWith(res, *newResultIter);
       ++newResultIter;
@@ -1698,10 +1728,13 @@ void BlockDataParser::rewriteLoopOp(
       auto key = mapping.lookup(regionArg);
       auto data = known.at(key);
       for (auto &offset : data.getOffsetsRef())
-        offset = newOp.getTiedLoopResult(cast<BlockArgument>(offset.get<Value>()));
+        offset =
+            newOp.getTiedLoopResult(cast<BlockArgument>(offset.get<Value>()));
       for (auto &stride : data.getStridesRef())
-        stride = newOp.getTiedLoopResult(cast<BlockArgument>(stride.get<Value>()));
-      auto newRes = createFromData(cast<RankedTensorType>(regionArg.getType()), data, op.getLoc(), rewriter, mask);
+        stride =
+            newOp.getTiedLoopResult(cast<BlockArgument>(stride.get<Value>()));
+      auto newRes = createFromData(cast<RankedTensorType>(regionArg.getType()),
+                                   data, op.getLoc(), rewriter, mask);
       rewriter.replaceAllUsesWith(res, newRes);
     }
   }
@@ -1712,17 +1745,22 @@ void BlockDataParser::rewriteLoopOp(
   for (auto *region : newOp.getLoopRegions()) {
     for (auto &bodyOp : region->getOps()) {
       if (auto addptrOp = dyn_cast<triton::AddPtrOp>(bodyOp)) {
-        // FIXME: Constructed adaptor here does not hold the transformed op info.
+        // FIXME: Constructed adaptor here does not hold the transformed op
+        // info.
         auto adaptor = triton::AddPtrOp::Adaptor(addptrOp);
         rewriteAddPtr(addptrOp, adaptor, rewriter, known);
       } else if (auto advanceOp = dyn_cast<triton::AdvanceOp>(bodyOp)) {
         rewriteAdvanceOp(advanceOp, rewriter, known);
-      } else if (auto makeTensorPtrOp = dyn_cast<triton::MakeTensorPtrOp>(bodyOp)) {
+      } else if (auto makeTensorPtrOp =
+                     dyn_cast<triton::MakeTensorPtrOp>(bodyOp)) {
         ConversionPatternRewriter::InsertionGuard guard(rewriter);
         rewriter.setInsertionPoint(makeTensorPtrOp);
-        rewriteMakeTensorPtrOp(makeTensorPtrOp, rewriter.getRemappedValue(makeTensorPtrOp.getBase()), rewriter, known);
+        rewriteMakeTensorPtrOp(
+            makeTensorPtrOp,
+            rewriter.getRemappedValue(makeTensorPtrOp.getBase()), rewriter,
+            known);
       } else if (auto loopOp = dyn_cast<LoopLikeOpInterface>(bodyOp);
-                loopOp && !loopOp->hasAttr("ExtractedLoadOrStore")) {
+                 loopOp && !loopOp->hasAttr("ExtractedLoadOrStore")) {
         ConversionPatternRewriter::InsertionGuard guard(rewriter);
         rewriter.setInsertionPoint(loopOp);
         rewriteLoopOp(loopOp, rewriter, known);
@@ -1731,7 +1769,8 @@ void BlockDataParser::rewriteLoopOp(
   }
 
   if (!op.getRegionIterArgs().empty()) {
-    auto yieldOp = cast<scf::YieldOp>(newOp.getLoopRegions().back()->back().getTerminator());
+    auto yieldOp = cast<scf::YieldOp>(
+        newOp.getLoopRegions().back()->back().getTerminator());
     rewriteYieldOp(yieldOp, rewriter, blockArgIdxSet, iterArgIdxMap, known);
   }
 

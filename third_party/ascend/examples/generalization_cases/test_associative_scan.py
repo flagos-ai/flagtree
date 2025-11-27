@@ -82,17 +82,15 @@ def maximum_fn(a, b):
 
 @triton.jit
 def triton_kernel_1d_scan(
-        out_ptr0,
-        in_ptr0,
-        dim: tl.constexpr,
-        reverse: tl.constexpr,
-        numel_x: tl.constexpr,
-        XBLOCK: tl.constexpr,
-        combine_fn_name: tl.constexpr,
+    out_ptr0,
+    in_ptr0,
+    dim: tl.constexpr,
+    reverse: tl.constexpr,
+    numel_x: tl.constexpr,
+    XBLOCK: tl.constexpr,
+    combine_fn_name: tl.constexpr,
 ):
-    tl.static_assert(
-        numel_x == XBLOCK, "numel_x must be equal to XBLOCK in this kernel"
-    )
+    tl.static_assert(numel_x == XBLOCK, "numel_x must be equal to XBLOCK in this kernel")
     idx = tl.arange(0, XBLOCK)
     x = tl.load(in_ptr0 + idx)
     if combine_fn_name == "maximum_fn":
@@ -111,22 +109,18 @@ def triton_kernel_1d_scan(
 
 @triton.jit
 def triton_kernel_2d_scan(
-        out_ptr0,
-        in_ptr0,
-        dim: tl.constexpr,
-        reverse: tl.constexpr,
-        numel_x: tl.constexpr,
-        numel_r: tl.constexpr,
-        XBLOCK: tl.constexpr,
-        RBLOCK: tl.constexpr,
-        combine_fn_name: tl.constexpr,
+    out_ptr0,
+    in_ptr0,
+    dim: tl.constexpr,
+    reverse: tl.constexpr,
+    numel_x: tl.constexpr,
+    numel_r: tl.constexpr,
+    XBLOCK: tl.constexpr,
+    RBLOCK: tl.constexpr,
+    combine_fn_name: tl.constexpr,
 ):
-    tl.static_assert(
-        numel_x == XBLOCK, "numel_x must be equal to XBLOCK in this kernel"
-    )
-    tl.static_assert(
-        numel_r == RBLOCK, "numel_r must be equal to RBLOCK in this kernel"
-    )
+    tl.static_assert(numel_x == XBLOCK, "numel_x must be equal to XBLOCK in this kernel")
+    tl.static_assert(numel_r == RBLOCK, "numel_r must be equal to RBLOCK in this kernel")
     idx_x = tl.arange(0, XBLOCK)
     idx_r = tl.arange(0, RBLOCK)
     idx = idx_x[:, None] * numel_r + idx_r[None, :]
@@ -147,27 +141,21 @@ def triton_kernel_2d_scan(
 
 @triton.jit
 def triton_kernel_3d_scan(
-        out_ptr0,
-        in_ptr0,
-        dim: tl.constexpr,
-        reverse: tl.constexpr,
-        numel_x: tl.constexpr,
-        numel_r: tl.constexpr,
-        numel_z: tl.constexpr,
-        XBLOCK: tl.constexpr,
-        RBLOCK: tl.constexpr,
-        ZBLOCK: tl.constexpr,
-        combine_fn_name: tl.constexpr,
+    out_ptr0,
+    in_ptr0,
+    dim: tl.constexpr,
+    reverse: tl.constexpr,
+    numel_x: tl.constexpr,
+    numel_r: tl.constexpr,
+    numel_z: tl.constexpr,
+    XBLOCK: tl.constexpr,
+    RBLOCK: tl.constexpr,
+    ZBLOCK: tl.constexpr,
+    combine_fn_name: tl.constexpr,
 ):
-    tl.static_assert(
-        numel_x == XBLOCK, "numel_x must be equal to XBLOCK in this kernel"
-    )
-    tl.static_assert(
-        numel_r == RBLOCK, "numel_r must be equal to RBLOCK in this kernel"
-    )
-    tl.static_assert(
-        numel_z == ZBLOCK, "numel_z must be equal to ZBLOCK in this kernel"
-    )
+    tl.static_assert(numel_x == XBLOCK, "numel_x must be equal to XBLOCK in this kernel")
+    tl.static_assert(numel_r == RBLOCK, "numel_r must be equal to RBLOCK in this kernel")
+    tl.static_assert(numel_z == ZBLOCK, "numel_z must be equal to ZBLOCK in this kernel")
     idx_x = tl.arange(0, XBLOCK)
     idx_r = tl.arange(0, RBLOCK)
     idx_z = tl.arange(0, ZBLOCK)
@@ -188,15 +176,15 @@ def triton_kernel_3d_scan(
 
 @triton.jit
 def triton_kernel_4d_scan(
-        out_ptr0,
-        in_ptr0,
-        dim: tl.constexpr,
-        reverse: tl.constexpr,
-        XB: tl.constexpr,
-        YB: tl.constexpr,
-        ZB: tl.constexpr,
-        MB: tl.constexpr,
-        combine_fn_name: tl.constexpr,
+    out_ptr0,
+    in_ptr0,
+    dim: tl.constexpr,
+    reverse: tl.constexpr,
+    XB: tl.constexpr,
+    YB: tl.constexpr,
+    ZB: tl.constexpr,
+    MB: tl.constexpr,
+    combine_fn_name: tl.constexpr,
 ):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
@@ -220,16 +208,16 @@ def triton_kernel_4d_scan(
 
 @triton.jit
 def triton_kernel_5d_scan(
-        out_ptr0,
-        in_ptr0,
-        dim: tl.constexpr,
-        reverse: tl.constexpr,
-        XB: tl.constexpr,
-        YB: tl.constexpr,
-        ZB: tl.constexpr,
-        MB: tl.constexpr,
-        NB: tl.constexpr,
-        combine_fn_name: tl.constexpr,
+    out_ptr0,
+    in_ptr0,
+    dim: tl.constexpr,
+    reverse: tl.constexpr,
+    XB: tl.constexpr,
+    YB: tl.constexpr,
+    ZB: tl.constexpr,
+    MB: tl.constexpr,
+    NB: tl.constexpr,
+    combine_fn_name: tl.constexpr,
 ):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
@@ -260,33 +248,25 @@ def triton_func_scan(x, dim, combine_fn, reverse):
     if len(shape) == 1:
         if dim >= 1:
             pytest.skip("dim >= 1 for 1D tensor, skipping.")
-        triton_kernel_1d_scan[1, 1, 1](
-            res, x, dim, reverse, x.shape[0], x.shape[0], combine_fn
-        )
+        triton_kernel_1d_scan[1, 1, 1](res, x, dim, reverse, x.shape[0], x.shape[0], combine_fn)
     elif len(shape) == 2:
         if dim >= 2:
             pytest.skip("dim >= 2 for 2D tensor, skipping.")
-        triton_kernel_2d_scan[1, 1, 1](
-            res, x, dim, reverse, x.shape[0], x.shape[1], x.shape[0], x.shape[1], combine_fn
-        )
+        triton_kernel_2d_scan[1, 1, 1](res, x, dim, reverse, x.shape[0], x.shape[1], x.shape[0], x.shape[1], combine_fn)
     elif len(shape) == 3:
         if dim >= 3:
             pytest.skip("dim >= 3 for 3D tensor, skipping.")
-        triton_kernel_3d_scan[1, 1, 1](
-            res, x, dim, reverse, x.shape[0], x.shape[1], x.shape[2], x.shape[0], x.shape[1], x.shape[2], combine_fn
-        )
+        triton_kernel_3d_scan[1, 1, 1](res, x, dim, reverse, x.shape[0], x.shape[1], x.shape[2], x.shape[0], x.shape[1],
+                                       x.shape[2], combine_fn)
     elif len(shape) == 4:
         if dim >= 4:
             pytest.skip("dim >= 4 for 4D tensor, skipping.")
-        triton_kernel_4d_scan[1, 1, 1](
-            res, x, dim, reverse, x.shape[0], x.shape[1], x.shape[2], x.shape[3], combine_fn
-        )
+        triton_kernel_4d_scan[1, 1, 1](res, x, dim, reverse, x.shape[0], x.shape[1], x.shape[2], x.shape[3], combine_fn)
     elif len(shape) == 5:
         if dim >= 5:
             pytest.skip("dim >= 5 for 5D tensor, skipping.")
-        triton_kernel_5d_scan[1, 1, 1](
-            res, x, dim, reverse, x.shape[0], x.shape[1], x.shape[2], x.shape[3], x.shape[4], combine_fn
-        )
+        triton_kernel_5d_scan[1, 1, 1](res, x, dim, reverse, x.shape[0], x.shape[1], x.shape[2], x.shape[3], x.shape[4],
+                                       combine_fn)
     else:
         pytest.skip(f"Unsupported tensor dimension: {len(shape)}")
 
@@ -403,8 +383,7 @@ def test_scan_5d(dtype, shape, dim, combine_fn, reverse):
 @pytest.mark.parametrize("dtype", ['float16', 'float32'])
 @pytest.mark.parametrize("shape", TestUtils.test_shape1d)
 @pytest.mark.parametrize("dim", [0])
-@pytest.mark.parametrize("combine_fn",
-                         ['maximum_fn', 'minimum_fn'])
+@pytest.mark.parametrize("combine_fn", ['maximum_fn', 'minimum_fn'])
 @pytest.mark.parametrize("reverse", [False])
 def test_scan_float_1d(dtype, shape, dim, combine_fn, reverse):
     should_skip_due_to_mem(dtype, shape)
@@ -422,8 +401,7 @@ def test_scan_float_1d(dtype, shape, dim, combine_fn, reverse):
 @pytest.mark.parametrize("dtype", ['float16', 'float32'])
 @pytest.mark.parametrize("shape", TestUtils.test_shape2d)
 @pytest.mark.parametrize("dim", [1])
-@pytest.mark.parametrize("combine_fn",
-                         ['maximum_fn', 'minimum_fn'])
+@pytest.mark.parametrize("combine_fn", ['maximum_fn', 'minimum_fn'])
 @pytest.mark.parametrize("reverse", [False])
 def test_scan_float_2d(dtype, shape, dim, combine_fn, reverse):
     should_skip_due_to_mem(dtype, shape)
@@ -441,8 +419,7 @@ def test_scan_float_2d(dtype, shape, dim, combine_fn, reverse):
 @pytest.mark.parametrize("dtype", ['float16', 'float32'])
 @pytest.mark.parametrize("shape", TestUtils.test_shape3d)
 @pytest.mark.parametrize("dim", [2])
-@pytest.mark.parametrize("combine_fn",
-                         ['maximum_fn', 'minimum_fn'])
+@pytest.mark.parametrize("combine_fn", ['maximum_fn', 'minimum_fn'])
 @pytest.mark.parametrize("reverse", [False])
 def test_scan_float_1d(dtype, shape, dim, combine_fn, reverse):
     should_skip_due_to_mem(dtype, shape)
@@ -460,8 +437,7 @@ def test_scan_float_1d(dtype, shape, dim, combine_fn, reverse):
 @pytest.mark.parametrize("dtype", ['float16', 'float32'])
 @pytest.mark.parametrize("shape", TestUtils.test_shape4d)
 @pytest.mark.parametrize("dim", [3])
-@pytest.mark.parametrize("combine_fn",
-                         ['maximum_fn', 'minimum_fn'])
+@pytest.mark.parametrize("combine_fn", ['maximum_fn', 'minimum_fn'])
 @pytest.mark.parametrize("reverse", [False])
 def test_scan_float_1d(dtype, shape, dim, combine_fn, reverse):
     should_skip_due_to_mem(dtype, shape)
@@ -479,8 +455,7 @@ def test_scan_float_1d(dtype, shape, dim, combine_fn, reverse):
 @pytest.mark.parametrize("dtype", ['float16', 'float32'])
 @pytest.mark.parametrize("shape", TestUtils.test_shape5d)
 @pytest.mark.parametrize("dim", [4])
-@pytest.mark.parametrize("combine_fn",
-                         ['maximum_fn', 'minimum_fn'])
+@pytest.mark.parametrize("combine_fn", ['maximum_fn', 'minimum_fn'])
 @pytest.mark.parametrize("reverse", [False])
 def test_scan_float_1d(dtype, shape, dim, combine_fn, reverse):
     should_skip_due_to_mem(dtype, shape)
@@ -498,8 +473,7 @@ def test_scan_float_1d(dtype, shape, dim, combine_fn, reverse):
 @pytest.mark.parametrize("dtype", ['float16', 'float32'])
 @pytest.mark.parametrize("shape", TestUtils.test_shape1d)
 @pytest.mark.parametrize("dim", [0])
-@pytest.mark.parametrize("combine_fn",
-                         ['bitwise_or_fn', 'bitwise_xor_fn', 'bitwise_and_fn'])
+@pytest.mark.parametrize("combine_fn", ['bitwise_or_fn', 'bitwise_xor_fn', 'bitwise_and_fn'])
 @pytest.mark.parametrize("reverse", [False])
 @test_common.raises_with_match(triton.compiler.errors.CompilationError, "unexpected type")
 def test_scan_float_invalid(dtype, shape, dim, combine_fn, reverse):
@@ -509,6 +483,7 @@ def test_scan_float_invalid(dtype, shape, dim, combine_fn, reverse):
 
     x_npu = x.npu()
     triton_res = triton_func_scan(x_npu, dim, combine_fn, reverse)
+
 
 @pytest.mark.parametrize("dtype", ['int32'])
 @pytest.mark.parametrize("shape", TestUtils.test_shape1d)
@@ -525,4 +500,3 @@ def test_scan_float_invalid_reverse(dtype, shape, dim, combine_fn, reverse):
 
     x_npu = x.npu()
     triton_res = triton_func_scan(x_npu, dim, combine_fn, reverse)
-

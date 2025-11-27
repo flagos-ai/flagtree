@@ -29,7 +29,6 @@ def test_isfinited(sigtype, N, val):
         res = torch.isfinite(x0)
         return res
 
-
     @triton.jit
     def triton_kernel(out_ptr0, in_ptr0, N: tl.constexpr):
         idx = tl.arange(0, N)
@@ -37,13 +36,12 @@ def test_isfinited(sigtype, N, val):
         ret = tl.math.isfinited(x0)
         tl.store(out_ptr0 + idx, ret)
 
-
     def triton_func(x0, N):
         out = torch.zeros(x0.shape, dtype=torch.bool).npu()
         triton_kernel[1, 1, 1](out, x0, N)
         return out
 
-    x0 = test_common.generate_tensor(shape=(N,), dtype=sigtype).npu()
+    x0 = test_common.generate_tensor(shape=(N, ), dtype=sigtype).npu()
     x0[1] = float(val)
 
     torch_ref = torch_func(x0)
@@ -60,7 +58,6 @@ def test_finitef(N, val):
         res = torch.isfinite(x0)
         return res
 
-
     @triton.jit
     def triton_kernel(out_ptr0, in_ptr0, N: tl.constexpr):
         idx = tl.arange(0, N)
@@ -68,13 +65,12 @@ def test_finitef(N, val):
         ret = tl.math.finitef(x0)
         tl.store(out_ptr0 + idx, ret)
 
-
     def triton_func(x0, N):
         out = torch.zeros(x0.shape, dtype=torch.bool).npu()
         triton_kernel[1, 1, 1](out, x0, N)
         return out
 
-    x0 = test_common.generate_tensor(shape=(N,), dtype='float32').npu()
+    x0 = test_common.generate_tensor(shape=(N, ), dtype='float32').npu()
     x0[1] = float(val)
 
     torch_ref = torch_func(x0)
@@ -96,7 +92,6 @@ def test_isfinited_invalid_dtype(sigtype, N):
         res = torch.isfinite(x0)
         return res
 
-
     @triton.jit
     def triton_kernel(out_ptr0, in_ptr0, N: tl.constexpr):
         idx = tl.arange(0, N)
@@ -104,13 +99,12 @@ def test_isfinited_invalid_dtype(sigtype, N):
         ret = tl.math.isfinited(x0)
         tl.store(out_ptr0 + idx, ret)
 
-
     def triton_func(x0, N):
         out = torch.zeros(x0.shape, dtype=torch.bool).npu()
         triton_kernel[1, 1, 1](out, x0, N)
         return out
 
-    x0 = test_common.generate_tensor(shape=(N,), dtype=sigtype).npu()
+    x0 = test_common.generate_tensor(shape=(N, ), dtype=sigtype).npu()
     x0[1] = float('nan')
 
     torch_ref = torch_func(x0)

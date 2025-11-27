@@ -28,7 +28,7 @@ def fn_npu_1d(output_ptr, x_ptr, YB: tl.constexpr, ZB: tl.constexpr):
 @pytest.mark.parametrize('shape', TestUtils.test_shape1d)
 @pytest.mark.parametrize('dtype', TestUtils.full_dtype)
 def test_expand_dims_1d(shape, dtype):
-    x = test_common.generate_tensor(shape,dtype).npu()
+    x = test_common.generate_tensor(shape, dtype).npu()
     a = x.unsqueeze(1)
 
     output = torch.randint(1, (shape[0], 1), dtype=eval('torch.' + dtype)).npu()
@@ -58,13 +58,13 @@ def fn_npu_2d(output_ptr, x_ptr, YB: tl.constexpr, ZB: tl.constexpr):
 @pytest.mark.parametrize('shape', TestUtils.test_shape2d)
 @pytest.mark.parametrize('dtype', TestUtils.full_dtype)
 def test_expand_dims_2d(shape, dtype):
-    x = test_common.generate_tensor(shape,dtype).npu()
+    x = test_common.generate_tensor(shape, dtype).npu()
     a = x.unsqueeze(1)
 
     output = torch.randint(1, (shape[0], 1, shape[1]), dtype=eval('torch.' + dtype)).npu()
 
-    if x.numel()*x.element_size()>8192:
-        fn_npu_2d[shape[0],1 ,1](output, x, YB=1, ZB=shape[1])
+    if x.numel() * x.element_size() > 8192:
+        fn_npu_2d[shape[0], 1, 1](output, x, YB=1, ZB=shape[1])
     else:
         fn_npu_2d[1, 1, 1](output, x, YB=shape[0], ZB=shape[1])
 
@@ -83,8 +83,8 @@ def fn_npu_3d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.cons
 
     ret = tl.expand_dims(X, 2)
 
-    oidx = xidx[:, None, None, None] * YB * ZB + yidx[None, :, None, None] * ZB + tl.arange(0, 1)[None, None, :,
-                                                                                  None] + zidx[None, None, None, :]
+    oidx = xidx[:, None, None, None] * YB * ZB + yidx[None, :, None, None] * ZB + tl.arange(
+        0, 1)[None, None, :, None] + zidx[None, None, None, :]
 
     tl.store(output_ptr + oidx, ret)
 
@@ -92,7 +92,7 @@ def fn_npu_3d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.cons
 @pytest.mark.parametrize('dtype', TestUtils.full_dtype)
 @pytest.mark.parametrize('shape', TestUtils.test_shape3d)
 def test_expand_dims_3d(dtype, shape):
-    x = test_common.generate_tensor(shape,dtype).npu()
+    x = test_common.generate_tensor(shape, dtype).npu()
     a = x.unsqueeze(2)
 
     output = torch.randint(1, (shape[0], shape[1], 1, shape[2]), dtype=eval('torch.' + dtype)).npu()
@@ -103,7 +103,8 @@ def test_expand_dims_3d(dtype, shape):
 
 
 @triton.jit
-def fn_npu_multi_d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr, NB: tl.constexpr, DIMS: tl.constexpr, DIM: tl.constexpr):
+def fn_npu_multi_d(output_ptr, x_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, MB: tl.constexpr,
+                   NB: tl.constexpr, DIMS: tl.constexpr, DIM: tl.constexpr):
     in_offsets = tl.arange(0, XB) * (YB * ZB * MB * NB)
     if DIMS > 1:
         in_offsets = in_offsets[:, None] + tl.arange(0, YB)[None, :] * (ZB * MB * NB)

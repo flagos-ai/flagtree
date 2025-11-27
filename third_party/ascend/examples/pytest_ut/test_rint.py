@@ -28,16 +28,15 @@ def triton_rint(in_ptr0, out_ptr0, XBLOCK: tl.constexpr, XBLOCK_SUB: tl.constexp
         tl.store(out_ptr0 + (x0), tmp1, None)
 
 
-@pytest.mark.parametrize('param_list',
-                         [
-                             ['float32', (2, 4096, 8), 32, 2048, 64],
-                         ])
+@pytest.mark.parametrize('param_list', [
+    ['float32', (2, 4096, 8), 32, 2048, 64],
+])
 def test_rint(param_list):
     dtype, shape, ncore, xblock, xblock_sub = param_list
     x0 = test_common.generate_tensor(shape, dtype)
     y_ref = torch_rint(x0)
     tyname = test_common.get_triton_sig_typename(dtype)
-    
+
     y_cal = torch.zeros(shape, dtype=eval('torch.' + dtype)).npu()
     x0 = x0.npu()
     triton_rint[ncore, 1, 1](x0, y_cal, xblock, xblock_sub, debug=True)

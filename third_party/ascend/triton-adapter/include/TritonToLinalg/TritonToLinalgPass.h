@@ -57,7 +57,8 @@ private:
   void addProgramInfo(triton::FuncOp func, bool globalKernel);
 
   template <typename OpTy>
-  void addTensorKindToArguments(OpTy op, triton::FuncOp func, TensorKind tensorKind);
+  void addTensorKindToArguments(OpTy op, triton::FuncOp func,
+                                TensorKind tensorKind);
 
   void convertTTFunc(triton::FuncOp func, const bool existDot);
 

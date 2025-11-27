@@ -498,7 +498,7 @@ class CodeGenerator(ast.NodeVisitor):
                not isinstance(value, native_nontensor_types):
                 value = language.semantic.to_tensor(value, self.builder)
             self.set_value(name, value)
-        
+
         # flagtree: After normal processing, check if we need to add hint annotation
         if hasattr(node, 'lineno') and hasattr(self, 'jit_fn'):
             line_num = node.lineno
@@ -506,15 +506,12 @@ class CodeGenerator(ast.NodeVisitor):
             function_def = self.jit_fn.parse()
             line_flagtree_hints = getattr(function_def.body[0], 'line_flagtree_hints', {})
             flagtree_hints = line_flagtree_hints.get(line_num)
-            
+
             # Check if this is a tl.load call with dot_pad_only_k hint
-            if (flagtree_hints and 'dot_pad_only_k' in flagtree_hints and
-                isinstance(node.value, ast.Call) and 
-                isinstance(node.value.func, ast.Attribute) and
-                isinstance(node.value.func.value, ast.Name) and 
-                node.value.func.value.id == 'tl' and 
-                node.value.func.attr == 'load'):
-                
+            if (flagtree_hints and 'dot_pad_only_k' in flagtree_hints and isinstance(node.value, ast.Call)
+                    and isinstance(node.value.func, ast.Attribute) and isinstance(node.value.func.value, ast.Name)
+                    and node.value.func.value.id == 'tl' and node.value.func.attr == 'load'):
+
                 # Add hint annotation to the loaded tensor(s)
                 for name, value in zip(names, values):
                     if _is_triton_value(value):
@@ -943,7 +940,7 @@ class CodeGenerator(ast.NodeVisitor):
             step = iter_args[2] if len(iter_args) > 2 else self.visit(ast.Num(1))
         else:
             raise RuntimeError('Only `range` and `static_range` iterators are currently supported')
-        
+
         # flagtree: After normal processing, check if we need to override bind_sub_block
         if hasattr(node, 'lineno') and hasattr(self, 'jit_fn'):
             line_num = node.lineno
@@ -951,12 +948,12 @@ class CodeGenerator(ast.NodeVisitor):
             function_def = self.jit_fn.parse()
             line_flagtree_hints = getattr(function_def.body[0], 'line_flagtree_hints', {})
             flagtree_hints = line_flagtree_hints.get(line_num)
-            
+
             # Check if this is a range/for loop with bind_sub_block hint
             if flagtree_hints and 'bind_sub_block' in flagtree_hints:
                 bind_sub_block = True
                 # print(f"[FLAGTREE] Found bind_sub_block hint at line {line_num}")
-        
+
         # handle negative constant step (not supported by scf.for in MLIR)
         negative_step = False
         if _is_constexpr(step) and step.value < 0:

@@ -5,8 +5,8 @@ import triton.language as tl
 
 @triton.jit
 def if_tensor_kernel(
-        kv_start_idx,  # tensor
-        output_ptr,
+    kv_start_idx,  # tensor
+    output_ptr,
 ):
     pid = tl.program_id(0)
     if kv_start_idx:
@@ -21,8 +21,9 @@ def test_kernel():
 
     kv_start_idx = torch.arange(n, dtype=torch.float32, device=device)
     output1 = torch.zeros(n, dtype=torch.float32, device=device)
-    if_tensor_kernel[(n,)](
-        kv_start_idx, output1,
+    if_tensor_kernel[(n, )](
+        kv_start_idx,
+        output1,
     )
 
     expected = torch.arange(n, dtype=torch.float32, device=device)

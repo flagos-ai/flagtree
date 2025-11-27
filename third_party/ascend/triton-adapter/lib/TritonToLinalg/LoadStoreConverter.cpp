@@ -5,8 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "TritonToLinalg/BlockPtrAnalysis.h"
 #include "TritonToLinalg/LoadStoreConverter.h"
+#include "TritonToLinalg/BlockPtrAnalysis.h"
 #include "TritonToLinalg/MaskAnalysis.h"
 #include "TritonToLinalg/TritonToLinalgPass.h"
 #include "Utils/InterleaveOptimization.h"
@@ -54,7 +54,8 @@ namespace LoadStoreConverter {
 using namespace mlir;
 using namespace triton;
 
-const std::string MayImplicitTransposeWithLastAxisTAG = "MayImplicitTransposeWithLastAxis";
+const std::string MayImplicitTransposeWithLastAxisTAG =
+    "MayImplicitTransposeWithLastAxis";
 
 LogicalResult
 AddPtrConverter::matchAndRewrite(triton::AddPtrOp op, OpAdaptor adaptor,
@@ -66,13 +67,15 @@ AddPtrConverter::matchAndRewrite(triton::AddPtrOp op, OpAdaptor adaptor,
 
 LogicalResult LoadConverter::toTensorAndReplace(
     triton::LoadOp &op, RankedTensorType &tensorType, memref::AllocOp &allocOp,
-    bool mayImplicitTransposeWithLastAxis, const Location &loc, ConversionPatternRewriter &rewriter) const {
-  
+    bool mayImplicitTransposeWithLastAxis, const Location &loc,
+    ConversionPatternRewriter &rewriter) const {
+
   Value loadedTensor = rewriter.create<bufferization::ToTensorOp>(
       loc, tensorType, allocOp, true, true);
-  if(mayImplicitTransposeWithLastAxis){
+  if (mayImplicitTransposeWithLastAxis) {
     auto markOp = rewriter.create<annotation::MarkOp>(loc, loadedTensor);
-    markOp->setAttr(MayImplicitTransposeWithLastAxisTAG, UnitAttr::get(rewriter.getContext()));
+    markOp->setAttr(MayImplicitTransposeWithLastAxisTAG,
+                    UnitAttr::get(rewriter.getContext()));
   }
   rewriter.replaceOp(op, loadedTensor);
   return success();
@@ -210,39 +213,52 @@ LoadConverter::matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
     auto resTy = op.getResult().getType();
     auto idxZero =
         rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
-    auto allocOp = rewriter.create<memref::AllocOp>(loc, MemRefType::get({1}, resTy));
-    auto srcSubView = mlir::ConverterUtils::makeSubViewOp(ptr, {rewriter.getIndexAttr(1)}, loc, rewriter);
+    auto allocOp =
+        rewriter.create<memref::AllocOp>(loc, MemRefType::get({1}, resTy));
+    auto srcSubView = mlir::ConverterUtils::makeSubViewOp(
+        ptr, {rewriter.getIndexAttr(1)}, loc, rewriter);
     rewriter.create<memref::CopyOp>(loc, srcSubView, allocOp);
-    auto loadedTensor =  rewriter.create<bufferization::ToTensorOp>(
-           loc, RankedTensorType::get({1}, resTy), allocOp, true /* restrict */, true /* writable */);
-    auto loadedValue = rewriter.create<tensor::ExtractOp>(loc, resTy, loadedTensor, ValueRange({idxZero})).getResult();
+    auto loadedTensor = rewriter.create<bufferization::ToTensorOp>(
+        loc, RankedTensorType::get({1}, resTy), allocOp, true /* restrict */,
+        true /* writable */);
+    auto loadedValue = rewriter
+                           .create<tensor::ExtractOp>(loc, resTy, loadedTensor,
+                                                      ValueRange({idxZero}))
+                           .getResult();
     if (mask && other) {
-      mask = rewriter.create<triton::SplatOp>(loc, RankedTensorType::get({1}, mask.getType()), mask);
-      loadedValue = rewriter.create<triton::SplatOp>(loc, RankedTensorType::get({1}, loadedValue.getType()), loadedValue);
-      other = rewriter.create<triton::SplatOp>(loc, RankedTensorType::get({1}, other.getType()), other);
-      loadedValue = rewriter.create<arith::SelectOp>(loc, mask, loadedValue, other);
-      rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, loadedValue, ValueRange({idxZero}));
+      mask = rewriter.create<triton::SplatOp>(
+          loc, RankedTensorType::get({1}, mask.getType()), mask);
+      loadedValue = rewriter.create<triton::SplatOp>(
+          loc, RankedTensorType::get({1}, loadedValue.getType()), loadedValue);
+      other = rewriter.create<triton::SplatOp>(
+          loc, RankedTensorType::get({1}, other.getType()), other);
+      loadedValue =
+          rewriter.create<arith::SelectOp>(loc, mask, loadedValue, other);
+      rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, loadedValue,
+                                                     ValueRange({idxZero}));
     } else {
       rewriter.replaceOp(op, loadedValue);
     }
     return success();
   }
 
-  int64_t lastStride=-1;
+  int64_t lastStride = -1;
   if (isa<BlockArgument>(ptr)) {
     auto u = ptr;
     while (auto blkArg = dyn_cast<BlockArgument>(u)) {
       if (auto forOp = dyn_cast<scf::ForOp>(blkArg.getOwner()->getParentOp())) {
-        auto prt = forOp->getOperand(3+blkArg.getArgNumber()-1);
+        auto prt = forOp->getOperand(3 + blkArg.getArgNumber() - 1);
         u = prt;
       } else {
-        u=nullptr;
+        u = nullptr;
         break;
       }
     }
     if (u && isa<memref::ReinterpretCastOp>(u.getDefiningOp())) {
-      auto ret = mlir::ConverterUtils::getLastStrideOfReinterpretCastOp(dyn_cast<memref::ReinterpretCastOp>(u.getDefiningOp()));
-      if (ret.has_value()) lastStride = *ret;
+      auto ret = mlir::ConverterUtils::getLastStrideOfReinterpretCastOp(
+          dyn_cast<memref::ReinterpretCastOp>(u.getDefiningOp()));
+      if (ret.has_value())
+        lastStride = *ret;
     }
   }
 
@@ -252,8 +268,11 @@ LoadConverter::matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
     return rewriter.notifyMatchFailure(
         op, "LoadOp expects a memref, not a memref of pointers");
   }
-  bool mayImplicitTransposeWithLastAxis = (existDotFlag) && (!op->hasAttr(ConverterUtils::GeneratedByMakeTensorPtrTAG)) &&
-    (lastStride != 1 && mlir::ConverterUtils::isaPermutedMemRefType(memRefType));
+  bool mayImplicitTransposeWithLastAxis =
+      (existDotFlag) &&
+      (!op->hasAttr(ConverterUtils::GeneratedByMakeTensorPtrTAG)) &&
+      (lastStride != 1 &&
+       mlir::ConverterUtils::isaPermutedMemRefType(memRefType));
   auto memRefShape = memRefType.getShape();
   auto memRefElementType = memRefType.getElementType();
 
@@ -291,9 +310,12 @@ LoadConverter::matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
     rewriter.create<memref::CopyOp>(loc, srcSubView, dstSubview);
     if (mayImplicitTransposeWithLastAxis) {
       auto markOp = rewriter.create<annotation::MarkOp>(loc, dstSubview);
-      markOp->setAttr(MayImplicitTransposeWithLastAxisTAG, UnitAttr::get(rewriter.getContext()));
+      markOp->setAttr(MayImplicitTransposeWithLastAxisTAG,
+                      UnitAttr::get(rewriter.getContext()));
     }
-    return this->toTensorAndReplace(op, tensorType, allocOp, mayImplicitTransposeWithLastAxis, loc, rewriter);
+    return this->toTensorAndReplace(op, tensorType, allocOp,
+                                    mayImplicitTransposeWithLastAxis, loc,
+                                    rewriter);
   }
 
   if (!mask) {
@@ -315,11 +337,14 @@ LoadConverter::matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
       rewriter.create<memref::CopyOp>(loc, ptr, allocOp);
       if (mayImplicitTransposeWithLastAxis) {
         auto markOp = rewriter.create<annotation::MarkOp>(loc, allocOp);
-        markOp->setAttr(MayImplicitTransposeWithLastAxisTAG, UnitAttr::get(rewriter.getContext()));
+        markOp->setAttr(MayImplicitTransposeWithLastAxisTAG,
+                        UnitAttr::get(rewriter.getContext()));
       }
     }
 
-    return this->toTensorAndReplace(op, tensorType, allocOp, mayImplicitTransposeWithLastAxis, loc, rewriter);
+    return this->toTensorAndReplace(op, tensorType, allocOp,
+                                    mayImplicitTransposeWithLastAxis, loc,
+                                    rewriter);
   }
 
   MaskState mstate;
@@ -369,10 +394,12 @@ LoadConverter::matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
     rewriter.create<memref::CopyOp>(loc, srcSubView, dstSubView);
     if (mayImplicitTransposeWithLastAxis) {
       auto markOp = rewriter.create<annotation::MarkOp>(loc, dstSubView);
-      markOp->setAttr(MayImplicitTransposeWithLastAxisTAG, UnitAttr::get(rewriter.getContext()));
+      markOp->setAttr(MayImplicitTransposeWithLastAxisTAG,
+                      UnitAttr::get(rewriter.getContext()));
     }
   }
-  return this->toTensorAndReplace(op, tensorType, allocOp, mayImplicitTransposeWithLastAxis, loc, rewriter);
+  return this->toTensorAndReplace(
+      op, tensorType, allocOp, mayImplicitTransposeWithLastAxis, loc, rewriter);
 }
 
 AtomicRMWConverter::AtomicRMWConverter(MLIRContext *context)
@@ -440,7 +467,8 @@ AtomicRMWConverter::matchAndRewrite(triton::AtomicRMWOp op, OpAdaptor adaptor,
   // any more in latest LLVM(triton LLVM dependency has involed this), so we
   // need to convert tensor to buffer early.
   auto dstOriType = cast<MemRefType>(dstMemref.getType());
-  MemRefType dstType = MemRefType::get(dstOriType.getShape(), dstOriType.getElementType());
+  MemRefType dstType =
+      MemRefType::get(dstOriType.getShape(), dstOriType.getElementType());
   Value inputMemref =
       rewriter.create<bufferization::ToMemrefOp>(loc, dstType, val);
 
@@ -535,7 +563,6 @@ AtomicRMWConverter::matchAndRewrite(triton::AtomicRMWOp op, OpAdaptor adaptor,
   if (softwareAtomicKinds.contains(op.getAtomicRmwOp()))
     linalgOp->setAttr("Software", rewriter.getUnitAttr());
 
-
   // tt.atomicRMW op has two part of feature
   // 1. load the old data at the ptr
   // 2. atomically store the data on ub to the ptr
@@ -601,7 +628,8 @@ AtomicCASConverter::matchAndRewrite(triton::AtomicCASOp op, OpAdaptor adaptor,
   // any more in latest LLVM(triton LLVM dependency has involed this), so we
   // need to convert tensor to buffer early.
   auto dstOriType = cast<MemRefType>(dstMemref.getType());
-  MemRefType dstType = MemRefType::get(dstOriType.getShape(), dstOriType.getElementType());
+  MemRefType dstType =
+      MemRefType::get(dstOriType.getShape(), dstOriType.getElementType());
   Value inputMemref =
       rewriter.create<bufferization::ToMemrefOp>(loc, dstType, val);
 
@@ -715,20 +743,19 @@ ScalarStoreCanonicalizer::matchAndRewrite(triton::StoreOp op,
   auto mask = op.getMask();
   auto value = op.getValue();
   if (mask) {
-    rewriter.replaceOpWithNewOp<scf::IfOp>(op, mask,
-      [&](OpBuilder &b, Location loc) {
-        b.create<triton::StoreOp>(
-          loc, ptr, value, op.getCache(), op.getEvict());
-        b.create<scf::YieldOp>(loc);
-    });
+    rewriter.replaceOpWithNewOp<scf::IfOp>(
+        op, mask, [&](OpBuilder &b, Location loc) {
+          b.create<triton::StoreOp>(loc, ptr, value, op.getCache(),
+                                    op.getEvict());
+          b.create<scf::YieldOp>(loc);
+        });
     return success();
   }
 
   auto ptrTy = RankedTensorType::get({(int64_t)1}, ptr.getType());
   auto ptrSplat = rewriter.create<triton::SplatOp>(op.getLoc(), ptrTy, ptr);
   auto valTy = RankedTensorType::get({(int64_t)1}, value.getType());
-  auto valSplat =
-      rewriter.create<triton::SplatOp>(op.getLoc(), valTy, value);
+  auto valSplat = rewriter.create<triton::SplatOp>(op.getLoc(), valTy, value);
   auto newStoreOp = rewriter.create<triton::StoreOp>(
       op.getLoc(), ptrSplat, valSplat, op.getCache(), op.getEvict());
   rewriter.replaceOp(op, newStoreOp);
@@ -758,7 +785,8 @@ ScalarAtomicRMWCanonicalizer::matchAndRewrite(triton::AtomicRMWOp op,
       op.getSem(), op.getScope());
   auto idxZero =
       rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getIndexAttr(0));
-  rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, newAtomicOp, ValueRange({idxZero}));
+  rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, newAtomicOp,
+                                                 ValueRange({idxZero}));
   return success();
 }
 
@@ -786,7 +814,8 @@ ScalarAtomicCASCanonicalizer::matchAndRewrite(triton::AtomicCASOp op,
       op.getScope());
   auto idxZero =
       rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getIndexAttr(0));
-  rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, newAtomicOp, ValueRange({idxZero}));
+  rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, newAtomicOp,
+                                                 ValueRange({idxZero}));
   return success();
 }
 
@@ -937,16 +966,17 @@ StoreConverter::matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
   // 1. boundary size check
   auto boundaryCheck = op.getBoundaryCheck();
   if (!boundaryCheck.empty()) {
-      auto boundarySizes = mlir::ConverterUtils::getBoundarySizes(
+    auto boundarySizes = mlir::ConverterUtils::getBoundarySizes(
         boundaryCheck, /*remapped*/ ptr, loc, rewriter);
-      auto srcSlice = mlir::ConverterUtils::makeExtractSliceOp(val, boundarySizes, loc, rewriter);
-      auto dstSubview = mlir::ConverterUtils::makeSubViewOp(ptr, boundarySizes, loc, rewriter);
-      auto storeOp =
-      rewriter.create<bufferization::MaterializeInDestinationOp>(
-          loc, srcSlice, dstSubview);
-      storeOp.setWritable(true);
-      rewriter.eraseOp(op);
-      return success();
+    auto srcSlice = mlir::ConverterUtils::makeExtractSliceOp(val, boundarySizes,
+                                                             loc, rewriter);
+    auto dstSubview =
+        mlir::ConverterUtils::makeSubViewOp(ptr, boundarySizes, loc, rewriter);
+    auto storeOp = rewriter.create<bufferization::MaterializeInDestinationOp>(
+        loc, srcSlice, dstSubview);
+    storeOp.setWritable(true);
+    rewriter.eraseOp(op);
+    return success();
   }
 
   // 2. Simple load with no mask

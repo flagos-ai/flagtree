@@ -114,7 +114,8 @@ void triton::UseAnalysis::visitOperation(Operation *op,
         }
       })
       .Case<LoopLikeOpInterface>([&](auto loopOp) {
-        for (const auto &[yield, init, result]: llvm::zip_equal(loopOp.getYieldedValues(), loopOp.getInits(), results)) {
+        for (const auto &[yield, init, result] : llvm::zip_equal(
+                 loopOp.getYieldedValues(), loopOp.getInits(), results)) {
           propagateResults(getLatticeElement(yield), {result});
           propagateResults(getLatticeElement(init), {result});
         }
@@ -132,31 +133,33 @@ void triton::UseAnalysis::visitOperation(Operation *op,
 
 void setMixUseRecursively(Operation *rootOp, bool applyRoot = true) {
   traverseBackwardUpdateOperandChainIf(
-    rootOp,
-    // ConditionFn
-    [rootOp, applyRoot](Operation *curOp) {
-      for (auto res : curOp->getResults()) {
-        auto tensorType = dyn_cast<RankedTensorType>(res.getType());
-        if (tensorType && isa<triton::PointerType>(tensorType.getElementType()))
-          return false;
-      }
-      return isMetaUse(curOp) && (curOp != rootOp || applyRoot);
-    },
-    // StopFn
-    [rootOp](Operation *curOp) {
-      return isa<triton::LoadOp>(curOp) && curOp != rootOp;
-    },
-    // ActionFn
-    [](OpBuilder &b, Operation *op) {
-      LLVM_DEBUG({ op->setAttr("MixUse", UnitAttr::get(b.getContext())); });
-      op->removeAttr("MetaUse");
-    });
+      rootOp,
+      // ConditionFn
+      [rootOp, applyRoot](Operation *curOp) {
+        for (auto res : curOp->getResults()) {
+          auto tensorType = dyn_cast<RankedTensorType>(res.getType());
+          if (tensorType &&
+              isa<triton::PointerType>(tensorType.getElementType()))
+            return false;
+        }
+        return isMetaUse(curOp) && (curOp != rootOp || applyRoot);
+      },
+      // StopFn
+      [rootOp](Operation *curOp) {
+        return isa<triton::LoadOp>(curOp) && curOp != rootOp;
+      },
+      // ActionFn
+      [](OpBuilder &b, Operation *op) {
+        LLVM_DEBUG({ op->setAttr("MixUse", UnitAttr::get(b.getContext())); });
+        op->removeAttr("MetaUse");
+      });
 }
 
-void postProcessLoopOp(LoopLikeOpInterface loopOp, const DataFlowSolver &solver) {
+void postProcessLoopOp(LoopLikeOpInterface loopOp,
+                       const DataFlowSolver &solver) {
   for (const auto &[res, yield, regionArg] :
-        llvm::zip_equal(loopOp->getResults(), loopOp.getYieldedValues(),
-                        loopOp.getRegionIterArgs())) {
+       llvm::zip_equal(loopOp->getResults(), loopOp.getYieldedValues(),
+                       loopOp.getRegionIterArgs())) {
     auto *defOp = yield.getDefiningOp();
     bool isMixUse = false;
     if (!defOp)
@@ -166,7 +169,7 @@ void postProcessLoopOp(LoopLikeOpInterface loopOp, const DataFlowSolver &solver)
       auto defOp = v.getDefiningOp();
       auto *use = solver.lookupState<UseInfo>(v);
       if (use && use->type == UseType::DataUse)
-          return true;
+        return true;
       if (v == target)
         return false;
       if (!defOp)
@@ -237,7 +240,8 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
       LLVM_DEBUG({ op->setAttr("Undefined", UnitAttr::get(context)); });
       return;
     } else if (useType == UseType::MetaUse) {
-      if (!isa<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp, triton::ReduceOp>(op)) {
+      if (!isa<mlir::scf::IfOp, mlir::scf::ForOp, mlir::scf::WhileOp,
+               triton::ReduceOp>(op)) {
         assert(op->getNumResults() == 1 &&
                "Ops used for meta computation are expected to have one result");
       }
@@ -245,7 +249,7 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
         // Only set the tag if the operation uses tensors
         if (isa<ShapedType>(op->getResult(it).getType()) ||
             (isa<triton::LoadOp>(op) &&
-            op->hasAttr(ConverterUtils::discreteAttrName)) ||
+             op->hasAttr(ConverterUtils::discreteAttrName)) ||
             (isa<triton::BitcastOp>(op) &&
              isa<PointerType>(op->getResult(it).getType()))) {
           // Setting tag for erasing op later
@@ -388,7 +392,8 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
           },
           /*actionFn*/
           [](OpBuilder &b, Operation *op) {
-            LLVM_DEBUG({ op->setAttr("MixUse", UnitAttr::get(b.getContext())); });
+            LLVM_DEBUG(
+                { op->setAttr("MixUse", UnitAttr::get(b.getContext())); });
             op->removeAttr("MetaUse");
           },
           stopOps);

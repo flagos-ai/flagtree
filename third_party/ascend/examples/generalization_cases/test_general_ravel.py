@@ -12,9 +12,8 @@ import math
 
 
 @triton.jit
-def fn_npu_(output_ptr, x_ptr, y_ptr,
-            XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr,
-            XNUMEL: tl.constexpr, YNUMEL: tl.constexpr, ZNUMEL: tl.constexpr):
+def fn_npu_(output_ptr, x_ptr, y_ptr, XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, XNUMEL: tl.constexpr,
+            YNUMEL: tl.constexpr, ZNUMEL: tl.constexpr):
     xoffs = tl.program_id(0) * XB
     yoffs = tl.program_id(1) * YB
     zoffs = tl.program_id(2) * ZB
@@ -35,15 +34,10 @@ def fn_npu_(output_ptr, x_ptr, y_ptr,
 
 
 @triton.jit
-def triton_ravel_4d_5d(
-        output_ptr, x_ptr,
-        BLOCK_0: tl.constexpr, BLOCK_1: tl.constexpr, BLOCK_2: tl.constexpr, BLOCK_3: tl.constexpr,
-        BLOCK_4: tl.constexpr,
-        SHAPE_0: tl.constexpr, SHAPE_1: tl.constexpr, SHAPE_2: tl.constexpr, SHAPE_3: tl.constexpr,
-        SHAPE_4: tl.constexpr,
-        STRIDE_0: tl.constexpr, STRIDE_1: tl.constexpr, STRIDE_2: tl.constexpr, STRIDE_3: tl.constexpr,
-        STRIDE_4: tl.constexpr
-):
+def triton_ravel_4d_5d(output_ptr, x_ptr, BLOCK_0: tl.constexpr, BLOCK_1: tl.constexpr, BLOCK_2: tl.constexpr,
+                       BLOCK_3: tl.constexpr, BLOCK_4: tl.constexpr, SHAPE_0: tl.constexpr, SHAPE_1: tl.constexpr,
+                       SHAPE_2: tl.constexpr, SHAPE_3: tl.constexpr, SHAPE_4: tl.constexpr, STRIDE_0: tl.constexpr,
+                       STRIDE_1: tl.constexpr, STRIDE_2: tl.constexpr, STRIDE_3: tl.constexpr, STRIDE_4: tl.constexpr):
     offsets = tl.program_id(0)
 
     offsets = offsets + tl.arange(0, BLOCK_0) * STRIDE_0
@@ -78,7 +72,7 @@ def test_ravel(shape, dtype):
     logging.log(logging.DEBUG, f"shape = {shape}")
     x = torch.full(shape, 100, dtype=eval('torch.' + dtype)).npu()
     y = torch.full(shape, 30, dtype=eval('torch.' + dtype)).npu()
-    new_shape = (x.numel(),)
+    new_shape = (x.numel(), )
 
     output = torch.randint(1, new_shape, dtype=eval('torch.' + dtype)).npu()
     output1 = output
@@ -87,25 +81,25 @@ def test_ravel(shape, dtype):
     ans = torch.ravel(x)
 
     if len(shape) == 1:
-        XB = 1;
+        XB = 1
         xnumel = 1
-        YB = 1;
+        YB = 1
         ynumel = 1
-        ZB = shape[0];
+        ZB = shape[0]
         znumel = shape[0]
     elif len(shape) == 2:
-        XB = 1;
+        XB = 1
         xnumel = 1
-        YB = shape[0];
+        YB = shape[0]
         ynumel = shape[0]
-        ZB = shape[1];
+        ZB = shape[1]
         znumel = shape[1]
     else:
-        XB = shape[0];
+        XB = shape[0]
         xnumel = shape[0]
-        YB = shape[1];
+        YB = shape[1]
         ynumel = shape[1]
-        ZB = shape[2];
+        ZB = shape[2]
         znumel = shape[2]
 
     grid = (1, 1, 1)
@@ -131,7 +125,7 @@ def test_ravel_4d_5d(shape, dtype):
     logging.log(logging.DEBUG, f"shape = {shape}")
     x = torch.full(shape, 100, dtype=eval('torch.' + dtype)).npu()
 
-    output = torch.randint(1, (x.numel(),), dtype=eval('torch.' + dtype)).npu()
+    output = torch.randint(1, (x.numel(), ), dtype=eval('torch.' + dtype)).npu()
     logging.log(logging.DEBUG, f"output.dtype={output.dtype}")
 
     ans = torch.ravel(x)
@@ -142,7 +136,7 @@ def test_ravel_4d_5d(shape, dtype):
         blocks.append(1)
         strides.append(1)
 
-    grid = (1,)
+    grid = (1, )
     triton_ravel_4d_5d[grid](output, x, *blocks, *blocks, *strides)
 
     test_common.validate_cmp(dtype, ans, output)

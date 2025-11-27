@@ -25,9 +25,8 @@ def _reduce_combine(a, b):
 
 
 @triton.jit
-def tt_reduce_1d(in_ptr, out_ptr,
-                 xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
-                 XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
+def tt_reduce_1d(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr, XB: tl.constexpr,
+                 YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     idx = tl.arange(0, XB)
     x = tl.load(in_ptr + idx)
     ret = tl.reduce(x, dim, _reduce_combine)
@@ -35,9 +34,8 @@ def tt_reduce_1d(in_ptr, out_ptr,
 
 
 @triton.jit
-def tt_reduce_2d(in_ptr, out_ptr,
-                 xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
-                 XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
+def tt_reduce_2d(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr, XB: tl.constexpr,
+                 YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     xoffs = tl.program_id(0) * XB
     yoffs = tl.program_id(1) * YB
     xidx = tl.arange(0, XB) + xoffs
@@ -55,8 +53,7 @@ def tt_reduce_2d(in_ptr, out_ptr,
 
 
 @triton.jit
-def tt_reduce_1d_dim_none(in_ptr, out_ptr,
-                          xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_reduce_1d_dim_none(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                           XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     idx = tl.arange(0, XB)
     x = tl.load(in_ptr + idx)
@@ -65,8 +62,7 @@ def tt_reduce_1d_dim_none(in_ptr, out_ptr,
 
 
 @triton.jit
-def tt_reduce_2d_dim_none(in_ptr, out_ptr,
-                          xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_reduce_2d_dim_none(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                           XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     xoffs = tl.program_id(0) * XB
     yoffs = tl.program_id(1) * YB
@@ -81,8 +77,7 @@ def tt_reduce_2d_dim_none(in_ptr, out_ptr,
 
 
 @triton.jit
-def tt_reduce_3d_dim_none(in_ptr, out_ptr,
-                          xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_reduce_3d_dim_none(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                           XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     xoffs = tl.program_id(0) * XB
     yoffs = tl.program_id(1) * YB
@@ -101,9 +96,8 @@ def tt_reduce_3d_dim_none(in_ptr, out_ptr,
 
 
 @triton.jit
-def tt_reduce_3d(in_ptr, out_ptr,
-                 xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
-                 XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
+def tt_reduce_3d(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr, XB: tl.constexpr,
+                 YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     xoffs = tl.program_id(0) * XB
     yoffs = tl.program_id(1) * YB
     zoffs = tl.program_id(2) * ZB
@@ -128,8 +122,7 @@ def tt_reduce_3d(in_ptr, out_ptr,
 
 
 @triton.jit
-def tt_reduce_3d_0_1(in_ptr, out_ptr,
-                     xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_reduce_3d_0_1(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                      XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
@@ -147,8 +140,7 @@ def tt_reduce_3d_0_1(in_ptr, out_ptr,
 
 
 @triton.jit
-def tt_reduce_3d_0_2(in_ptr, out_ptr,
-                     xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_reduce_3d_0_2(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                      XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
@@ -166,8 +158,7 @@ def tt_reduce_3d_0_2(in_ptr, out_ptr,
 
 
 @triton.jit
-def tt_reduce_3d_1_2(in_ptr, out_ptr,
-                     xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
+def tt_reduce_3d_1_2(in_ptr, out_ptr, xnumel: tl.constexpr, ynumel: tl.constexpr, znumel: tl.constexpr,
                      XB: tl.constexpr, YB: tl.constexpr, ZB: tl.constexpr, dim: tl.constexpr):
     xidx = tl.arange(0, XB)
     yidx = tl.arange(0, YB)
@@ -189,16 +180,11 @@ def is_legal_combine(shape, dims):
         (len(dims) == 1 and dims[0] < len(shape))
 
 
-dims_map = {
-    (0, 1): tt_reduce_3d_0_1,
-    (1, 2): tt_reduce_3d_1_2,
-    (0, 2): tt_reduce_3d_0_2
-}
+dims_map = {(0, 1): tt_reduce_3d_0_1, (1, 2): tt_reduce_3d_1_2, (0, 2): tt_reduce_3d_0_2}
 
 shape_map = {
-    1: {"append_shape": (1, 1), "func": tt_reduce_1d},
-    2: {"append_shape": (1,), "func": tt_reduce_2d},
-    3: {"append_shape": (), "func": tt_reduce_3d}
+    1: {"append_shape": (1, 1), "func": tt_reduce_1d}, 2: {"append_shape": (1, ), "func": tt_reduce_2d}, 3:
+    {"append_shape": (), "func": tt_reduce_3d}
 }
 
 
@@ -212,7 +198,7 @@ def reduce_check_ub_mem_overflow(dtype, shape):
 
 @pytest.mark.parametrize('shape', random.sample(TestUtils.full_shape, 5))
 @pytest.mark.parametrize('dtype', TestUtils.full_dtype)
-@pytest.mark.parametrize('dims', [None, (0,), (1,), (2,), (0, 1), (1, 2), (0, 2)])
+@pytest.mark.parametrize('dims', [None, (0, ), (1, ), (2, ), (0, 1), (1, 2), (0, 2)])
 def test_reduce(dtype, shape, dims):
     if not is_legal_combine(shape, dims):
         return
@@ -290,7 +276,7 @@ def triton_reduce_multi_d(in_ptr, out_ptr, XB: tl.constexpr, YB: tl.constexpr, Z
     (4, 3, 8, 1),
 ])
 @pytest.mark.parametrize('dtype', TestUtils.full_dtype)
-@pytest.mark.parametrize('dims', [None, (0,), (1,), (2,), (3,)])
+@pytest.mark.parametrize('dims', [None, (0, ), (1, ), (2, ), (3, )])
 def test_reduce_4d(dtype, shape, dims):
     torch.manual_seed(0)
 
@@ -304,7 +290,7 @@ def test_reduce_4d(dtype, shape, dims):
     while len(triton_shape) < 5:
         triton_shape.append(1)
     reduce_numel = math.prod(triton_shape) // triton_shape[dim] if dim is not None else None
-    grid = (1,)
+    grid = (1, )
     triton_reduce_multi_d[grid](x, y_cal, *triton_shape, len(shape), dim, reduce_numel)
     test_common.validate_cmp(dtype, y_cal, y_ref)
 
@@ -315,7 +301,7 @@ def test_reduce_4d(dtype, shape, dims):
     (3, 4, 2, 8, 1),
 ])
 @pytest.mark.parametrize('dtype', TestUtils.full_dtype)
-@pytest.mark.parametrize('dims', [None, (0,), (1,), (2,), (3,), (4,)])
+@pytest.mark.parametrize('dims', [None, (0, ), (1, ), (2, ), (3, ), (4, )])
 def test_reduce_5d(dtype, shape, dims):
     torch.manual_seed(0)
 
@@ -329,6 +315,6 @@ def test_reduce_5d(dtype, shape, dims):
     while len(triton_shape) < 5:
         triton_shape.append(1)
     reduce_numel = math.prod(triton_shape) // triton_shape[dim] if dim is not None else None
-    grid = (1,)
+    grid = (1, )
     triton_reduce_multi_d[grid](x, y_cal, *triton_shape, len(shape), dim, reduce_numel)
     test_common.validate_cmp(dtype, y_cal, y_ref)

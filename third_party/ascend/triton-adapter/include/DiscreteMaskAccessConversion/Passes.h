@@ -12,7 +12,8 @@ namespace mlir {
 namespace triton {
 
 /// Creates a pass to convert Triton dialect to HIVM dialect.
-std::unique_ptr<OperationPass<ModuleOp>> createDiscreteMaskAccessConversionPass();
+std::unique_ptr<OperationPass<ModuleOp>>
+createDiscreteMaskAccessConversionPass();
 
 #define GEN_PASS_REGISTRATION
 #include "ascend/triton-adapter/include/DiscreteMaskAccessConversion/Passes.h.inc"

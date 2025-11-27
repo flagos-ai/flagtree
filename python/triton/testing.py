@@ -164,6 +164,7 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_m
     times = torch.tensor([s.elapsed_time(e) for s, e in zip(start_event, end_event)], dtype=torch.float)
     return _summarize_statistics(times, quantiles, return_mode)
 
+
 def collect_files(base_dir):
     import pandas as pd
     for root, dirs, files in os.walk(base_dir):
@@ -213,10 +214,7 @@ def do_bench_npu(fn, warmup=5, active=30, prof_dir=None, keep_res=False):
 
     experimental_config = torch_npu.profiler._ExperimentalConfig(
         aic_metrics=torch_npu.profiler.AiCMetrics.PipeUtilization,
-        profiler_level=torch_npu.profiler.ProfilerLevel.Level1,
-        l2_cache=False,
-        data_simplification=False
-    )
+        profiler_level=torch_npu.profiler.ProfilerLevel.Level1, l2_cache=False, data_simplification=False)
     skip_first = 1
     wait = 0
     repeat = 1
@@ -232,17 +230,16 @@ def do_bench_npu(fn, warmup=5, active=30, prof_dir=None, keep_res=False):
         base_path = os.path.join(runtime.cache.get_home_dir(), ".triton", "profile_results")
         torch_path = os.path.join(base_path, f"prof_{timestamp}_{process_name}-{pid}")
     with torch_npu.profiler.profile(
-        activities=[
-            torch_npu.profiler.ProfilerActivity.NPU
-        ],
-        schedule=torch_npu.profiler.schedule(wait=wait, warmup=warmup, active=active, repeat=repeat, skip_first=skip_first),
-        on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(torch_path),
-        record_shapes=False,
-        profile_memory=False,
-        with_stack=False,
-        with_flops=False,
-        with_modules=False,
-        experimental_config=experimental_config,
+            activities=[torch_npu.profiler.ProfilerActivity.NPU],
+            schedule=torch_npu.profiler.schedule(wait=wait, warmup=warmup, active=active, repeat=repeat,
+                                                 skip_first=skip_first),
+            on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(torch_path),
+            record_shapes=False,
+            profile_memory=False,
+            with_stack=False,
+            with_flops=False,
+            with_modules=False,
+            experimental_config=experimental_config,
     ) as prof:
         for _ in range(total):
             fn()
@@ -257,6 +254,7 @@ def do_bench_npu(fn, warmup=5, active=30, prof_dir=None, keep_res=False):
             shutil.rmtree(torch_path)
 
     return time
+
 
 def assert_close(x, y, atol=None, rtol=None, err_msg=''):
     """
@@ -609,6 +607,7 @@ def get_max_simd_tflops(dtype, clock_rate, device=None):
     tflops = num_subcores * clock_rate * ops_per_sub_core * 1e-9
     return tflops
 
+
 # Patch the triton language API here because triton's __init__.py
 # import testing in the last stages.
 from .language.tensor_descriptor import (
@@ -616,34 +615,10 @@ from .language.tensor_descriptor import (
     tensor_descriptor_type,
 )
 
-from .language.core_ext import (
-    dot,
-    cast,
-    gather,
-    get_element,
-    insert_slice,
-    extract_slice,
-    trans,
-    __add__,
-    __radd__,
-    __sub__,
-    __rsub__,
-    __mul__,
-    __rmul__,
-    __lshift__,
-    __rshift__,
-    parallel,
-    compile_hint,
-    make_tensor_descriptor,
-    load_tensor_descriptor,
-    store_tensor_descriptor,
-    multibuffer,
-    sync_block_all,
-    sync_block_set,
-    sync_block_wait,
-    dtype_to_ir,
-    sort
-)
+from .language.core_ext import (dot, cast, gather, get_element, insert_slice, extract_slice, trans, __add__, __radd__,
+                                __sub__, __rsub__, __mul__, __rmul__, __lshift__, __rshift__, parallel, compile_hint,
+                                make_tensor_descriptor, load_tensor_descriptor, store_tensor_descriptor, multibuffer,
+                                sync_block_all, sync_block_set, sync_block_wait, dtype_to_ir, sort)
 from .language.standard_ext import flip, sigmoid, softmax, isfinited, finitef, rint, atan2
 from .language.math_ext import (
     umulhi,
