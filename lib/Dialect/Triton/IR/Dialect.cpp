@@ -15,10 +15,6 @@
 #include "triton/Dialect/Triton/IR/Dialect.cpp.inc"
 #include "triton/Dialect/Triton/IR/TritonTypeInterfaces.cpp.inc"
 
-#if __has_include("triton/Dialect/Triton/IR/OpInterfaces.cpp.inc")
-#include "triton/Dialect/Triton/IR/OpInterfaces.cpp.inc"
-#endif
-
 using namespace mlir;
 using namespace mlir::triton;
 

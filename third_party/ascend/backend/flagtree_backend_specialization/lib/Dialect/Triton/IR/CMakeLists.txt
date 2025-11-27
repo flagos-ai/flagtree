@@ -1,4 +1,5 @@
 add_triton_library(FlagTree_ascend_TritonDialectTritonIR
+  Dialect.cpp
   Ops.cpp
   Traits.cpp
 
