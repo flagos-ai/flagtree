@@ -41,21 +41,29 @@ if(FLAGTREE_PLUGIN)
   add_definitions(-D__FLAGTREE_PLUGIN__)
 endif()
 
+# FLAGTREE SPEC LIB GET FUNC
+function(get_flagtree_backend_lib lib_name output_lib)
+  set(ret FlagTree_${FLAGTREE_BACKEND}_${lib_name})
+  if(NOT TARGET ${ret})
+    set(ret "")
+  endif()
+  set(${output_lib} ${ret} PARENT_SCOPE)
+endfunction()
+
+# FLAGTREE SPEC TD FILE GET FUNC
+function(set_flagtree_backend_td output_td td_filename)
+  set(ret ${td_filename})
+  file(RELATIVE_PATH relative_path "${PROJECT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
+  get_filename_component(BACKEND_SPEC_ROOT "${BACKEND_SPEC_INCLUDE_DIR}" DIRECTORY)
+  set(BACKEND_SPEC_TD ${BACKEND_SPEC_ROOT}/${relative_path}/${td_filename})
+  if(EXISTS ${BACKEND_SPEC_TD})
+    set(ret ${BACKEND_SPEC_TD})
+  endif()
+  set(${output_td} ${ret} PARENT_SCOPE)
+endfunction()
+
 project(triton)
 include(CTest)
-
-if (FLAGTREE_BACKEND STREQUAL "ascend")
-  set(TRITON_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-  set(PATCHED_TRITON_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ascend/triton_patch")
-  set(PATCHED_TRITON_LIBRARIES
-    "TritonIR"
-  )
-  set(PATCHED_TRITON_DEPENDS
-    "TritonTableGen"
-  )
-  include_directories(${PATCHED_TRITON_ROOT_DIR}/include)
-  include_directories(${PROJECT_BINARY_DIR}/third_party/ascend/triton_patch/include) # Tablegen'd files
-endif()
 
 if(NOT WIN32)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -99,7 +107,14 @@ if(TRITON_BUILD_UT)
 endif()
 
 # Compiler flags
-set(BACKEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/${FLAGTREE_BACKEND}/include)
+set(FLAGTREE_BACKEND_DIR ${PROJECT_SOURCE_DIR}/third_party/${FLAGTREE_BACKEND})
+## flagtree spec include dir
+set(BACKEND_SPEC_INCLUDE_DIR ${FLAGTREE_BACKEND_DIR}/backend/flagtree_backend_specialization/include)
+if(FLAGTREE_BACKEND AND EXISTS ${BACKEND_SPEC_INCLUDE_DIR})
+  include_directories(${BACKEND_SPEC_INCLUDE_DIR})
+endif()
+## flagtree third_party include dir
+set(BACKEND_INCLUDE_DIR ${FLAGTREE_BACKEND_DIR}/include)
 if(FLAGTREE_BACKEND AND EXISTS "${BACKEND_INCLUDE_DIR}")
   include_directories(${BACKEND_INCLUDE_DIR})
 else()
@@ -134,54 +149,17 @@ function(add_triton_object name)
     INTERFACE $<TARGET_OBJECTS:${name}>
   )
 
-  if (FLAGTREE_BACKEND STREQUAL "ascend")
-    set(patched_depends "")
-    foreach(dep ${ARG_DEPENDS})
-      list(FIND PATCHED_TRITON_DEPENDS "${dep}" index)
-      if(index GREATER_EQUAL 0)
-        list(APPEND patched_depends "Patched_${dep}")
-        message(STATUS "Replace ${dep} by Patched_${dep} as a dependent of ${name}")
-      else()
-        list(APPEND patched_depends ${dep})
-      endif()
-    endforeach()
-    if(patched_depends)
-      add_dependencies(${name} ${patched_depends})
-    endif()
-
-    set(patched_link_libs "")
-    foreach(lib ${ARG_LINK_LIBS})
-      list(FIND PATCHED_TRITON_LIBRARIES "${lib}" index)
-      if(index GREATER_EQUAL 0)
-        list(APPEND patched_link_libs "Patched_${lib}")
-        message(STATUS "Replace ${lib} by Patched_${lib} to be linked by ${name}")
-      else()
-        list(APPEND patched_link_libs ${lib})
-      endif()
-    endforeach()
-    if(patched_link_libs)
-      target_link_libraries(${name} PUBLIC ${patched_link_libs})
-    endif()
-  else()
-    #add_library(${name} OBJECT ${ARG_UNPARSED_ARGUMENTS})
-    if(ARG_DEPENDS)
-      add_dependencies(${name} ${ARG_DEPENDS})
-    endif()
-    if(ARG_LINK_LIBS)
-      target_link_libraries(${name} PUBLIC ${ARG_LINK_LIBS})
-    endif()
+  #add_library(${name} OBJECT ${ARG_UNPARSED_ARGUMENTS})
+  if(ARG_DEPENDS)
+    add_dependencies(${name} ${ARG_DEPENDS})
+  endif()
+  if(ARG_LINK_LIBS)
+    target_link_libraries(${name} PUBLIC ${ARG_LINK_LIBS})
   endif()
 endfunction(add_triton_object)
 
 set_property(GLOBAL PROPERTY TRITON_LIBS "")
 function(add_triton_library name)
-  if (FLAGTREE_BACKEND STREQUAL "ascend")
-    list(FIND PATCHED_TRITON_LIBRARIES "${name}" index)
-    if(index GREATER_EQUAL 0)
-      message(STATUS "Adding Patched_${name} as a lib, instead of ${name}")
-      return()
-    endif()
-  endif()
   set_property(GLOBAL APPEND PROPERTY TRITON_LIBS ${name})
   add_triton_object(${name} ${ARGN})
   llvm_update_compile_flags(${name})
@@ -220,19 +198,9 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_BINARY_DIR}/third_party) # Tablegen'd files
 
 # link_directories(${LLVM_LIBRARY_DIR})
-if (FLAGTREE_BACKEND STREQUAL "ascend")
-  include_directories(${PROJECT_SOURCE_DIR}/include)
-  include_directories(${PROJECT_BINARY_DIR}/include) # Tablegen'd files
+if(NOT FLAGTREE_BACKEND)
   add_subdirectory(include)
   add_subdirectory(lib)
-elseif(NOT FLAGTREE_BACKEND)
-  add_subdirectory(include)
-  add_subdirectory(lib)
-endif()
-
-if (FLAGTREE_BACKEND STREQUAL "ascend")
-  add_subdirectory(${PATCHED_TRITON_ROOT_DIR}/include)
-  add_subdirectory(${PATCHED_TRITON_ROOT_DIR}/lib)
 endif()
 
 # find_package(PythonLibs REQUIRED)
@@ -252,11 +220,7 @@ endif()
 # ------
 if(TRITON_BUILD_PYTHON_MODULE)
   message(STATUS "Adding Python module")
-  set(PYTHON_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/third_party/${FLAGTREE_BACKEND}/python/src)
-
-  set(PATCHED_PYTHON_SRC_PATH ${PATCHED_TRITON_ROOT_DIR}/python/src)
-  include_directories(${PYTHON_SRC_PATH})
-
+  set(PYTHON_SRC_PATH ${FLAGTREE_BACKEND_DIR}/python/src)
   if(NOT (FLAGTREE_BACKEND AND EXISTS "${PYTHON_SRC_PATH}"))
     set(PYTHON_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/python/src)
   endif()
@@ -432,14 +396,17 @@ if(TRITON_BUILD_PYTHON_MODULE)
     add_library(triton SHARED ${PYTHON_SRC_PATH}/main.cc
                 ${PYTHON_SRC_PATH}/interpreter.cc
                 ${PYTHON_SRC_PATH}/llvm.cc)
+  elseif(FLAGTREE_BACKEND STREQUAL "ascend")
+    set(PYTHON_ROOT_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/python/src)
+    include_directories(${PYTHON_ROOT_SRC_PATH})
+    add_library(triton SHARED ${PYTHON_ROOT_SRC_PATH}/main.cc
+                ${PYTHON_SRC_PATH}/ir.cc
+                ${PYTHON_ROOT_SRC_PATH}/passes.cc
+                ${PYTHON_ROOT_SRC_PATH}/interpreter.cc
+                ${PYTHON_ROOT_SRC_PATH}/llvm.cc)
   else()
-    if(FLAGTREE_BACKEND STREQUAL "ascend")
-      set(PYTHON_IR_SRC_PATH ${PATCHED_PYTHON_SRC_PATH})
-    else()
-      set(PYTHON_IR_SRC_PATH ${PYTHON_SRC_PATH})
-    endif()
     add_library(triton SHARED ${PYTHON_SRC_PATH}/main.cc
-                ${PYTHON_IR_SRC_PATH}/ir.cc
+                ${PYTHON_SRC_PATH}/ir.cc
                 ${PYTHON_SRC_PATH}/passes.cc
                 ${PYTHON_SRC_PATH}/interpreter.cc
                 ${PYTHON_SRC_PATH}/llvm.cc)

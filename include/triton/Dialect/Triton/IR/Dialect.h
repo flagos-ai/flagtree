@@ -17,6 +17,13 @@
 #include "triton/Dialect/Triton/IR/Traits.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
+#if __has_include("flagtree_spec.h")
+#include "flagtree_spec.h"
+#endif
+#if __has_include("triton/Dialect/Triton/IR/OpInterfaces.h")
+#include "triton/Dialect/Triton/IR/OpInterfaces.h"
+#endif
+
 #define GET_OP_CLASSES
 #include "triton/Dialect/Triton/IR/Ops.h.inc"
 
@@ -28,7 +35,7 @@ struct GlobalMemory : public SideEffects::Resource::Base<GlobalMemory> {
 };
 
 class DialectInferLayoutInterface
-    : public DialectInterface::Base<DialectInferLayoutInterface> {
+  : public DialectInterface::Base<DialectInferLayoutInterface> {
 public:
   DialectInferLayoutInterface(Dialect *dialect) : Base(dialect) {}
 

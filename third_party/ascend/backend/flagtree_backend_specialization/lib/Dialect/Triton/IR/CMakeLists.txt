@@ -1,8 +1,7 @@
-add_triton_library(Patched_TritonIR
+add_triton_library(FlagTree_ascend_TritonIR
   Dialect.cpp
   Ops.cpp
   Traits.cpp
-  Types.cpp
 
   DEPENDS
   TritonTableGen
