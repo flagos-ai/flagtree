@@ -27,13 +27,27 @@ need_workspace_func = {
     },
     'ultra_pow': {"default": 4},
     'ctz': {"default": 1},
-    'ultra_gelu': {"default": 2},
+    'ultra_gelu': {"f32": 2, "default": 0},
+    'fast_log': {"f32": 0, "default": 1},
+    'fast_gelu': {"default": 3},
     'fast_silu': {"default": 1},
+    'fast_cast_f32_to_s8': {"default": 1},
+    'fdim': {"default": 1},
 }
 
 special_funcs = [
     "philox", "ultra_silu_out", "ultra_silubp_out", "broadcast_ultra_silu_mul_out", "broadcast_ultra_silubp_mul_out",
-    "sub_exp_mul", "philox_v2", "philox_v3", "fast_dividef", "ultra_pow"
+    "sub_exp_mul", "philox_v2", "philox_v3", "fast_dividef", "ultra_pow", "iota", "ultra_gelu_out", "ultra_gelu_outb",
+    "mod", "pow", "abs_complex"
+]
+unsupport_funcs = [
+    "sincos",  # multi outputs unsupport
+    "iota"
+]
+
+support_complex_funcs = [
+    "add_complex", "sub_complex", "mul_complex", "div_complex", "sqrt_complex", "rsqrt_complex", "abs_complex",
+    "negate_complex", "sin_complex", "cos_complex", "tan_complex", "sign_complex"
 ]
 
 
@@ -80,219 +94,349 @@ def parse_export_symbol(cn_hdr_path):
     return functions
 
 
+def gen_extern_elementwise_build(arg_names, arg_types, symbols):
+    return f"""
+        return core.extern_elementwise(
+            "",
+            "", [
+                {', '.join(arg_names)},
+            ], {{
+                {''.join(
+                    f'''(
+                    {', '.join([f'core.dtype("{arg_type}")' for _ in arg_names])},
+                ): ("{symbols[i]}", core.dtype("{arg_types[i]}")),'''
+                    for i, arg_type in enumerate(arg_types)
+                )}
+            }},
+            is_pure=True,
+            _builder=_builder)
+    """
+
+
+def gen_extern_elementwise_ext_build(arg_names, arg_types, ret_types, symbols, ret_shape_arg):
+    return f"""
+    return extern_elementwise_ext(
+        "",
+        "", [
+            {', '.join(arg_names)},
+        ], {{
+            {''.join(
+                f'''(
+                {', '.join([f'core.dtype("{arg_type}")' for _ in arg_names])},
+            ): ("{symbols[i]}", core.dtype("{ret_types[i]}")),'''
+                for i, arg_type in enumerate(arg_types)
+            )}
+        }},
+        {ret_shape_arg},
+        is_pure=True,
+        _builder=_builder)
+    """
+
+
 def create_special_funcs():
     ret = ""
 
+    # Create abs_complex.
+    ret += f"""@core.extern
+def abs_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        ret_shape = arg0.shape
+        ret_shape[-1] = ret_shape[-1] // 2
+        {gen_extern_elementwise_ext_build(
+            ["arg0"], ["fp32", "fp16", "bf16"], ["fp32", "fp16", "bf16"],
+            ["__cn_vector_abs_complex_f32", "__cn_vector_abs_complex_f16", "__cn_vector_abs_complex_bf16"],
+            'ret_shape'
+        ).strip()}
+    else:
+        return None
+"""
+
     # Create philox.
-    ret += "# ARGS: outGroups, seedLo, seedHi, offsetLo, offsetHi, subsequenceLo, subsequenceHi, innerRounds\n"
-    ret += "@core.extern\n"
-    ret += "def philox(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, _builder=None):\n"
-    ret += "\tret_type = core.block_type(core.dtype(\"uint32\"), [arg0.value, 4])\n"
-    ret += "\tassert (not is_block_arg(arg0) and not is_block_arg(arg1) and not is_block_arg(arg2) and not is_block_arg(arg3) and not is_block_arg(arg4) and not is_block_arg(arg5) and not is_block_arg(arg6) and not is_block_arg(arg7)), 'philox: all args must be scalars'\n"
-    ret += "\targs = [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_philox_u32\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n\n"
+    ret += f"""# ARGS: outGroups, seedLo, seedHi, offsetLo, offsetHi, subsequenceLo, subsequenceHi, innerRounds
+@core.extern
+def philox(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, _builder=None):
+    ret_type = core.block_type(core.dtype("uint32"), [arg0.value, 4])
+    assert (not is_block_arg(arg0) and not is_block_arg(arg1) and not is_block_arg(arg2) and not is_block_arg(arg3) and not is_block_arg(arg4) and not is_block_arg(arg5) and not is_block_arg(arg6) and not is_block_arg(arg7)), 'philox: all args must be scalars'
+    args = [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    for id, arg in zip(range(0, 8), args):
+        if isinstance(arg, core.constexpr):
+            args[id] = _builder.get_uint32(arg.value)
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_philox_u32", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
 
     # Create philox_v2.
-    ret += "# ARGS: outGroups, seedLo, seedHi, offsetLo, offsetHi, subsequenceLo\n"
-    ret += "@core.extern\n"
-    ret += "def philox_v2(arg0, arg1, arg2, arg3, arg4, arg5, _builder=None):\n"
-    ret += "\tassert (not is_block_arg(arg1) and not is_block_arg(arg2) and not is_block_arg(arg3) and not is_block_arg(arg4) and not is_block_arg(arg5)), 'philox_v2: all args must be scalars'\n"
-    ret += "\tassert (isinstance(arg0, core.constexpr)), 'philox_v2: outGroups(arg0) must be constexpr'\n"
-    ret += "\tassert(arg0.value % 128==0), 'philox_v2: outGroups(arg0) must be divided by 128'\n"
-    ret += "\tret_type = core.block_type(core.dtype(\"uint32\"), [arg0.value, 4])\n"
-    ret += "\targs = [arg0, arg1, arg2, arg3, arg4, arg5]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_philox_v2_u32\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n\n"
+    ret += f"""# ARGS: outGroups, seedLo, seedHi, offsetLo, offsetHi, subsequenceLo
+@core.extern
+def philox_v2(arg0, arg1, arg2, arg3, arg4, arg5, _builder=None):
+    assert (not is_block_arg(arg1) and not is_block_arg(arg2) and not is_block_arg(arg3) and not is_block_arg(arg4) and not is_block_arg(arg5)), 'philox_v2: all args must be scalars'
+    assert (isinstance(arg0, core.constexpr)), 'philox_v2: outGroups(arg0) must be constexpr'
+    assert (arg0.value % 128 == 0), 'philox_v2: outGroups(arg0) must be divided by 128'
+    ret_type = core.block_type(core.dtype("uint32"), [arg0.value, 4])
+    args = [arg0, arg1, arg2, arg3, arg4, arg5]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    for id, arg in zip(range(1, 5), [arg1, arg2, arg3, arg4]):
+        if isinstance(arg, core.constexpr):
+            args[id] = _builder.get_uint32(arg.value)
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_philox_v2_u32", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
 
     # Create philox_v3.
-    ret += "# ARGS: outGroups, seedLo, seedHi, offsetLo, offsetHi, subsequenceLo, innerRounds, subsequenceLimit\n"
-    ret += "@core.extern\n"
-    ret += "def philox_v3(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, _builder=None):\n"
-    ret += "\tassert (not is_block_arg(arg1) and not is_block_arg(arg2) and not is_block_arg(arg3) and not is_block_arg(arg4)), 'philox_v3: all args must be scalars'\n"
-    ret += "\tassert (isinstance(arg0, core.constexpr)), 'philox_v3: outGroups(arg0) must be constexpr'\n"
-    ret += "\tassert (isinstance(arg5, core.constexpr)), 'philox_v3: subsequenceLo(arg5) must be constexpr'\n"
-    ret += "\tassert (isinstance(arg6, core.constexpr)), 'philox_v3: innerRounds(arg6) must be constexpr'\n"
-    ret += "\tassert (isinstance(arg7, core.constexpr)), 'philox_v3: subsequenceLimit(arg7) must be constexpr'\n"
-    ret += "\tassert (arg0.value % 128==0), 'philox_v3: outGroups(arg0) must be divided by 128'\n"
-    ret += "\tassert (arg5.value % 128==0), 'philox_v3: subsequenceLo(arg5) must be divided by 128'\n"
-    ret += "\tassert (arg6.value in [2, 4, 6, 8, 10]), 'philox_v3: innerRounds(arg0) must be divided by 128'\n"
-    ret += "\tassert (arg7.value % 128==0), 'philox_v3: subsequenceLimit(arg7) must be divided by 128'\n"
-    ret += "\tret_type = core.block_type(core.dtype(\"uint32\"), [arg0.value, 4])\n"
-    ret += "\targs = [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_philox_v3_u32\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n\n"
+    ret += f"""# ARGS: outGroups, seedLo, seedHi, offsetLo, offsetHi, subsequenceLo, innerRounds, subsequenceLimit
+@core.extern
+def philox_v3(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, _builder=None):
+    assert (not is_block_arg(arg1) and not is_block_arg(arg2) and not is_block_arg(arg3) and not is_block_arg(arg4)), 'philox_v3: all args must be scalars'
+    assert (isinstance(arg0, core.constexpr)), 'philox_v3: outGroups(arg0) must be constexpr'
+    assert (isinstance(arg5, core.constexpr)), 'philox_v3: subsequenceLo(arg5) must be constexpr'
+    assert (isinstance(arg6, core.constexpr)), 'philox_v3: innerRounds(arg6) must be constexpr'
+    assert (isinstance(arg7, core.constexpr)), 'philox_v3: subsequenceLimit(arg7) must be constexpr'
+    assert (arg0.value % 128 == 0), 'philox_v3: outGroups(arg0) must be divided by 128'
+    assert (arg5.value % 128 == 0), 'philox_v3: subsequenceLo(arg5) must be divided by 128'
+    assert (arg6.value in [2, 4, 6, 8, 10]), 'philox_v3: innerRounds(arg0) must be divided by 128'
+    assert (arg7.value % 128 == 0), 'philox_v3: subsequenceLimit(arg7) must be divided by 128'
+    ret_type = core.block_type(core.dtype("uint32"), [arg0.value, 4])
+    args = [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    for id, arg in zip(range(1, 5), [arg1, arg2, arg3, arg4]):
+        if isinstance(arg, core.constexpr):
+            args[id] = _builder.get_uint32(arg.value)
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_philox_v3_u32", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
 
     # Create ultra_silu_float2half.
-    ret += "@core.extern\n"
-    ret += "def ultra_silu_float2half(arg0,_builder=None):\n"
-    ret += "\tret_type = core.block_type(core.float16, arg0.shape)\n"
-    ret += "\targs = [arg0]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_silu_f32_outf16\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n"
+    ret += f"""@core.extern
+def ultra_silu_float2half(arg0,_builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_silu_float2half: the dtype of input must be float32'
+    ret_type = core.block_type(core.float16, arg0.shape)
+    args = [arg0]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_silu_f32_outf16", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
 
     # Create ultra_silu_float2bfloat16.
-    ret += "@core.extern\n"
-    ret += "def ultra_silu_float2bfloat16(arg0,_builder=None):\n"
-    ret += "\tret_type = core.block_type(core.bfloat16, arg0.shape)\n"
-    ret += "\targs = [arg0]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_silu_f32_outbf16\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n"
+    ret += f"""@core.extern
+def ultra_silu_float2bfloat16(arg0,_builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_silu_float2bfloat16: the dtype of input must be float32'
+    ret_type = core.block_type(core.bfloat16, arg0.shape)
+    args = [arg0]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_silu_f32_outbf16", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
 
     # Create ultra_silubp_float2half.
-    ret += "@core.extern\n"
-    ret += "def ultra_silubp_float2half(arg0,_builder=None):\n"
-    ret += "\tret_type = core.block_type(core.float16, arg0.shape)\n"
-    ret += "\targs = [arg0]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_silubp_f32_outf16\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n"
+    ret += f"""@core.extern
+def ultra_silubp_float2half(arg0,_builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_silubp_float2half: the dtype of input must be float32'
+    ret_type = core.block_type(core.float16, arg0.shape)
+    args = [arg0]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_silubp_f32_outf16", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
 
     # Create ultra_silubp_float2bfloat16.
-    ret += "@core.extern\n"
-    ret += "def ultra_silubp_float2bfloat16(arg0,_builder=None):\n"
-    ret += "\tret_type = core.block_type(core.bfloat16, arg0.shape)\n"
-    ret += "\targs = [arg0]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_silubp_f32_outbf16\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n"
+    ret += f"""@core.extern
+def ultra_silubp_float2bfloat16(arg0,_builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_silubp_float2bfloat16: the dtype of input must be float32'
+    ret_type = core.block_type(core.bfloat16, arg0.shape)
+    args = [arg0]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_silubp_f32_outbf16", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
 
     # Create ultra_silu_mul_float2half.
-    ret += "@core.extern\n"
-    ret += "def ultra_silu_mul_float2half(arg0, arg1, _builder=None):\n"
-    ret += "\tret_type = core.block_type(core.float16, arg0.shape)\n"
-    ret += "\tassert (not is_block_arg(arg1)), 'ultra_silu_mul_float2half: arg1 must be a scalar'\n"
-    ret += "\targs = [arg0, arg1]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_silu_mul_scalar_f32_outf16\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n"
+    ret += f"""@core.extern
+def ultra_silu_mul_float2half(arg0, arg1, _builder=None):
+    assert (not is_block_arg(arg1)), 'ultra_silu_mul_float2half: arg1 must be a scalar'
+    {gen_extern_elementwise_ext_build(
+        ["arg0", "arg1"], ["fp32"], ["fp16"],
+        ["__cn_vector_ultra_silu_mul_scalar_f32_outf16"], 'arg0.shape'
+    ).strip()}
+"""
 
     # Create ultra_silu_mul_float2bfloat16.
-    ret += "@core.extern\n"
-    ret += "def ultra_silu_mul_float2bfloat16(arg0, arg1, _builder=None):\n"
-    ret += "\tret_type = core.block_type(core.bfloat16, arg0.shape)\n"
-    ret += "\tassert (not is_block_arg(arg1)), 'ultra_silu_mul_float2bfloat16: arg1 must be a scalar'\n"
-    ret += "\targs = [arg0, arg1]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_silu_mul_scalar_f32_outbf16\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n"
+    ret += f"""@core.extern
+def ultra_silu_mul_float2bfloat16(arg0, arg1, _builder=None):
+    assert (not is_block_arg(arg1)), 'ultra_silu_mul_float2bfloat16: arg1 must be a scalar'
+    {gen_extern_elementwise_ext_build(
+        ["arg0", "arg1"], ["fp32"], ["bf16"],
+        ["__cn_vector_ultra_silu_mul_scalar_f32_outbf16"], 'arg0.shape'
+    ).strip()}
+"""
 
     # Create ultra_silubp_mul_float2half.
-    ret += "@core.extern\n"
-    ret += "def ultra_silubp_mul_float2half(arg0, arg1, _builder=None):\n"
-    ret += "\tret_type = core.block_type(core.float16, arg0.shape)\n"
-    ret += "\tassert (not is_block_arg(arg1)), 'ultra_silubp_mul_float2half: arg1 must be a scalar'\n"
-    ret += "\targs = [arg0, arg1]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_silubp_mul_scalar_f32_outf16\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n"
+    ret += f"""@core.extern
+def ultra_silubp_mul_float2half(arg0, arg1, _builder=None):
+    assert (not is_block_arg(arg1)), 'ultra_silubp_mul_float2half: arg1 must be a scalar'
+    {gen_extern_elementwise_ext_build(
+        ["arg0", "arg1"], ["fp32"], ["fp16"],
+        ["__cn_vector_ultra_silubp_mul_scalar_f32_outf16"], 'arg0.shape'
+    ).strip()}
+"""
 
     # Create ultra_silubp_mul_float2bfloat16.
-    ret += "@core.extern\n"
-    ret += "def ultra_silubp_mul_float2bfloat16(arg0, arg1, _builder=None):\n"
-    ret += "\tret_type = core.block_type(core.bfloat16, arg0.shape)\n"
-    ret += "\tassert (not is_block_arg(arg1)), 'ultra_silubp_mul_float2bfloat16: arg1 must be a scalar'\n"
-    ret += "\targs = [arg0, arg1]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_silubp_mul_scalar_f32_outbf16\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\treturn core.tensor(ret, ret_type)\n"
+    ret += f"""@core.extern
+def ultra_silubp_mul_float2bfloat16(arg0, arg1, _builder=None):
+    assert (not is_block_arg(arg1)), 'ultra_silubp_mul_float2bfloat16: arg1 must be a scalar'
+    {gen_extern_elementwise_ext_build(
+        ["arg0", "arg1"], ["fp32"], ["bf16"],
+        ["__cn_vector_ultra_silubp_mul_scalar_f32_outbf16"], 'arg0.shape'
+    ).strip()}
+"""
 
     # Create cycle_sub_mul_exp.
-    ret += "# result = exp2((arg0 - arg1) * arg2)\n"
-    ret += "@core.extern\n"
-    ret += "def cycle_sub_mul_exp(arg0, arg1, arg2, _builder=None):\n"
-    ret += "\tret_shape = arg0.shape\n"
-    ret += "\tsub_val = arg1\n"
-    ret += "\tn = arg0.type.numel\n"
-    ret += "\tif not is_block_arg(arg1):\n"
-    ret += "\t\tassert n // 64 >= 16, \"arg0 element num must be more than 64 * 16\"\n"
-    ret += "\t\tsub_val = core.full([64], arg1, dtype=arg0.dtype, _builder=_builder)\n"
-    ret += "\telse:\n"
-    ret += "\t\tassert is_cycle_args(arg0, arg1)\n"
-    ret += "\t\tassert arg0.shape[1:] == arg1.shape[1:], 'arg0 and arg1 shape must equal except the hightest dim'\n"
-    ret += "\t\tn_short = sub_val.type.numel\n"
-    ret += "\t\tsub_val = core.reshape(sub_val, (n_short), can_reorder=True, _builder=_builder)\n"
-    ret += "\t\tassert ((n % n_short == 0) and (n // n_short >= 16)), \"arg0 element num must be divisible by arg1 element num, and the ratio between the two must be greater than 16.\"\n"
-    ret += "\targ0 = core.reshape(arg0, (n), can_reorder=True, _builder=_builder)\n"
-    ret += "\tret_type = core.block_type(arg0.dtype, arg0.shape)\n"
-    ret += "\targs = [arg0, sub_val, arg2]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_cycle_sub_exp_f32\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\tret_tensor = core.tensor(ret, ret_type)\n"
-    ret += "\treturn core.reshape(ret_tensor, ret_shape, can_reorder=True, _builder=_builder)\n"
+    ret += f"""# result = exp2((arg0 - arg1) * arg2)
+@core.extern
+def cycle_sub_mul_exp(arg0, arg1, arg2, _builder=None):
+    ret_shape = arg0.shape
+    sub_val = arg1
+    n = arg0.type.numel
+    if not is_block_arg(arg1):
+        assert n // 64 >= 16, "arg0 element num must be more than 64 * 16"
+        sub_val = core.full([64], arg1, dtype=arg0.dtype, _builder=_builder)
+    else:
+        assert is_cycle_args(arg0, arg1)
+        assert arg0.shape[1:] == arg1.shape[1:], 'arg0 and arg1 shape must equal except the hightest dim'
+        n_short = sub_val.type.numel
+        sub_val = core.reshape(sub_val, (n_short), can_reorder=True, _builder=_builder)
+        assert ((n % n_short == 0) and (n // n_short >= 16)), "arg0 element num must be divisible by arg1 element num, and the ratio between the two must be greater than 16."
+    arg0 = core.reshape(arg0, (n), can_reorder=True, _builder=_builder)
+    {gen_extern_elementwise_ext_build(
+        ["arg0", "sub_val", "arg2"], ["fp32"], ["fp32"],
+        ["__cn_vector_cycle_sub_exp_f32"], 'arg0.shape'
+    ).strip()}
+"""
 
     # Create fast_dividef.
-    ret += "@core.extern\n"
-    ret += "def fast_dividef(arg0, arg1, _builder=None):\n"
-    ret += "\targs = [arg0, arg1]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = None\n"
-    ret += "\tif is_block_arg(arg0) and is_block_arg(arg1):\n"
-    ret += "\t\tret_type = core.block_type(arg0.dtype, arg0.shape)\n"
-    ret += "\t\tif arg0.dtype.is_fp16():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_fast_div_f16_rn\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\t\tif arg0.dtype.is_bf16():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_fast_div_bf16_rn\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\t\tif arg0.dtype.is_fp32():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_fast_div_f32_rn\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\telif is_block_arg(arg0) and not is_block_arg(arg1):\n"
-    ret += "\t\tret_type = core.block_type(arg0.dtype, arg0.shape)\n"
-    ret += "\t\tif arg0.dtype.is_fp16():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_fast_div_scalar_f16_rn\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\t\tif arg0.dtype.is_bf16():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_fast_div_scalar_bf16_rn\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\telif not is_block_arg(arg0) and is_block_arg(arg1):\n"
-    ret += "\t\tret_type = core.block_type(arg1.dtype, arg1.shape)\n"
-    ret += "\t\tif arg0.dtype.is_fp16():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_scalar_fast_div_vector_f16_rn\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\t\tif arg0.dtype.is_bf16():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_scalar_fast_div_vector_bf16_rn\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\tif ret is not None:\n"
-    ret += "\t\treturn core.tensor(ret, ret_type)\n"
-    ret += "\telse:\n"
-    ret += "\t\treturn None\n"
+    ret += f"""@core.extern
+def fast_dividef(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) and is_block_arg(arg1):
+        {gen_extern_elementwise_build(
+            ["arg0", "arg1"], ["fp32", "fp16", "bf16"],
+            ["__cn_vector_fast_div_f32_rn", "__cn_vector_fast_div_f16_rn", "__cn_vector_fast_div_bf16_rn"]
+        ).strip()}
+    elif is_block_arg(arg0) and not is_block_arg(arg1):
+        {gen_extern_elementwise_ext_build(
+            ["arg0", "arg1"], ["fp32", "fp16", "bf16"], ["fp32", "fp16", "bf16"],
+            ["__cn_vector_fast_div_scalar_f32_rn", "__cn_vector_fast_div_scalar_f16_rn", "__cn_vector_fast_div_scalar_bf16_rn"],
+            'arg0.shape'
+        ).strip()}
+    elif not is_block_arg(arg0) and is_block_arg(arg1):
+        {gen_extern_elementwise_ext_build(
+            ["arg0", "arg1"], ["fp32", "fp16", "bf16"], ["fp32", "fp16", "bf16"],
+            ["__cn_scalar_fast_div_vector_f32_rn", "__cn_scalar_fast_div_vector_f16_rn", "__cn_scalar_fast_div_vector_bf16_rn"],
+            'arg1.shape'
+        ).strip()}
+    else:
+        return None
+"""
+
+    # Create pow.
+    ret += f"""@core.extern
+def pow(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) and not is_block_arg(arg1) and arg0.dtype.is_fp16():
+        {gen_extern_elementwise_ext_build(
+            ["arg0", "arg1"], ["fp16"], ["fp16"],
+            ["__cn_vector_pow_scalar_f16"], 'arg0.shape'
+        ).strip()}
+    elif is_block_arg(arg0) or is_block_arg(arg1):
+        {gen_extern_elementwise_build(
+            ["arg0", "arg1"], ["fp32", "fp16", "bf16", "int32"],
+            ["__cn_vector_pow_f32", "__cn_vector_pow_f16", "__cn_vector_pow_bf16", "__cn_vector_pow_s32"]
+        ).strip()}
+    elif not is_block_arg(arg0) and not is_block_arg(arg1):
+        {gen_extern_elementwise_build(
+            ["arg0", "arg1"], ["fp32", "fp16", "bf16", "int32"],
+            ["__cn_scalar_pow_f32", "__cn_scalar_pow_f16", "__cn_scalar_pow_bf16", "__cn_scalar_pow_s32"]
+        ).strip()}
+    else:
+        return None
+"""
+
+    # Create mod.
+    ret += f"""@core.extern
+def mod(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) and is_block_arg(arg1):
+        {gen_extern_elementwise_build(
+            ["arg0", "arg1"], ["bf16", "int32", "uint32", "int16", "uint16", "int8", "uint8", "int64", "uint64"],
+            ["__cn_vector_mod_bf16", "__cn_vector_mod_s32", "__cn_vector_mod_u32", "__cn_vector_mod_s16", "__cn_vector_mod_u16", "__cn_vector_mod_s8", "__cn_vector_mod_u8", "__cn_vector_mod_s64", "__cn_vector_mod_u64"]
+        ).strip()}
+    elif is_block_arg(arg0) and not is_block_arg(arg1):
+        {gen_extern_elementwise_ext_build(
+            ["arg0", "arg1"], ["fp32", "fp16", "bf16"], ["fp32", "fp16", "bf16"],
+            ["__cn_vector_mod_scalar_f32", "__cn_vector_mod_scalar_f16", "__cn_vector_mod_scalar_bf16"],
+            'arg0.shape'
+        ).strip()}
+    elif not is_block_arg(arg0) and is_block_arg(arg1):
+        {gen_extern_elementwise_ext_build(
+            ["arg0", "arg1"], ["fp32", "fp16", "bf16"], ["fp32", "fp16", "bf16"],
+            ["__cn_scalar_mod_vector_f32", "__cn_scalar_mod_vector_f16", "__cn_scalar_mod_vector_bf16"],
+            'arg1.shape'
+        ).strip()}
+    else:
+        {gen_extern_elementwise_build(
+            ["arg0", "arg1"], ["bf16", "int32", "uint32", "int16", "uint16", "int8", "uint8", "int64", "uint64"],
+            ["__cn_scalar_mod_bf16", "__cn_scalar_mod_s32", "__cn_scalar_mod_u32", "__cn_scalar_mod_s16", "__cn_scalar_mod_u16", "__cn_scalar_mod_s8", "__cn_scalar_mod_u8", "__cn_scalar_mod_s64", "__cn_scalar_mod_u64"]
+        ).strip()}
+"""
 
     # Create ultra_pow.
-    ret += "@core.extern\n"
-    ret += "def ultra_pow(arg0, arg1, _builder=None):\n"
-    ret += "\targs = [arg0, arg1]\n"
-    ret += "\targs = [semantic.to_tensor(arg, _builder) for arg in args]\n"
-    ret += "\targs = [arg.handle for arg in args]\n"
-    ret += "\tret = None\n"
-    ret += "\tif is_block_arg(arg0) and is_block_arg(arg1):\n"
-    ret += "\t\tret_type = core.block_type(arg0.dtype, arg0.shape)\n"
-    ret += "\t\tif arg0.dtype.is_fp32():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_pow_f32\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\telif is_block_arg(arg0) and not is_block_arg(arg1):\n"
-    ret += "\t\tret_type = core.block_type(arg0.dtype, arg0.shape)\n"
-    ret += "\t\tif arg0.dtype.is_fp32():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_vector_ultra_pow_scalar_f32\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\telif not is_block_arg(arg0) and is_block_arg(arg1):\n"
-    ret += "\t\tret_type = core.block_type(arg1.dtype, arg1.shape)\n"
-    ret += "\t\tif arg0.dtype.is_fp32():\n"
-    ret += "\t\t\tret = _builder.create_extern_elementwise(\"\", \"\", \"__cn_scalar_ultra_pow_vector_f32\", args, ret_type.to_ir(_builder), True)\n"
-    ret += "\tif ret is not None:\n"
-    ret += "\t\treturn core.tensor(ret, ret_type)\n"
-    ret += "\telse:\n"
-    ret += "\t\treturn None\n"
+    ret += f"""@core.extern
+def ultra_pow(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) and is_block_arg(arg1):
+        {gen_extern_elementwise_build(
+            ["arg0", "arg1"], ["fp32"], ["__cn_vector_ultra_pow_f32"]
+        ).strip()}
+    elif is_block_arg(arg0) and not is_block_arg(arg1):
+        {gen_extern_elementwise_ext_build(
+            ["arg0", "arg1"], ["fp32"], ["fp32"],
+            ["__cn_vector_ultra_pow_scalar_f32"], 'arg0.shape'
+        ).strip()}
+    elif not is_block_arg(arg0) and is_block_arg(arg1):
+        {gen_extern_elementwise_ext_build(
+            ["arg0", "arg1"], ["fp32"], ["fp32"],
+            ["__cn_scalar_ultra_pow_vector_f32"], 'arg1.shape'
+        ).strip()}
+    else:
+        return None
+"""
+
+    # Create ultra_gelu_float2half.
+    ret += f"""@core.extern
+def ultra_gelu_float2half(arg0,_builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_gelu_float2half: the dtype of input must be float32'
+    ret_type = core.block_type(core.float16, arg0.shape)
+    args = [arg0]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_gelu_f32_outf16", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
+
+    # Create ultra_gelu_float2bfloat16.
+    ret += f"""@core.extern
+def ultra_gelu_float2bfloat16(arg0,_builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_gelu_float2bfloat16: the dtype of input must be float32'
+    ret_type = core.block_type(core.bfloat16, arg0.shape)
+    args = [arg0]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_gelu_f32_outbf16", args, ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+"""
 
     return ret
 
@@ -468,6 +612,10 @@ class ExternLibrary(ABC):
 
     @abstractmethod
     def parse_cn_symbols(self, input_file, export_symbols) -> None:
+        pass
+
+    @abstractmethod
+    def gen_normal_func_str(self, symbols) -> str:
         pass
 
     @abstractmethod
@@ -695,6 +843,8 @@ class Libdevice(ExternLibrary):
             'cast_f32_to_s64_rz': 'float2ll_rz',
             'cast_f32_to_s8': 'float2byte',
             'cast_f32_to_s8_rz': 'float2byte_rz',
+            'cast_f32_to_s8_sat': 'float2byte_sat',
+            'fast_cast_f32_to_s8': 'fast_float2byte',
             'cast_f32_to_u16': 'float2ushort',
             'cast_f32_to_u16_rz': 'float2ushort_rz',
             'cast_f32_to_u32': 'float2uint',
@@ -844,17 +994,165 @@ class Libdevice(ExternLibrary):
             op_name_dict[op_name] = op_name
         self._group_cn_symbols()
 
+    def gen_normal_func_str(self, symbols) -> str:
+        symbols_op_name = symbols[0].op_name
+        if symbols_op_name in special_funcs:
+            return ""
+        if symbols_op_name in unsupport_funcs:
+            return ""
+        if "_complex" in symbols_op_name and symbols_op_name not in support_complex_funcs:
+            return ""
+        func_str = "@core.extern\n"
+        func_name_str = f"def {symbols_op_name}("
+        for arg_name in symbols[0].arg_names:
+            func_name_str += f"{arg_name}, "
+        func_name_str += "_builder=None):\n"
+        return_str = f"\t\treturn core.extern_elementwise(\"\", \"\", ["
+        for arg_name in symbols[0].arg_names:
+            return_str += f"{arg_name}, "
+        return_str += "], \n"
+
+        cn_vector_return_str = ""
+        cn_scalar_arg_type_symbol_dict_str = "{"
+        cn_vector_arg_type_symbol_dict_str = "{"
+        for symbol in symbols:
+            if symbol.compute_mode == "scalar":
+                cn_scalar_arg_type_symbol_dict_str += "("
+            else:
+                cn_vector_arg_type_symbol_dict_str += "("
+            for arg_type in symbol.arg_types:
+                if symbol.compute_mode == "scalar":
+                    cn_scalar_arg_type_symbol_dict_str += f'core.dtype("{arg_type}"),'
+                else:
+                    cn_vector_arg_type_symbol_dict_str += f'core.dtype("{arg_type}"),'
+            ret_type = f'core.dtype("{symbol.ret_type}")'
+            if symbol.compute_mode == "scalar":
+                cn_scalar_arg_type_symbol_dict_str += "): (\"" + symbol.name + "\", " + ret_type + "),\n"
+            else:
+                cn_vector_arg_type_symbol_dict_str += "): (\"" + symbol.name + "\", " + ret_type + "),\n"
+        cn_scalar_arg_type_symbol_dict_str += "}"
+        cn_vector_arg_type_symbol_dict_str += "}"
+
+        cn_scalar_return_str = return_str + cn_scalar_arg_type_symbol_dict_str
+        cn_scalar_return_str += f", is_pure={self.is_pure}"
+        cn_scalar_return_str += ", _builder=_builder)\n"
+        cn_vector_return_str += return_str + cn_vector_arg_type_symbol_dict_str
+        cn_vector_return_str += f", is_pure={self.is_pure}"
+        cn_vector_return_str += ", _builder=_builder)\n"
+
+        if cn_scalar_arg_type_symbol_dict_str == "{}":
+            cn_scalar_return_str = "\t\t\treturn None\n"
+        if cn_vector_arg_type_symbol_dict_str == "{}":
+            cn_vector_return_str = "\t\t\treturn None\n"
+        cn_vector_if_str = ""
+        for arg_name in symbol.arg_names:
+            cn_vector_if_str = cn_vector_if_str + f'is_block_arg({arg_name}) or '
+        cn_vector_if_str = cn_vector_if_str.rstrip(" or ")
+        func_str += func_name_str + "\tif " + cn_vector_if_str + " :\n" + cn_vector_return_str + "\telse:\n\t" + cn_scalar_return_str + "\n"
+        return func_str
+
     def _output_stubs(self) -> str:
         # Generate python functions in the following format:
         # @extern.extern
         # def <op_name>(<args>, _builder=None):
         #   arg_type_symbol_dict = {[arg_type]: {(symbol, ret_type)}}
         #   return extern.dispatch("libdevice", <path>, <args>, <arg_type_symbol_dict>, _builder)
-        import_str = "from triton.language import core, semantic\n"
+        import_str = "from triton.language import core, semantic\nimport numbers\n"
 
         header_str = ""
 
         is_arg_block_type = r"""
+def dispatch_ext(func, lib_name, lib_path, promotion_type, args, arg_type_symbol_dict, ret_shape, is_pure, _builder):
+    if len(arg_type_symbol_dict) == 0:
+        raise ValueError("arg_type_symbol_dict is empty")
+
+    num_args = len(list(arg_type_symbol_dict.keys())[0])
+    if len(args) != num_args:
+        raise ValueError(f"length of input args does not match."
+                         f"Expect {len(args)}, got {num_args}")
+    arg_types = []
+    arg_list = []
+    for arg in args:
+        if isinstance(arg, core.tensor):
+            arg_types.append(arg.dtype)
+            arg_list.append(arg.handle)
+        else:
+            arg_types.append(promotion_type)
+            arg_list.append(arg)
+    arg_types = tuple(arg_types)
+
+    if arg_types not in arg_type_symbol_dict:
+        raise ValueError(f"input arg type does not match."
+                         f"Expect one of {arg_type_symbol_dict.keys()}, got {arg_types}")
+    else:
+        symbol = arg_type_symbol_dict[arg_types][0]
+        ret_type = arg_type_symbol_dict[arg_types][1]
+        if ret_shape:
+            ret_type = core.block_type(ret_type, ret_shape)
+        return core.tensor(func(lib_name, lib_path, symbol, arg_list, ret_type.to_ir(_builder), is_pure), ret_type)
+
+def binary_op_type_checking_impl_ext(lhs, rhs, builder, allow_lhs_ptr=False, allow_rhs_ptr=False, arithmetic_check=True,
+                                     div_or_mod=False, increase_bit_width=False):
+    lhs_is_scalar = isinstance(lhs, numbers.Number)
+    rhs_is_scalar = isinstance(rhs, numbers.Number)
+    if lhs_is_scalar:
+        lhs_scalar = lhs
+        lhs = semantic.to_tensor(lhs, builder)
+    if rhs_is_scalar:
+        rhs_scalar = rhs
+        rhs = semantic.to_tensor(rhs, builder)
+
+    # implicit typecasting
+    lhs_sca_ty = lhs.type.scalar
+    rhs_sca_ty = rhs.type.scalar
+    semantic.check_ptr_type_impl(lhs_sca_ty, rhs_sca_ty, allow_lhs_ptr)
+    semantic.check_ptr_type_impl(rhs_sca_ty, lhs_sca_ty, allow_rhs_ptr)
+    if arithmetic_check and not lhs_sca_ty.is_ptr() and not rhs_sca_ty.is_ptr():
+        ret_sca_ty = semantic.computation_type_impl(lhs_sca_ty, lhs_is_scalar, rhs_sca_ty, rhs_is_scalar,
+                                           div_or_mod, increase_bit_width)
+        if (lhs_is_scalar and lhs_scalar < 0 and ret_sca_ty.is_int_unsigned()
+                or rhs_is_scalar and rhs_scalar < 0 and ret_sca_ty.is_int_unsigned()):
+            raise ValueError("Cannot perform a binary operation between an unsigned tensor and a negative scalar. "
+                             "Perform a explicit cast on one of them.")
+        lhs = full(
+            (), lhs_scalar, dtype=ret_sca_ty, builder=builder) if lhs_is_scalar else semantic.cast(lhs, ret_sca_ty, builder)
+        rhs = full(
+            (), rhs_scalar, dtype=ret_sca_ty, builder=builder) if rhs_is_scalar else semantic.cast(rhs, ret_sca_ty, builder)
+    return lhs, rhs
+
+def extern_elementwise_ext(lib_name, lib_path, args, arg_type_symbol_dict, ret_shape, is_pure, _builder=None):
+    dispatch_args = args.copy()
+    all_scalar = True
+    arg_types = []
+    for i in range(len(dispatch_args)):
+        dispatch_args[i] = semantic.to_tensor(dispatch_args[i], _builder)
+        arg_types.append(dispatch_args[i].dtype)
+        if dispatch_args[i].type.is_block():
+            all_scalar = False
+    if len(arg_types) > 0:
+        arg_types = tuple(arg_types)
+        arithmetic_check = True
+        # If there's a type tuple that is not supported by the library, we will do arithmetic check
+        if arg_types in arg_type_symbol_dict:
+            arithmetic_check = False
+        promotion_arg = dispatch_args[0]
+        # Get the broadcast shape over all the arguments
+        for item in dispatch_args:
+            # promotion_arg increased the bitwidth and shape
+            _, promotion_arg = binary_op_type_checking_impl_ext(item, promotion_arg, _builder,
+                                                                     arithmetic_check=arithmetic_check)
+        # Change the shape of each argument based on the broadcast shape
+        for i in range(len(dispatch_args)):
+            # Handling constexpr
+            if isinstance(args[i], core.constexpr):
+                get_value_fn = getattr(_builder, f"get_{promotion_arg.dtype.name}")
+                dispatch_args[i] = get_value_fn(args[i].value)
+            else :
+                dispatch_args[i], _ = binary_op_type_checking_impl_ext(dispatch_args[i], promotion_arg, _builder,
+                                                                        arithmetic_check=arithmetic_check)
+    func = _builder.create_extern_elementwise
+    return dispatch_ext(func, lib_name, lib_path, promotion_arg.dtype, dispatch_args, arg_type_symbol_dict, ret_shape, is_pure, _builder)
+
 def is_block_arg(arg):
     arg_is_block = True
     if isinstance(arg, core.constexpr):
@@ -882,58 +1180,7 @@ def is_cycle_args(arg0, arg1):
         func_str = "\n"
 
         for symbols in self._symbol_groups.values():
-            symbols_op_name = symbols[0].op_name
-            if symbols_op_name in special_funcs:
-                continue
-
-            func_str += "@core.extern\n"
-            func_name_str = f"def {symbols_op_name}("
-            for arg_name in symbols[0].arg_names:
-                func_name_str += f"{arg_name}, "
-            func_name_str += "_builder=None):\n"
-
-            return_str = f"\t\treturn core.extern_elementwise(\"\", \"\", ["
-            for arg_name in symbols[0].arg_names:
-                return_str += f"{arg_name}, "
-            return_str += "], \n"
-
-            cn_vector_return_str = ""
-            cn_scalar_arg_type_symbol_dict_str = "{"
-            cn_vector_arg_type_symbol_dict_str = "{"
-            for symbol in symbols:
-                if symbol.compute_mode == "scalar":
-                    cn_scalar_arg_type_symbol_dict_str += "("
-                else:
-                    cn_vector_arg_type_symbol_dict_str += "("
-                for arg_type in symbol.arg_types:
-                    if symbol.compute_mode == "scalar":
-                        cn_scalar_arg_type_symbol_dict_str += f'core.dtype("{arg_type}"),'
-                    else:
-                        cn_vector_arg_type_symbol_dict_str += f'core.dtype("{arg_type}"),'
-                ret_type = f'core.dtype("{symbol.ret_type}")'
-                if symbol.compute_mode == "scalar":
-                    cn_scalar_arg_type_symbol_dict_str += "): (\"" + symbol.name + "\", " + ret_type + "),\n"
-                else:
-                    cn_vector_arg_type_symbol_dict_str += "): (\"" + symbol.name + "\", " + ret_type + "),\n"
-            cn_scalar_arg_type_symbol_dict_str += "}"
-            cn_vector_arg_type_symbol_dict_str += "}"
-
-            cn_scalar_return_str = return_str + cn_scalar_arg_type_symbol_dict_str
-            cn_scalar_return_str += f", is_pure={self.is_pure}"
-            cn_scalar_return_str += ", _builder=_builder)\n"
-            cn_vector_return_str += return_str + cn_vector_arg_type_symbol_dict_str
-            cn_vector_return_str += f", is_pure={self.is_pure}"
-            cn_vector_return_str += ", _builder=_builder)\n"
-
-            if cn_scalar_arg_type_symbol_dict_str == "{}":
-                cn_scalar_return_str = "\t\t\treturn None\n"
-            if cn_vector_arg_type_symbol_dict_str == "{}":
-                cn_vector_return_str = "\t\t\treturn None\n"
-            cn_vector_if_str = ""
-            for arg_name in symbol.arg_names:
-                cn_vector_if_str = cn_vector_if_str + f'is_block_arg({arg_name}) or '
-            cn_vector_if_str = cn_vector_if_str.rstrip(" or ")
-            func_str += func_name_str + "\tif " + cn_vector_if_str + " :\n" + cn_vector_return_str + "\telse:\n\t" + cn_scalar_return_str + "\n"
+            func_str += self.gen_normal_func_str(symbols)
         func_str += create_special_funcs()
         func_str += compat_func()
         file_str = import_str + header_str + func_str

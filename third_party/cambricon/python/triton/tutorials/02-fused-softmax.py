@@ -36,6 +36,7 @@ _devprob = driver.BangUtils().get_device_properties(torch.mlu.current_device())
 TOTAL_CORE_NUM = _devprob.get('cluster_num') * _devprob.get("core_num_per_cluster")
 
 MAX_NRAM_SIZE = _devprob.get("max_nram_size")
+MAX_SRAM_SIZE = _devprob.get("max_shared_mem")
 MAX_N = 16385
 
 
@@ -100,34 +101,37 @@ def config_prune(configs, named_args, **kwargs):
             config = copy.deepcopy(config)
             BLOCK_N = config.kwargs["BLOCK_N"] = N
             m_per_core = math.ceil(M / TOTAL_CORE_NUM)
-            nram_usage = (2 * BLOCK_N + 1) * m_per_core * 4
-            if nram_usage < MAX_NRAM_SIZE:
-                BLOCK_M = config.kwargs["BLOCK_M"] = m_per_core
-                num_stages = config.num_stages = 1
-                key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
-                configs_map.setdefault(key, config)
-            else:
-                max_block_m_without_pipe = MAX_NRAM_SIZE // 4 // (2 * BLOCK_N + 1)
-                BLOCK_M = config.kwargs["BLOCK_M"] = align(max_block_m_without_pipe, input.dtype)
-                num_stages = config.num_stages = 1
-                key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
-                configs_map.setdefault(key, config)
 
-                config = copy.deepcopy(config)
+            BLOCK_M = config.kwargs["BLOCK_M"] = m_per_core
+            num_stages = config.num_stages = 1
+            key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
+            configs_map.setdefault(key, config)
+
+            config = copy.deepcopy(config)
+            max_block_m_without_pipe = MAX_NRAM_SIZE // 4 // (2 * BLOCK_N + 1)
+            BLOCK_M = config.kwargs["BLOCK_M"] = align(max_block_m_without_pipe, input.dtype)
+            key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
+            configs_map.setdefault(key, config)
+
+            config = copy.deepcopy(config)
+            max_block_m_without_pipe = MAX_NRAM_SIZE // 4 // (4 * BLOCK_N + 1)
+            if input.dtype == torch.float32:
                 max_block_m_without_pipe = MAX_NRAM_SIZE // 4 // (4 * BLOCK_N + 1)
-                if input.dtype == torch.float32:
-                    max_block_m_without_pipe = MAX_NRAM_SIZE // 4 // (4 * BLOCK_N + 1)
-                BLOCK_M = config.kwargs["BLOCK_M"] = align(max_block_m_without_pipe, input.dtype)
-                num_stages = config.num_stages = 3
-                key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
-                configs_map.setdefault(key, config)
+            BLOCK_M = config.kwargs["BLOCK_M"] = align(max_block_m_without_pipe, input.dtype)
+            num_stages = config.num_stages = 3
+            key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
+            configs_map.setdefault(key, config)
 
-                config = copy.deepcopy(config)
-                num_stages = config.num_stages = 5
-                num_warps = config.num_warps = 4
-                BLOCK_M = config.kwargs["BLOCK_M"] = 4 * BLOCK_M
-                key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
-                configs_map.setdefault(key, config)
+            config = copy.deepcopy(config)
+            max_block_m_u1_with_pipe1 = MAX_NRAM_SIZE // 4 // (5 * BLOCK_N + 1)
+            max_block_m_u1_with_pipe2 = MAX_SRAM_SIZE // 4 // (4 * BLOCK_N + 1) // 4
+            max_block_m_u1_with_pipe = min(max_block_m_u1_with_pipe1, max_block_m_u1_with_pipe2)
+            BLOCK_M = config.kwargs["BLOCK_M"] = align(max_block_m_u1_with_pipe, input.dtype)
+            num_stages = config.num_stages = 5
+            num_warps = config.num_warps = 4
+            BLOCK_M = config.kwargs["BLOCK_M"] = 4 * BLOCK_M
+            key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
+            configs_map.setdefault(key, config)
 
         key = (BLOCK_M, BLOCK_N, num_warps, num_stages)
         # Only keep one config for the same key
@@ -149,7 +153,7 @@ def config_prune(configs, named_args, **kwargs):
 
 
 def softmax_tile_mode_for_inner(args):
-    one_tile_m = args["BLOCK_M"] * TOTAL_CORE_NUM >= args["M"]
+    one_tile_m = args["BLOCK_M"] * TOTAL_CORE_NUM // args["num_warps"] >= args["M"]
     one_tile_n = args["BLOCK_N"] >= args["N"]
     if one_tile_n and one_tile_m:
         return 0

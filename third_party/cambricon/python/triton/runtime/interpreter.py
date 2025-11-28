@@ -630,13 +630,18 @@ class InterpreterBuilder:
         element_bytewidth = max(1, element_bitwidth // 8)
         return TensorHandle(ptr.data + element_bytewidth * offset.data.astype(np.uint64), ptr.dtype)
 
-    def create_tensor_pointer_load(self, ptr, boundary_check, padding_option, cache_modifier, eviction_policy,
-                                   is_volatile):
+    # Cambricon specific
+    def create_tensor_pointer_load(
+        self, ptr, other, boundary_check, padding_option, cache_modifier, eviction_policy,
+        # def create_tensor_pointer_load(self, ptr, boundary_check, padding_option, cache_modifier, eviction_policy,
+        is_volatile):
         ptrs, masks = ptr.materialize_pointers(boundary_check)
         dtype_tt = ptrs.get_element_ty()
         dtype_np = _get_np_dtype(dtype_tt)
         if padding_option is None:
-            other = None
+            # Cambricon specific
+            other = other
+            # other = None
         elif padding_option == _ir.PADDING_OPTION.PAD_ZERO:
             other = TensorHandle(np.zeros_like(ptrs.data, dtype=dtype_np), dtype_tt)
         elif padding_option == _ir.PADDING_OPTION.PAD_NAN:

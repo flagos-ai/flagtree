@@ -335,6 +335,19 @@ class KernelParam:
         return self._param.default != inspect.Parameter.empty
 
 
+def compute_spec_key(v, align):
+
+    if align and hasattr(v, "data_ptr") and (v.data_ptr() % 16 == 0):
+        return "D"
+    elif isinstance(v, int):
+        # bool is a subclass of int, so we don't check explicitly above.
+        if align and (v % 16 == 0):
+            return "D"
+        elif v == 1:
+            return "1"
+    return "N"
+
+
 dtype2str = {}
 specialize_impl_cache = []
 
@@ -412,11 +425,22 @@ def serialize_specialization_data(name, signature, constants, attrs, options, ke
     constants = {key: str(value) if value.__class__.__name__ == "dtype" else value for key, value in constants.items()}
     import json
     obj = {
-        'name': name, 'signature': signature, 'constant_keys': list(constants.keys()), 'constant_vals':
-        list(constants.values()), 'attrs': attrs.to_dict(), 'options': options.__dict__, 'key': key
+        'name': name, 'signature': signature, 'constants': constants, 'attrs': attrs.to_dict(), 'options':
+        options.__dict__, 'key': key
     }
     serialized_obj = json.dumps(obj)
     return serialized_obj
+
+
+def get_arg_specialization(arg, ty, **kwargs):
+    """
+    Return a string unique to each possible specialization of the argument
+    """
+    if ty == "int" and arg % 16 == 0 and kwargs.get("align", False):
+        return "D"
+    if ty == "tensor" and arg.data_ptr() % 16 == 0 and kwargs.get("align", False):
+        return "D"
+    return ""
 
 
 def create_function_from_signature(sig, kparams, backend):
@@ -436,6 +460,7 @@ def create_function_from_signature(sig, kparams, backend):
     non_constexpr_vals = []
     signature_types = []
     specialisations = []
+    specialization = []
 
     for ((name, sp), kp) in zip(sig.parameters.items(), kparams):
         if sp.default is inspect.Parameter.empty:
@@ -447,6 +472,7 @@ def create_function_from_signature(sig, kparams, backend):
         if kp.is_constexpr:
             signature_types.append('"constexpr"')
             constexpr_vals.append(name)
+            specialization.append(f'("constexpr", {name})')
         else:
             non_constexpr_vals.append(name)
             if not kp.do_not_specialize:
@@ -454,22 +480,31 @@ def create_function_from_signature(sig, kparams, backend):
                     specialisations.append('compute_spec_key(%s, align=True)' % name)
                 else:
                     specialisations.append('compute_spec_key(%s, align=False)' % name)
+            is_const = 'True' if kp.is_const else 'False'
+            specialize = 'False' if kp.do_not_specialize else 'True'
+            align = 'False' if kp.do_not_specialize_on_alignment else 'True'
+            ret = f"specialize_impl({name}, {is_const}, {specialize}, {align})"
             if kp.annotation_type:
                 signature_types.append('"%s"' % kp.annotation_type)
+                specialization.append(f'("{kp.annotation_type}",) + {ret}[1:]')
             else:
                 signature_types.append('mangle_type(%s, %s)' % (name, 'True' if kp.is_const else 'False'))
+                specialization.append(f"{ret}")
 
     cache_key = ''.join([x + ', ' for x in signature_types + specialisations])
     constexpr_vals = ''.join([x + ', ' for x in constexpr_vals])
     non_constexpr_vals = ''.join([x + ', ' for x in non_constexpr_vals])
+    specialization = ''.join([x + ', ' for x in specialization])
 
     func_args.append('**excess_kwargs')
 
     # Join all arguments into a function definition string
     args_str = ', '.join(func_args)
     dict_str = ', '.join(dict_entries)
-    func_body = "def dynamic_func(%s):\n    return {%s}, (%s), (%s), tuple(item for item in (%s) if item is not None), excess_kwargs" % (
-        args_str, dict_str, cache_key, constexpr_vals, non_constexpr_vals)
+    func_body = """
+def dynamic_func(%s):
+    return {%s}, (%s), (%s), (%s), tuple(item for item in (%s) if item is not None), excess_kwargs""" % (
+        args_str, dict_str, specialization, cache_key, constexpr_vals, non_constexpr_vals)
 
     # Prepare defaults to be inserted into function namespace
     func_namespace = {
@@ -478,8 +513,10 @@ def create_function_from_signature(sig, kparams, backend):
         if param.default is not inspect.Parameter.empty
     }
 
+    func_namespace["JITFunction"] = JITFunction
     func_namespace['mangle_type'] = mangle_type
     func_namespace['compute_spec_key'] = backend.compute_spec_key
+    func_namespace["specialize_impl"] = create_specialize_impl(get_arg_specialization)
 
     # Execute the function string in func_namespace to create the function
     exec(func_body, func_namespace)
@@ -579,13 +616,8 @@ class JITFunction(KernelInterface[T]):
                     seen.add(ptr)
         return True
 
-    def _check_valid_grid(self, device, grid_0, grid_1, grid_2, num_warps):
-        props = driver.active.utils.get_device_properties(device)
-        max_grid_size_x = props.get("max_block_task_dim_x", INT_MAX)
-        max_grid_size_y = props.get("max_block_task_dim_y", INT_MAX)
-        max_grid_size_z = props.get("max_block_task_dim_z", INT_MAX)
+    def _check_valid_grid(self, device, grid_0, grid_1, grid_2, num_warps, max_grid_size):
         grid_value = [grid_0 * num_warps, grid_1, grid_2]
-        max_grid_size = [max_grid_size_x, max_grid_size_y, max_grid_size_z]
         for i in range(len(grid_value)):
             if grid_value[i] > max_grid_size[i]:
                 raise OutOfResources(grid_value[i], max_grid_size[i], "grid size")
@@ -611,7 +643,7 @@ class JITFunction(KernelInterface[T]):
 
         name = self.fn.__name__
         module = self.fn.__module__
-        arg_reprs = ", ".join([f"{param.name}: {ty}" for param, ty in zip(self.params, key[1])])
+        arg_reprs = ", ".join([f"{param.name}: {ty}" for param, ty in zip(self.params, [key])])
         repr = f"{name}[num_warps={options.num_warps}, num_ctas={options.num_ctas}, num_stages={options.num_stages}, enable_fp_fusion={options.enable_fp_fusion}, enable_soft_i64={options.enable_soft_i64}]({arg_reprs})"
 
         class JitFunctionInfo:
@@ -681,16 +713,17 @@ class JITFunction(KernelInterface[T]):
         device = driver.active.get_current_device()
         stream = driver.active.get_current_stream(device)
 
+        max_grid_size = driver.active.utils.get_max_grid_size(device)
         # Execute pre run hooks with args and kwargs
         for hook in self.pre_run_hooks:
             hook(*args, **kwargs)
 
         kernel_cache, target, backend, binder = self.device_caches[device]
-        bound_args, sig_and_spec, constexpr_vals, non_constexpr_vals, excess_kwargs = binder(*args, **kwargs)
+        bound_args, specialization, sig_and_spec, constexpr_vals, non_constexpr_vals, excess_kwargs = binder(
+            *args, **kwargs)
 
         # compute cache key
-        # FIXME(cambricon): optimize hostoverhead for jit
-        key = str(hash(sig_and_spec)) + str((constexpr_vals, excess_kwargs))
+        key = hash((specialization, str((constexpr_vals, excess_kwargs))))
         kernel = kernel_cache.get(key, None)
 
         if kernel is None:
@@ -700,7 +733,7 @@ class JITFunction(KernelInterface[T]):
                 for arg in bound_args.values()
                 if hasattr(arg, "data_ptr") and arg.data_ptr() != 0)
             kwargs["restrict_ptr_hint"] = self._has_no_duplicate_storage_ptr(bound_args)
-            kwargs["can_promote_shared"] = kwargs.get("num_warps") == 1 and driver.active.launch_as_union_task(
+            kwargs["can_promote_shared"] = kwargs.get("num_warps", 1) == 1 and driver.active.launch_as_union_task(
                 device,
                 grid(bound_args) if callable(grid) else grid)
             options = backend.parse_options(kwargs)
@@ -726,13 +759,24 @@ class JITFunction(KernelInterface[T]):
             attrs = backend.get_attrs_descriptor(self.params, bound_vals)
             constexprs = find_paths_if(sigvals, lambda _, val: val == "constexpr")
             constexprs = {path: get_iterable_path(list(bound_args.values()), path) for path in constexprs}
-            if self._call_hook(key, signature, device, constexprs, options, [attrs], warmup, before=True):
+
+            constant_params = attrs.get_constants()
+            constants = {
+                p.name: v
+                for (v, p) in zip(bound_vals, self.params)
+                if p.is_constexpr or (p.num in constant_params) or v is None
+            }
+            for i, arg in constants.items():
+                if callable(arg):
+                    raise TypeError(f"Callable constexpr at index {i} is not supported")
+
+            if self._call_hook(key, signature, device, constants, options, [attrs], warmup, before=True):
                 return None
             # compile the kernel
             src = self.ASTSource(self, signature, constexprs, attrs)
             kernel = self.compile(src, target=target, options=options.__dict__)
             kernel_cache[key] = kernel
-            self._call_hook(key, signature, device, constexprs, options, [attrs], warmup, before=False)
+            self._call_hook(key, signature, device, constants, options, [attrs], warmup, before=False)
 
         # Check that used global values have not changed.
         not_present = object()
@@ -760,7 +804,7 @@ class JITFunction(KernelInterface[T]):
             grid_1 = grid[1] if grid_size > 1 else 1
             grid_2 = grid[2] if grid_size > 2 else 1
             num_warps = kernel.metadata.num_warps
-            self._check_valid_grid(device, grid_0, grid_1, grid_2, num_warps)
+            self._check_valid_grid(device, grid_0, grid_1, grid_2, num_warps, max_grid_size)
 
             # launch kernel
             launch_metadata = kernel.launch_metadata(grid, stream, *non_constexpr_vals)
@@ -845,8 +889,7 @@ class JITFunction(KernelInterface[T]):
         return self.run(grid=grid, warmup=True, *map(MockTensor.wrap_dtype, args), **kwargs)
 
     def preload(self, specialization_data):
-        from ..compiler import compile, ASTSource
-        from ..compiler import AttrsDescriptor
+        from ..compiler import compile, ASTSource, AttrsDescriptor
         import json
         import triton.language as tl
         device = driver.active.get_current_device()
@@ -854,8 +897,9 @@ class JITFunction(KernelInterface[T]):
         if deserialized_obj['name'] != self.fn.__name__:
             raise RuntimeError(
                 f"Specialization data is for {deserialized_obj['name']} but trying to preload for {self.fn.__name__}")
-        constant_keys = deserialized_obj['constant_keys']
-        constant_vals = deserialized_obj['constant_vals']
+        constants = deserialized_obj['constants']
+        constant_keys = list(constants.keys())
+        constant_vals = list(constants.values())
         constants = {
             key: tl.dtype(value) if tl.dtype.is_dtype(value) else value
             for key, value in zip(constant_keys, constant_vals)

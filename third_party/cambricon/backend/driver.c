@@ -7,6 +7,13 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+static inline void raiseRuntimeError(const char *err) {
+  PyGILState_STATE gil_state;
+  gil_state = PyGILState_Ensure();
+  PyErr_SetString(PyExc_RuntimeError, err);
+  PyGILState_Release(gil_state);
+}
+
 static inline bool isResultSuccessed(CNresult code, const char *file,
                                      int line) {
   if (code == CN_SUCCESS)
@@ -18,10 +25,7 @@ static inline bool isResultSuccessed(CNresult code, const char *file,
   char err[1024] = {0};
   strcat(err, prefix);
   strcat(err, str);
-  PyGILState_STATE gil_state;
-  gil_state = PyGILState_Ensure();
-  PyErr_SetString(PyExc_RuntimeError, err);
-  PyGILState_Release(gil_state);
+  raiseRuntimeError(err);
   return false;
 }
 
@@ -65,6 +69,11 @@ static PyObject *getDeviceProperties(PyObject *self, PyObject *args) {
   // create a struct to hold device properties
   CNcontext drv_ctx;
   MLU_CHECK_AND_RETURN_NULL(cnCtxGetCurrent(&drv_ctx));
+  if (drv_ctx == NULL) {
+    raiseRuntimeError("Triton Error [MLU]:  Context is empty."
+                      "Please check whether the exclusive mode is enabled.");
+    return NULL;
+  }
   CNctxConfigParam ctx_conf_param;
   MLU_CHECK_AND_RETURN_NULL(cnGetCtxConfigParam(
       drv_ctx, CN_CTX_CONFIG_VISIBLE_CLUSTER_NUM, &ctx_conf_param));

@@ -38,7 +38,7 @@ class Autotuner(KernelInterface):
         if not configs:
             self.configs = [
                 Config({}, num_warps=4, num_stages=2, num_ctas=1, num_buffers_warp_spec=0, num_consumer_groups=0,
-                       reg_dec_producer=0, reg_inc_consumer=0, pipeline_strategies=[""])
+                       reg_dec_producer=0, reg_inc_consumer=0, bottleneck=None, pipeline_strategies=None)
             ]
         else:
             self.configs = configs
@@ -269,10 +269,14 @@ class Config:
                        to ptx .maxnreg directive.  Not supported on all platforms.
     :ivar pre_hook: a function that will be called before the kernel is called. Parameters of this
                     function are args.
+    :type bottleneck: Str
+    :ivar bottleneck: the bottleneck of module, used to provide hint for pipelining, aiding in stream
+                      selection
     """
 
     def __init__(self, kwargs, num_warps=1, num_stages=1, num_ctas=1, num_buffers_warp_spec=0, num_consumer_groups=0,
-                 reg_dec_producer=0, reg_inc_consumer=0, maxnreg=None, pre_hook=None, pipeline_strategies=[""]):
+                 reg_dec_producer=0, reg_inc_consumer=0, bottleneck=None, maxnreg=None, pre_hook=None,
+                 pipeline_strategies=None):
         self.kwargs = kwargs
         self.num_warps = num_warps
         self.num_ctas = num_ctas
@@ -283,6 +287,7 @@ class Config:
         self.reg_inc_consumer = reg_inc_consumer
         self.maxnreg = maxnreg
         self.pre_hook = pre_hook
+        self.bottleneck = bottleneck
         self.pipeline_strategies = pipeline_strategies
 
     def all_kwargs(self):
@@ -298,6 +303,7 @@ class Config:
                     ("reg_dec_producer", self.reg_dec_producer),
                     ("reg_inc_consumer", self.reg_inc_consumer),
                     ("maxnreg", self.maxnreg),
+                    ("bottleneck", self.bottleneck),
                     ("pipeline_strategies", self.pipeline_strategies),
                 ) if v is not None
             }
@@ -315,6 +321,7 @@ class Config:
         res.append(f"reg_dec_producer: {self.reg_dec_producer}")
         res.append(f"reg_inc_consumer: {self.reg_inc_consumer}")
         res.append(f"maxnreg: {self.maxnreg}")
+        res.append(f"bottleneck: {self.bottleneck}")
         res.append(f"pipeline_strategies: {self.pipeline_strategies}")
         return ", ".join(res)
 

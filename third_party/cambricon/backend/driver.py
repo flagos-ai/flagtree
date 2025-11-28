@@ -1,5 +1,6 @@
 import functools
 import os
+import sys
 import hashlib
 import subprocess
 import tempfile
@@ -67,6 +68,17 @@ class BangUtils(object):
         self.load_binary = mod.load_binary
         self.get_device_properties = mod.get_device_properties
         self.is_linear_pointer = mod.is_linear_pointer
+
+    @functools.lru_cache()
+    def get_max_grid_size(self, device):
+        props = self.get_device_properties(device)
+        INT_MAX = sys.maxsize
+        max_grid_size = (
+            props.get("max_block_task_dim_x", INT_MAX),
+            props.get("max_block_task_dim_y", INT_MAX),
+            props.get("max_block_task_dim_z", INT_MAX),
+        )
+        return max_grid_size
 
 
 # ------------------------
@@ -296,6 +308,9 @@ static PyObject* launch(PyObject* self, PyObject* args) {{
   int core_num_per_cluster = prop.McorePerCluster;
   int total_cores = cluster_cnt * core_num_per_cluster;
 
+  // NOTE:
+  // - Update same code in mlu/runner/runner.cc when this code is changed.
+  // - TODO, use common code place(e.g. defined in header files) for this code.
   uint64_t func_type = ((num_warps == 1) && (gridX % core_num_per_cluster == 0) && (promote_shared == 1 || gridX * gridY * gridZ <= total_cores)) ? core_num_per_cluster : num_warps;
 
   if (launch_enter_hook != Py_None) {{

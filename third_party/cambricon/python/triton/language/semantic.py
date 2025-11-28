@@ -1158,8 +1158,11 @@ def _canonicalize_boundary_check(boundary_check, block_shape):
 def _load_block_pointer(ptr, mask, other, boundary_check, padding, cache, eviction, is_volatile, builder):
     # Load by a block pointer: `pointer_type<block_type<>>`
     # Block pointer can not have `mask` and `other` arguments
-    if mask is not None or other is not None:
-        raise ValueError("`mask` and `other` arguments cannot be specified for loading block pointers")
+    # Cambricon specific
+    if mask is not None:
+        raise ValueError("`mask` arguments cannot be specified for loading block pointers")
+    # if mask is not None or other is not None:
+    #     raise ValueError("`mask` and `other` arguments cannot be specified for loading block pointers")
 
     elt_ty = ptr.type.element_ty.element_ty
     assert elt_ty != tl.int1, "`tl.int1` should be rewrited in `tl.make_block_ptr`"
@@ -1172,9 +1175,17 @@ def _load_block_pointer(ptr, mask, other, boundary_check, padding, cache, evicti
     # Check `boundary_check` argument
     boundary_check = _canonicalize_boundary_check(boundary_check, dst_ty.get_block_shapes())
 
+    # Cambricon specific
+    if other is not None:
+        other = broadcast_impl_shape(other, dst_ty.get_block_shapes(), builder)
+        other = cast(other, dst_ty, builder)
+
     # Build IR
     return tl.tensor(
-        builder.create_tensor_pointer_load(ptr.handle, boundary_check, padding, cache, eviction, is_volatile), dst_ty)
+        # Cambricon specific
+        builder.create_tensor_pointer_load(ptr.handle, other.handle if other else None, boundary_check, padding, cache,
+                                           eviction, is_volatile), dst_ty)
+    # builder.create_tensor_pointer_load(ptr.handle, boundary_check, padding, cache, eviction, is_volatile), dst_ty)
 
 
 def _load_legacy(ptr, mask, other, boundary_check, padding, cache, eviction, is_volatile, builder):
@@ -1626,14 +1637,32 @@ def dot(lhs: tl.tensor, rhs: tl.tensor, acc: tl.tensor, input_precision: Optiona
         assert lhs.type.scalar == tl.int8 or lhs.type.scalar == tl.int16, "only int8/int16 supported!"
         _0 = builder.get_fp16(0) if out_dtype.is_fp16() else builder.get_fp32(0)
         ret_scalar_ty = out_dtype
-    elif out_dtype.is_bf16():
+    # Cambricon specific
+    # elif out_dtype.is_bf16():
+    elif out_dtype.is_bf16() and builder.options.backend_name != "mlu":
         raise ValueError(
             "out_dtype=bfloat16 is unsupported. Please use out_dtype=float32/float16 and cast with `.to(tl.bfloat16)`")
     elif lhs.type.scalar.is_fp32() or lhs.type.scalar.is_bf16():
-        _0 = builder.get_fp32(0)
-        ret_scalar_ty = tl.float32
+        # Cambricon specific
+        # _0 = builder.get_fp32(0)
+        if lhs.type.scalar.is_fp32():
+            if out_dtype != tl.float32:
+                warnings.warn(f"out_dtype={out_dtype} is ignored when lhs type is f32")
+            _0 = builder.get_fp32(0)
+            ret_scalar_ty = tl.float32
+        else:
+            assert lhs.type.scalar.is_bf16()
+            _0 = builder.get_bf16(0) if out_dtype.is_bf16() else builder.get_fp32(0)
+            ret_scalar_ty = out_dtype
     else:
-        _0 = builder.get_fp16(0) if out_dtype.is_fp16() else builder.get_fp32(0)
+        # Cambricon specific
+        # _0 = builder.get_fp16(0) if out_dtype.is_fp16() else builder.get_fp32(0)
+        if out_dtype.is_fp16():
+            _0 = builder.get_fp16(0)
+        elif out_dtype.is_bf16():
+            _0 = builder.get_bf16(0)
+        else:
+            _0 = builder.get_fp32(0)
         ret_scalar_ty = out_dtype
 
     M = lhs.type.shape[-2]
