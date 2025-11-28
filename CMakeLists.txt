@@ -198,12 +198,7 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_BINARY_DIR}/third_party) # Tablegen'd files
 
 # link_directories(${LLVM_LIBRARY_DIR})
-if (FLAGTREE_BACKEND STREQUAL "ascend")
-  include_directories(${PROJECT_SOURCE_DIR}/include)
-  include_directories(${PROJECT_BINARY_DIR}/include) # Tablegen'd files
-  add_subdirectory(include)
-  add_subdirectory(lib)
-elseif(NOT FLAGTREE_BACKEND)
+if(NOT FLAGTREE_BACKEND)
   add_subdirectory(include)
   add_subdirectory(lib)
 endif()
