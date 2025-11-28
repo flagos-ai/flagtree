@@ -143,6 +143,9 @@ class constexpr:
             self.value = value
         self.type = constexpr
 
+    def __hash__(self):
+        return hash(self.value)
+
     def __repr__(self) -> str:
         return f"constexpr[{self.value}]"
 
@@ -798,13 +801,13 @@ def _extract_slice(sl: slice, shape: tl.constexpr, builder):
         stop = sl.stop
         step = constexpr_or_none_to_value(sl.step, 1)
         size = (delta + step - 1) // step
-        assert step >= 0 and size >= 0, f"slice should be greater than 0"
+        assert step >= 0 and size > 0, f"slice should be greater than 0"
     else:
         start = constexpr_or_none_to_value(sl.start, 0)
         stop = constexpr_or_none_to_value(sl.stop, _constexpr_to_value(shape))
         step = constexpr_or_none_to_value(sl.step, 1)
         size = (stop - start + step - 1) // step
-        assert start >= 0 and stop >= 0 and step >= 0 and size >= 0, f"slice should be greater than 0"
+        assert start >= 0 and stop >= 0 and step >= 0 and size > 0, f"slice should be greater than 0"
         start = builder.get_int32(start)
     return start, size, step
 
@@ -1083,6 +1086,7 @@ class tensor(base_value):
                 sizes.append(constexpr(1))
                 strides.append(constexpr(1))
             elif isinstance(sl, tensor):
+                assert not sl.type.is_block(), f"unsupport slice index: {sl}"
                 offsets.append(sl.handle)
                 sizes.append(constexpr(1))
                 strides.append(constexpr(1))
@@ -1094,10 +1098,19 @@ class tensor(base_value):
                 sizes.append(constexpr(size))
                 dst_shape.append(constexpr(size))
                 need_extract_slice = True
-            elif isinstance(sl, (builtins.slice, slice)) and sl.start is None and sl.stop is None and sl.step is None:
-                pass
             else:
                 assert False, f"unsupported slice index: {sl}"
+
+        # Support such case:
+        # Assume the shape of tensor a is (2, 2),
+        # then the shape of a[:, None] is (2, 1, 2), we should pack the dst_shape.
+        dim = len(slices)
+        while dim < len(ret.shape):
+            offsets.append(_builder.get_int32(0))
+            strides.append(constexpr(1))
+            sizes.append(constexpr(ret.shape[dim]))
+            dst_shape.append(constexpr(ret.shape[dim]))
+            dim += 1
 
         if need_extract_slice:
             ret = semantic.extract_slice(ret, offsets, sizes, strides, dst_shape, _builder)
@@ -1123,6 +1136,7 @@ class tensor(base_value):
                 sizes.append(constexpr(1))
                 strides.append(constexpr(1))
             elif isinstance(sl, tensor):
+                assert not sl.type.is_block(), f"unsupport slice index: {sl}"
                 offsets.append(sl.handle)
                 sizes.append(constexpr(1))
                 strides.append(constexpr(1))
@@ -1135,7 +1149,8 @@ class tensor(base_value):
                 pass
             else:
                 assert False, f"unsupported slice index: {sl}"
-        ret = semantic.insert_slice(semantic.to_tensor(value, _builder), ret, offsets, sizes, strides, _builder)
+        value_tensor = semantic.to_tensor(value, _builder).to(ret.dtype, _builder=_builder)
+        ret = semantic.insert_slice(value_tensor, ret, offsets, sizes, strides, _builder)
         return ret
 
     @property

@@ -5,7 +5,7 @@ from triton.runtime.errors import OutOfResources
 
 from dataclasses import dataclass
 import functools
-from typing import Any, Tuple, Optional, Dict
+from typing import Any, Tuple, List, Optional, Dict, Union
 from types import ModuleType
 import hashlib
 import re
@@ -69,8 +69,18 @@ def min_dot_size(target: GPUTarget):
 
 
 def _extract_memory_info(log: str) -> dict:
-    pattern = r'(NRAM|WRAM|SRAM)\s+(\d+)\s+([-]?\d+)\s+(\d+)\s+'
+    pattern = r'(NRAM|WRAM|SRAM)\s+(\d+)\s+([-]?\d+)\s+(\d+)\s*'
     return re.findall(pattern, log)
+
+
+def check_memory_avail(log):
+    meminfo = _extract_memory_info(log)
+    memory_limit = {'NRAM': 8, 'WRAM': 0, 'SRAM': 8}
+    for info in meminfo:
+        memory_type, used, avail, total = info
+        # FIXME: 8B of avaliable memory(NRAM/SRAM) should be reserved, it will be fixed in the later version.
+        if int(avail) < memory_limit[memory_type]:
+            raise OutOfResources(int(used), int(total), memory_type)
 
 
 @functools.lru_cache(None)
@@ -123,11 +133,15 @@ class MLUOptions:
     force_use_shared_memory: bool = False
     # Default bottleneck set to I/O, default behavior for software pipeline.
     bottleneck: str = None
-    pipeline_strategies: Tuple[str] = ()
+    pipeline_strategies: Union[Tuple[str], List[str]] = None
     onchip_mem_analysis: str = False
     # Eanble internal mlu instruction bound check, it will slow down the running
     # speed, only used for debug.
     enable_mlu_bound_check: bool = False
+    # Disable trans_collapse_pass optimization.
+    # In some scenarios, eliminating transpose pass may not be a
+    # positive optimization.
+    disable_trans_collapse_pass: bool = False
 
     def __post_init__(self):
         extern_libs = {} if self.extern_libs is None else dict(self.extern_libs)
@@ -154,6 +168,12 @@ class MLUOptions:
 
         if self.debug is None:
             object.__setattr__(self, 'debug', False)
+        if not (self.pipeline_strategies is None or
+                (isinstance(self.pipeline_strategies,
+                            (list, tuple)) and all(isinstance(x, str) for x in self.pipeline_strategies))):
+            raise ValueError(
+                f"Parameter `pipeline_strategies` must be None, list[str], or tuple[str], "
+                f"but got type `{type(self.pipeline_strategies).__name__}` with value `{self.pipeline_strategies}`.")
 
     def hash(self):
         hash_dict = dict(self.__dict__)
@@ -285,6 +305,7 @@ class MLUBackend(BaseBackend):
         passes.common.add_canonicalizer(pm)
         passes.ttir.add_reorder_broadcast(pm)
         passes.common.add_cse(pm)
+        mlu.passes.add_scf_for_loop_cse(pm)
         passes.common.add_licm(pm)
         passes.common.add_symbol_dce(pm)
         pm.run(mod)
@@ -331,6 +352,7 @@ class MLUBackend(BaseBackend):
         mod.set_attr("genesis.precision_mode", builder.get_str_attr(opt.precision_mode))
         arch = MLUBackend.stringify_arch(capability)
         mod.set_attr("genesis.arch", builder.get_str_attr(arch))
+        mod.set_attr("genesis.disable_trans_collapse_pass", builder.get_bool_attr(opt.disable_trans_collapse_pass))
 
         return mod
 
@@ -345,6 +367,7 @@ class MLUBackend(BaseBackend):
         mlu.passes.add_conservate_pointer_mode_set(pm)
         passes.common.add_canonicalizer(pm)
         mlu.passes.add_canonicalize_triton(pm)
+        passes.ttir.add_reorder_broadcast(pm)
         mlu.passes.add_pointer_strength_reduction(pm)
         mlu.passes.add_pointer_contiguity_enhancement(pm)
         mlu.passes.add_pointer_constancy_degeneration(pm)
@@ -358,6 +381,7 @@ class MLUBackend(BaseBackend):
         mlu.passes.add_arithext_to_linalg(pm)
         mlu.passes.add_triton_to_linalg(pm)
         passes.common.add_cse(pm)
+        mlu.passes.add_scf_for_loop_cse(pm)
         mlu.passes.add_extract_like_move_backward(pm)
         passes.common.add_canonicalizer(pm)
         mlu.passes.add_convert_scalar_i64_to_tensor(pm)
@@ -365,6 +389,7 @@ class MLUBackend(BaseBackend):
         mlu.passes.add_arith_to_linalg(pm)
         mlu.passes.add_math_to_linalg(pm)
         passes.common.add_cse(pm)
+        mlu.passes.add_scf_for_loop_cse(pm)
         passes.common.add_licm(pm)
         mlu.passes.add_wrap_func_body_with_single_block(pm)
         mlu.passes.add_convert_triton_to_scf(pm)
@@ -431,6 +456,9 @@ class MLUBackend(BaseBackend):
             try:
                 subprocess.run(cnas_cmd, check=True, close_fds=False, stdout=flog, stderr=flog)
                 subprocess.run(cnlink_cmd, check=True, close_fds=False, stdout=flog, stderr=flog)
+                with open(flog.name) as log_file:
+                    log = log_file.read()
+                check_memory_avail(log)
                 if os.path.exists(fsrc.name):
                     os.remove(fsrc.name)
                 if os.path.exists(fbin):
@@ -442,12 +470,7 @@ class MLUBackend(BaseBackend):
                     log = log_file.read()
                 if os.path.exists(flog.name):
                     os.remove(flog.name)
-
-                meminfo = _extract_memory_info(log)
-                for info in meminfo:
-                    memory_type, used, avail, total = info
-                    if int(avail) < 0:
-                        raise OutOfResources(int(used), int(total), memory_type)
+                check_memory_avail(log)
 
                 raise RuntimeError(f'`cnas+cnlink` failed with error code {e.returncode}: \n{log}\n'
                                    f'Repro cnas command: {" ".join(cnas_cmd)}\n'
@@ -476,3 +499,15 @@ class MLUBackend(BaseBackend):
     def hash(self):
         version = get_cnas_version()
         return f'{version}-{self.capability}'
+
+    @staticmethod
+    def compute_spec_key(v, align):
+        if align and hasattr(v, "data_ptr") and (v.data_ptr() % 16 == 0):
+            return "D"
+        elif isinstance(v, int):
+            # bool is a subclass of int, so we don't check explicitly above.
+            if align and (v % 16 == 0):
+                return "D"
+            elif v == 1:
+                return "1"
+        return "N"

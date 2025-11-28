@@ -325,14 +325,18 @@ def index_select(inp, dim, idx):
     return out
 
 
-INP_SHAPES = [
+TEST_SHAPES = [
     (64, 64),
-    #(256, 256),
-    #(1024, 1024),
-    #(4096, 4096),
-    #(1024, 65536),
-    #(1229312, 512),
-    #(1433600, 512),
+]
+
+BENCH_SHAPES = [
+    (64, 64),
+    (256, 256),
+    (1024, 1024),
+    (4096, 4096),
+    (1024, 65536),
+    (1229312, 512),
+    (1433600, 512),
 ]
 
 dtypes = [torch.float32, torch.float16]
@@ -362,7 +366,7 @@ def gen_inp_idx_dims(inp_shapes, dims):
     return inp_idx_dims
 
 
-@pytest.mark.parametrize("inp_idx_shape_dim", gen_inp_idx_dims(INP_SHAPES, [0, 1]))
+@pytest.mark.parametrize("inp_idx_shape_dim", gen_inp_idx_dims(TEST_SHAPES, [0, 1]))
 @pytest.mark.parametrize("dtype", dtypes)
 def test_op(inp_idx_shape_dim, dtype):
     print(inp_idx_shape_dim, dtype)
@@ -431,12 +435,12 @@ def benchmark_base(inp_shape, idx_shape, rand_seed, dtype, dim, provider):
     return ms
 
 
-@triton.testing.perf_report(gen_perf_configs(INP_SHAPES, [0]))
+@triton.testing.perf_report(gen_perf_configs(BENCH_SHAPES, [0]))
 def benchmark_dim0(inp_shape, idx_shape, rand_seed, dtype, dim, provider):
     return benchmark_base(inp_shape, idx_shape, rand_seed, dtype, dim, provider)
 
 
-@triton.testing.perf_report(gen_perf_configs(INP_SHAPES, [1]))
+@triton.testing.perf_report(gen_perf_configs(BENCH_SHAPES, [1]))
 def benchmark_dim1(inp_shape, idx_shape, rand_seed, dtype, dim, provider):
     return benchmark_base(inp_shape, idx_shape, rand_seed, dtype, dim, provider)
 

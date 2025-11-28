@@ -96,7 +96,8 @@ def add(x: torch.Tensor, y: torch.Tensor):
     # The SPMD launch grid denotes the number of kernel instances that run in parallel.
     # It is analogous to MLU launch grids. It can be either Tuple[int], or Callable(metaparameters) -> Tuple[int].
     # In this case, we use a 1D grid where the size is the number of blocks:
-    grid = lambda meta: (min(triton.cdiv(n_elements, meta['BLOCK_SIZE']), 48), )
+    core_num = torch.mlu.get_device_properties().multi_processor_count
+    grid = lambda meta: (min(triton.cdiv(n_elements, meta['BLOCK_SIZE']), core_num), )
     # NOTE:
     #  - Each torch.tensor object is implicitly converted into a pointer to its first element.
     #  - `triton.jit`'ed functions can be indexed with a launch grid to obtain a callable MLU kernel.

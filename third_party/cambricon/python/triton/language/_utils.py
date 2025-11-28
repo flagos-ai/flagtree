@@ -1,6 +1,8 @@
 from typing import List
 
-TRITON_MAX_TENSOR_NUMEL = 1048576
+# TRITON_MAX_TENSOR_NUMEL = 1048576
+# Cambricon specific.
+TRITON_MAX_TENSOR_NUMEL = 104857600
 
 
 def is_power_of_two(x):

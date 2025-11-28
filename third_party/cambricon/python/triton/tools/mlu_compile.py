@@ -185,10 +185,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--archs", "-a", type=str, nargs='+', default=[get_arch()],
         help="Specify the AOT compilation target MLU architecture(s). "
-        "Supported values: mtp_372, mtp_592. Use spaces to separate multiple architectures.\n"
+        "Supported values: mtp_592, mtp_613. Use spaces to separate multiple architectures.\n"
         "Examples:\n"
         "  --archs mtp_592\n"
-        "  --archs mtp_372 mtp_592\n"
+        "  --archs mtp_592 mtp_613\n"
         "  -a mtp_592\n")
     parser.add_argument(
         "--is-linear", "-l", type=int, default=None, choices=[0, 1], help=

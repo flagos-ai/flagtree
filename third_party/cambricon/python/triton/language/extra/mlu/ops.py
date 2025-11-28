@@ -79,10 +79,7 @@ def scatter(dst: core.tensor, src: core.tensor, offset: core.tensor, mask: Optio
 
     Parameters:
     - dst: Destination tensor to write into.
-    - src: Source tensor containing the values to be scattered. The leading (batch) dimensions of this tensor must either:
-        1. Exactly match the corresponding batch dimensions of the offset tensor, or
-        2. Be broadcast-compatible with the offset's batch dimensions (following standard broadcasting rules).
-        The remaining dimensions specify the values to be written at each scattered location.
+    - src: Source tensor providing values to scatter.
     - offset: Tensor specifying the indices where values in `src` will be written to `dst`.
               The last dimension of `offset` represents index positions in `dst`.
     - mask: Optional boolean tensor that masks which elements of `src` are written.
@@ -115,7 +112,7 @@ def scatter(dst: core.tensor, src: core.tensor, offset: core.tensor, mask: Optio
                 broadcasted.insert(0, batch_dims - i)
                 is_broadcasted = True
             else:
-                raise ValueError(f"Invalid broadcast: src_dim {src_dim} != 1")
+                is_broadcasted = False
                 break
 
     location = _builder.get_loc()

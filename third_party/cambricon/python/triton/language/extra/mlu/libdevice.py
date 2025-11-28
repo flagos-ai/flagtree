@@ -1,4 +1,101 @@
+import numbers
+
 from triton.language import core, semantic
+
+
+def dispatch_ext(func, lib_name, lib_path, promotion_type, args, arg_type_symbol_dict, ret_shape, is_pure, _builder):
+    if len(arg_type_symbol_dict) == 0:
+        raise ValueError("arg_type_symbol_dict is empty")
+
+    num_args = len(list(arg_type_symbol_dict.keys())[0])
+    if len(args) != num_args:
+        raise ValueError(f"length of input args does not match."
+                         f"Expect {len(args)}, got {num_args}")
+    arg_types = []
+    arg_list = []
+    for arg in args:
+        if isinstance(arg, core.tensor):
+            arg_types.append(arg.dtype)
+            arg_list.append(arg.handle)
+        else:
+            arg_types.append(promotion_type)
+            arg_list.append(arg)
+    arg_types = tuple(arg_types)
+
+    if arg_types not in arg_type_symbol_dict:
+        raise ValueError(f"input arg type does not match."
+                         f"Expect one of {arg_type_symbol_dict.keys()}, got {arg_types}")
+    else:
+        symbol = arg_type_symbol_dict[arg_types][0]
+        ret_type = arg_type_symbol_dict[arg_types][1]
+        if ret_shape:
+            ret_type = core.block_type(ret_type, ret_shape)
+        return core.tensor(func(lib_name, lib_path, symbol, arg_list, ret_type.to_ir(_builder), is_pure), ret_type)
+
+
+def binary_op_type_checking_impl_ext(lhs, rhs, builder, allow_lhs_ptr=False, allow_rhs_ptr=False, arithmetic_check=True,
+                                     div_or_mod=False, increase_bit_width=False):
+    lhs_is_scalar = isinstance(lhs, numbers.Number)
+    rhs_is_scalar = isinstance(rhs, numbers.Number)
+    if lhs_is_scalar:
+        lhs_scalar = lhs
+        lhs = semantic.to_tensor(lhs, builder)
+    if rhs_is_scalar:
+        rhs_scalar = rhs
+        rhs = semantic.to_tensor(rhs, builder)
+
+    # implicit typecasting
+    lhs_sca_ty = lhs.type.scalar
+    rhs_sca_ty = rhs.type.scalar
+    semantic.check_ptr_type_impl(lhs_sca_ty, rhs_sca_ty, allow_lhs_ptr)
+    semantic.check_ptr_type_impl(rhs_sca_ty, lhs_sca_ty, allow_rhs_ptr)
+    if arithmetic_check and not lhs_sca_ty.is_ptr() and not rhs_sca_ty.is_ptr():
+        ret_sca_ty = semantic.computation_type_impl(lhs_sca_ty, lhs_is_scalar, rhs_sca_ty, rhs_is_scalar, div_or_mod,
+                                                    increase_bit_width)
+        if (lhs_is_scalar and lhs_scalar < 0 and ret_sca_ty.is_int_unsigned()
+                or rhs_is_scalar and rhs_scalar < 0 and ret_sca_ty.is_int_unsigned()):
+            raise ValueError("Cannot perform a binary operation between an unsigned tensor and a negative scalar. "
+                             "Perform a explicit cast on one of them.")
+        lhs = full((), lhs_scalar, dtype=ret_sca_ty, builder=builder) if lhs_is_scalar else semantic.cast(
+            lhs, ret_sca_ty, builder)
+        rhs = full((), rhs_scalar, dtype=ret_sca_ty, builder=builder) if rhs_is_scalar else semantic.cast(
+            rhs, ret_sca_ty, builder)
+    return lhs, rhs
+
+
+def extern_elementwise_ext(lib_name, lib_path, args, arg_type_symbol_dict, ret_shape, is_pure, _builder=None):
+    dispatch_args = args.copy()
+    all_scalar = True
+    arg_types = []
+    for i in range(len(dispatch_args)):
+        dispatch_args[i] = semantic.to_tensor(dispatch_args[i], _builder)
+        arg_types.append(dispatch_args[i].dtype)
+        if dispatch_args[i].type.is_block():
+            all_scalar = False
+    if len(arg_types) > 0:
+        arg_types = tuple(arg_types)
+        arithmetic_check = True
+        # If there's a type tuple that is not supported by the library, we will do arithmetic check
+        if arg_types in arg_type_symbol_dict:
+            arithmetic_check = False
+        promotion_arg = dispatch_args[0]
+        # Get the broadcast shape over all the arguments
+        for item in dispatch_args:
+            # promotion_arg increased the bitwidth and shape
+            _, promotion_arg = binary_op_type_checking_impl_ext(item, promotion_arg, _builder,
+                                                                arithmetic_check=arithmetic_check)
+        # Change the shape of each argument based on the broadcast shape
+        for i in range(len(dispatch_args)):
+            # Handling constexpr
+            if isinstance(args[i], core.constexpr):
+                get_value_fn = getattr(_builder, f"get_{promotion_arg.dtype.name}")
+                dispatch_args[i] = get_value_fn(args[i].value)
+            else:
+                dispatch_args[i], _ = binary_op_type_checking_impl_ext(dispatch_args[i], promotion_arg, _builder,
+                                                                       arithmetic_check=arithmetic_check)
+    func = _builder.create_extern_elementwise
+    return dispatch_ext(func, lib_name, lib_path, promotion_arg.dtype, dispatch_args, arg_type_symbol_dict, ret_shape,
+                        is_pure, _builder)
 
 
 def is_block_arg(arg):
@@ -23,6 +120,36 @@ def is_cycle_args(arg0, arg1):
         if arg0_shape[i] % arg1_shape[i] != 0:
             return False
     return True
+
+
+@core.extern
+def abs(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("int8"), ): ("__cn_vector_abs_s8", core.dtype("int8")),
+                (core.dtype("int16"), ): ("__cn_vector_abs_s16", core.dtype("int16")),
+                (core.dtype("int32"), ): ("__cn_vector_abs_s32", core.dtype("int32")),
+                (core.dtype("int64"), ): ("__cn_vector_abs_s64", core.dtype("int64")),
+                (core.dtype("fp32"), ): ("__cn_vector_abs_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_abs_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_abs_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_scalar_abs_f32", core.dtype("fp32")),
+                (core.dtype("int8"), ): ("__cn_scalar_abs_s8", core.dtype("int8")),
+                (core.dtype("int16"), ): ("__cn_scalar_abs_s16", core.dtype("int16")),
+                (core.dtype("int32"), ): ("__cn_scalar_abs_s32", core.dtype("int32")),
+                (core.dtype("int64"), ): ("__cn_scalar_abs_s64", core.dtype("int64")),
+                (core.dtype("fp16"), ): ("__cn_scalar_abs_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_scalar_abs_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
 
 
 @core.extern
@@ -864,6 +991,31 @@ def add(arg0, arg1, _builder=None):
 
 
 @core.extern
+def add_complex(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) or is_block_arg(arg1):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_add_complex_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_add_complex_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_add_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
 def sub_rd(arg0, arg1, _builder=None):
     if is_block_arg(arg0) or is_block_arg(arg1):
         return core.extern_elementwise(
@@ -1087,6 +1239,31 @@ def sub(arg0, arg1, _builder=None):
                     core.dtype("int64"),
                 ): ("__cn_scalar_sub_s64", core.dtype("int64")),
             }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def sub_complex(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) or is_block_arg(arg1):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_sub_complex_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_sub_complex_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_sub_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
 
 
 @core.extern
@@ -1473,6 +1650,31 @@ def div(arg0, arg1, _builder=None):
 
 
 @core.extern
+def div_complex(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) or is_block_arg(arg1):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_div_complex_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_div_complex_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_div_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
 def fmod(arg0, arg1, _builder=None):
     if is_block_arg(arg0) or is_block_arg(arg1):
         return core.extern_elementwise(
@@ -1503,96 +1705,6 @@ def fmod(arg0, arg1, _builder=None):
                     core.dtype("fp16"),
                     core.dtype("fp16"),
                 ): ("__cn_scalar_mod_f16", core.dtype("fp16")),
-            }, is_pure=True, _builder=_builder)
-
-
-@core.extern
-def mod(arg0, arg1, _builder=None):
-    if is_block_arg(arg0) or is_block_arg(arg1):
-        return core.extern_elementwise(
-            "", "", [
-                arg0,
-                arg1,
-            ], {
-                (
-                    core.dtype("bf16"),
-                    core.dtype("bf16"),
-                ): ("__cn_vector_mod_bf16", core.dtype("bf16")),
-                (
-                    core.dtype("int32"),
-                    core.dtype("int32"),
-                ): ("__cn_vector_mod_s32", core.dtype("int32")),
-                (
-                    core.dtype("uint32"),
-                    core.dtype("uint32"),
-                ): ("__cn_vector_mod_u32", core.dtype("uint32")),
-                (
-                    core.dtype("int16"),
-                    core.dtype("int16"),
-                ): ("__cn_vector_mod_s16", core.dtype("int16")),
-                (
-                    core.dtype("uint16"),
-                    core.dtype("uint16"),
-                ): ("__cn_vector_mod_u16", core.dtype("uint16")),
-                (
-                    core.dtype("int8"),
-                    core.dtype("int8"),
-                ): ("__cn_vector_mod_s8", core.dtype("int8")),
-                (
-                    core.dtype("uint8"),
-                    core.dtype("uint8"),
-                ): ("__cn_vector_mod_u8", core.dtype("uint8")),
-                (
-                    core.dtype("int64"),
-                    core.dtype("int64"),
-                ): ("__cn_vector_mod_s64", core.dtype("int64")),
-                (
-                    core.dtype("uint64"),
-                    core.dtype("uint64"),
-                ): ("__cn_vector_mod_u64", core.dtype("uint64")),
-            }, is_pure=True, _builder=_builder)
-    else:
-        return core.extern_elementwise(
-            "", "", [
-                arg0,
-                arg1,
-            ], {
-                (
-                    core.dtype("bf16"),
-                    core.dtype("bf16"),
-                ): ("__cn_scalar_mod_bf16", core.dtype("bf16")),
-                (
-                    core.dtype("int32"),
-                    core.dtype("int32"),
-                ): ("__cn_scalar_mod_s32", core.dtype("int32")),
-                (
-                    core.dtype("uint32"),
-                    core.dtype("uint32"),
-                ): ("__cn_scalar_mod_u32", core.dtype("uint32")),
-                (
-                    core.dtype("int16"),
-                    core.dtype("int16"),
-                ): ("__cn_scalar_mod_s16", core.dtype("int16")),
-                (
-                    core.dtype("uint16"),
-                    core.dtype("uint16"),
-                ): ("__cn_scalar_mod_u16", core.dtype("uint16")),
-                (
-                    core.dtype("int8"),
-                    core.dtype("int8"),
-                ): ("__cn_scalar_mod_s8", core.dtype("int8")),
-                (
-                    core.dtype("uint8"),
-                    core.dtype("uint8"),
-                ): ("__cn_scalar_mod_u8", core.dtype("uint8")),
-                (
-                    core.dtype("int64"),
-                    core.dtype("int64"),
-                ): ("__cn_scalar_mod_s64", core.dtype("int64")),
-                (
-                    core.dtype("uint64"),
-                    core.dtype("uint64"),
-                ): ("__cn_scalar_mod_u64", core.dtype("uint64")),
             }, is_pure=True, _builder=_builder)
 
 
@@ -1683,6 +1795,21 @@ def clz(arg0, _builder=None):
 
 
 @core.extern
+def sqrt_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_sqrt_complex_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_sqrt_complex_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_sqrt_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
 def rsqrt(arg0, _builder=None):
     if is_block_arg(arg0):
         return core.extern_elementwise(
@@ -1702,6 +1829,21 @@ def rsqrt(arg0, _builder=None):
                 (core.dtype("fp16"), ): ("__cn_scalar_rsqrt_f16", core.dtype("fp16")),
                 (core.dtype("bf16"), ): ("__cn_scalar_rsqrt_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def rsqrt_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_rsqrt_complex_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_rsqrt_complex_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_rsqrt_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
 
 
 @core.extern
@@ -1727,36 +1869,6 @@ def cbrt(arg0, _builder=None):
 
 
 @core.extern
-def abs(arg0, _builder=None):
-    if is_block_arg(arg0):
-        return core.extern_elementwise(
-            "", "", [
-                arg0,
-            ], {
-                (core.dtype("int8"), ): ("__cn_vector_abs_s8", core.dtype("int8")),
-                (core.dtype("int16"), ): ("__cn_vector_abs_s16", core.dtype("int16")),
-                (core.dtype("int32"), ): ("__cn_vector_abs_s32", core.dtype("int32")),
-                (core.dtype("int64"), ): ("__cn_vector_abs_s64", core.dtype("int64")),
-                (core.dtype("fp32"), ): ("__cn_vector_abs_f32", core.dtype("fp32")),
-                (core.dtype("fp16"), ): ("__cn_vector_abs_f16", core.dtype("fp16")),
-                (core.dtype("bf16"), ): ("__cn_vector_abs_bf16", core.dtype("bf16")),
-            }, is_pure=True, _builder=_builder)
-    else:
-        return core.extern_elementwise(
-            "", "", [
-                arg0,
-            ], {
-                (core.dtype("fp32"), ): ("__cn_scalar_abs_f32", core.dtype("fp32")),
-                (core.dtype("int8"), ): ("__cn_scalar_abs_s8", core.dtype("int8")),
-                (core.dtype("int16"), ): ("__cn_scalar_abs_s16", core.dtype("int16")),
-                (core.dtype("int32"), ): ("__cn_scalar_abs_s32", core.dtype("int32")),
-                (core.dtype("int64"), ): ("__cn_scalar_abs_s64", core.dtype("int64")),
-                (core.dtype("fp16"), ): ("__cn_scalar_abs_f16", core.dtype("fp16")),
-                (core.dtype("bf16"), ): ("__cn_scalar_abs_bf16", core.dtype("bf16")),
-            }, is_pure=True, _builder=_builder)
-
-
-@core.extern
 def exp2(arg0, _builder=None):
     if is_block_arg(arg0):
         return core.extern_elementwise(
@@ -1775,6 +1887,48 @@ def exp2(arg0, _builder=None):
                 (core.dtype("fp32"), ): ("__cn_scalar_exp2_f32", core.dtype("fp32")),
                 (core.dtype("fp16"), ): ("__cn_scalar_exp2_f16", core.dtype("fp16")),
                 (core.dtype("bf16"), ): ("__cn_scalar_exp2_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def fdim(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) or is_block_arg(arg1):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_fdim_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_fdim_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_fdim_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_scalar_fdim_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_scalar_fdim_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_scalar_fdim_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
 
 
@@ -1806,6 +1960,21 @@ def negate(arg0, _builder=None):
                 (core.dtype("bf16"), ): ("__cn_scalar_negate_bf16", core.dtype("bf16")),
                 (core.dtype("fp32"), ): ("__cn_scalar_negate_f32", core.dtype("fp32")),
             }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def negate_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_negate_complex_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_negate_complex_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_negate_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
 
 
 @core.extern
@@ -2205,24 +2374,44 @@ def fast_nan_min(arg0, arg1, _builder=None):
 
 
 @core.extern
-def round(arg0, _builder=None):
-    if is_block_arg(arg0):
+def modf(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) or is_block_arg(arg1):
         return core.extern_elementwise(
             "", "", [
                 arg0,
+                arg1,
             ], {
-                (core.dtype("fp32"), ): ("__cn_vector_round_f32", core.dtype("fp32")),
-                (core.dtype("fp16"), ): ("__cn_vector_round_f16", core.dtype("fp16")),
-                (core.dtype("bf16"), ): ("__cn_vector_round_bf16", core.dtype("bf16")),
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_modf_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_modf_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_modf_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
     else:
         return core.extern_elementwise(
             "", "", [
                 arg0,
+                arg1,
             ], {
-                (core.dtype("fp32"), ): ("__cn_scalar_round_f32", core.dtype("fp32")),
-                (core.dtype("fp16"), ): ("__cn_scalar_round_f16", core.dtype("fp16")),
-                (core.dtype("bf16"), ): ("__cn_scalar_round_bf16", core.dtype("bf16")),
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_scalar_modf_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_scalar_modf_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_scalar_modf_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
 
 
@@ -2245,6 +2434,28 @@ def trunc(arg0, _builder=None):
                 (core.dtype("fp32"), ): ("__cn_scalar_trunc_f32", core.dtype("fp32")),
                 (core.dtype("fp16"), ): ("__cn_scalar_trunc_f16", core.dtype("fp16")),
                 (core.dtype("bf16"), ): ("__cn_scalar_trunc_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def round(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_round_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_round_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_round_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_scalar_round_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_scalar_round_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_scalar_round_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
 
 
@@ -2560,25 +2771,6 @@ def log2(arg0, _builder=None):
 
 
 @core.extern
-def sincos(arg0, _builder=None):
-    if is_block_arg(arg0) or is_block_arg(arg1):
-        return core.extern_elementwise("", "", [
-            arg0,
-        ], {
-            (
-                core.dtype("fp32"),
-                core.dtype("fp32"),
-            ): ("__cn_vector_sincos_f32", core.dtype("fp32")),
-        }, is_pure=True, _builder=_builder)
-    else:
-        return core.extern_elementwise("", "", [
-            arg0,
-        ], {
-            (core.dtype("fp32"), ): ("__cn_scalar_sincos_f32", core.dtype("fp32")),
-        }, is_pure=True, _builder=_builder)
-
-
-@core.extern
 def sin(arg0, _builder=None):
     if is_block_arg(arg0):
         return core.extern_elementwise(
@@ -2598,6 +2790,21 @@ def sin(arg0, _builder=None):
                 (core.dtype("fp16"), ): ("__cn_scalar_sin_f16", core.dtype("fp16")),
                 (core.dtype("bf16"), ): ("__cn_scalar_sin_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def sin_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_sin_complex_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_sin_complex_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_sin_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
 
 
 @core.extern
@@ -2623,6 +2830,21 @@ def cos(arg0, _builder=None):
 
 
 @core.extern
+def cos_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_cos_complex_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_cos_complex_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_cos_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
 def tan(arg0, _builder=None):
     if is_block_arg(arg0):
         return core.extern_elementwise(
@@ -2642,6 +2864,21 @@ def tan(arg0, _builder=None):
                 (core.dtype("fp16"), ): ("__cn_scalar_tan_f16", core.dtype("fp16")),
                 (core.dtype("bf16"), ): ("__cn_scalar_tan_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def tan_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_tan_complex_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_tan_complex_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_tan_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
 
 
 @core.extern
@@ -2922,6 +3159,21 @@ def fast_tanh(arg0, _builder=None):
 
 
 @core.extern
+def ultra_tanh(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_ultra_tanh_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_ultra_tanh_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_ultra_tanh_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
 def fast_expf(arg0, _builder=None):
     if is_block_arg(arg0):
         return core.extern_elementwise("", "", [
@@ -3167,20 +3419,14 @@ def fast_lgamma(arg0, _builder=None):
 
 @core.extern
 def fast_log(arg0, _builder=None):
-    if is_block_arg(arg0) or is_block_arg(arg1):
+    if is_block_arg(arg0):
         return core.extern_elementwise(
             "", "", [
                 arg0,
             ], {
                 (core.dtype("fp32"), ): ("__cn_vector_fast_log_f32", core.dtype("fp32")),
-                (
-                    core.dtype("fp16"),
-                    core.dtype("fp32"),
-                ): ("__cn_vector_fast_log_f16", core.dtype("fp16")),
-                (
-                    core.dtype("bf16"),
-                    core.dtype("fp32"),
-                ): ("__cn_vector_fast_log_bf16", core.dtype("bf16")),
+                (core.dtype("fp16"), ): ("__cn_vector_fast_log_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_fast_log_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
     else:
         return None
@@ -3289,45 +3535,19 @@ def fma(arg0, arg1, arg2, _builder=None):
 
 
 @core.extern
-def pow(arg0, arg1, _builder=None):
-    if is_block_arg(arg0) or is_block_arg(arg1):
-        return core.extern_elementwise(
-            "", "", [
-                arg0,
-                arg1,
-            ], {
-                (
-                    core.dtype("fp32"),
-                    core.dtype("fp32"),
-                ): ("__cn_vector_pow_f32", core.dtype("fp32")),
-                (
-                    core.dtype("fp16"),
-                    core.dtype("fp16"),
-                ): ("__cn_vector_pow_f16", core.dtype("fp16")),
-                (
-                    core.dtype("bf16"),
-                    core.dtype("bf16"),
-                ): ("__cn_vector_pow_bf16", core.dtype("bf16")),
-            }, is_pure=True, _builder=_builder)
+def half2float(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise("", "", [
+            arg0,
+        ], {
+            (core.dtype("fp16"), ): ("__cn_vector_cast_f16_to_f32", core.dtype("fp32")),
+        }, is_pure=True, _builder=_builder)
     else:
-        return core.extern_elementwise(
-            "", "", [
-                arg0,
-                arg1,
-            ], {
-                (
-                    core.dtype("fp32"),
-                    core.dtype("fp32"),
-                ): ("__cn_scalar_pow_f32", core.dtype("fp32")),
-                (
-                    core.dtype("fp16"),
-                    core.dtype("fp16"),
-                ): ("__cn_scalar_pow_f16", core.dtype("fp16")),
-                (
-                    core.dtype("bf16"),
-                    core.dtype("bf16"),
-                ): ("__cn_scalar_pow_bf16", core.dtype("bf16")),
-            }, is_pure=True, _builder=_builder)
+        return core.extern_elementwise("", "", [
+            arg0,
+        ], {
+            (core.dtype("fp16"), ): ("__cn_scalar_cast_f16_to_f32", core.dtype("fp32")),
+        }, is_pure=True, _builder=_builder)
 
 
 @core.extern
@@ -3415,6 +3635,21 @@ def sign(arg0, _builder=None):
 
 
 @core.extern
+def sign_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_sign_complex_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_sign_complex_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_sign_complex_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
 def nan_sign(arg0, _builder=None):
     if is_block_arg(arg0):
         return core.extern_elementwise(
@@ -3433,6 +3668,48 @@ def nan_sign(arg0, _builder=None):
                 (core.dtype("fp16"), ): ("__cn_scalar_nan_sign_f16", core.dtype("fp16")),
                 (core.dtype("bf16"), ): ("__cn_scalar_nan_sign_bf16", core.dtype("bf16")),
                 (core.dtype("fp32"), ): ("__cn_scalar_nan_sign_f32", core.dtype("fp32")),
+            }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def copysign(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) or is_block_arg(arg1):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_copysign_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_copysign_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_copysign_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_scalar_copysign_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_scalar_copysign_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_scalar_copysign_bf16", core.dtype("bf16")),
             }, is_pure=True, _builder=_builder)
 
 
@@ -3791,6 +4068,30 @@ def float2byte_rz(arg0, _builder=None):
 
 
 @core.extern
+def fast_float2byte(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise("", "", [
+            arg0,
+        ], {
+            (core.dtype("fp32"), ): ("__cn_vector_fast_cast_f32_to_s8", core.dtype("int8")),
+        }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
+def float2byte_sat(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise("", "", [
+            arg0,
+        ], {
+            (core.dtype("fp32"), ): ("__cn_vector_cast_f32_to_s8_sat", core.dtype("int8")),
+        }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
 def float2short(arg0, _builder=None):
     if is_block_arg(arg0):
         return core.extern_elementwise("", "", [
@@ -3979,22 +4280,6 @@ def float2uint_rn(arg0, _builder=None):
             arg0,
         ], {
             (core.dtype("fp32"), ): ("__cn_scalar_cast_f32_to_u32_rn", core.dtype("uint32")),
-        }, is_pure=True, _builder=_builder)
-
-
-@core.extern
-def half2float(arg0, _builder=None):
-    if is_block_arg(arg0):
-        return core.extern_elementwise("", "", [
-            arg0,
-        ], {
-            (core.dtype("fp16"), ): ("__cn_vector_cast_f16_to_f32", core.dtype("fp32")),
-        }, is_pure=True, _builder=_builder)
-    else:
-        return core.extern_elementwise("", "", [
-            arg0,
-        ], {
-            (core.dtype("fp16"), ): ("__cn_scalar_cast_f16_to_f32", core.dtype("fp32")),
         }, is_pure=True, _builder=_builder)
 
 
@@ -7197,35 +7482,6 @@ def fast_digamma(arg0, _builder=None):
 
 
 @core.extern
-def iota(arg0, arg1, _builder=None):
-    if is_block_arg(arg0) or is_block_arg(arg1):
-        return core.extern_elementwise(
-            "", "", [
-                arg0,
-                arg1,
-            ], {
-                (
-                    core.dtype("fp16"),
-                    core.dtype("fp16"),
-                ): ("__cn_vector_iota_f16", core.dtype("fp16")),
-                (
-                    core.dtype("fp32"),
-                    core.dtype("fp32"),
-                ): ("__cn_vector_iota_f32", core.dtype("fp32")),
-                (
-                    core.dtype("int32"),
-                    core.dtype("int32"),
-                ): ("__cn_vector_iota_s32", core.dtype("int32")),
-                (
-                    core.dtype("int64"),
-                    core.dtype("int64"),
-                ): ("__cn_vector_iota_s64", core.dtype("int64")),
-            }, is_pure=True, _builder=_builder)
-    else:
-        return None
-
-
-@core.extern
 def frexp(arg0, arg1, _builder=None):
     if is_block_arg(arg0) or is_block_arg(arg1):
         return None
@@ -7242,13 +7498,30 @@ def frexp(arg0, arg1, _builder=None):
 
 
 @core.extern
+def fast_gelu(arg0, _builder=None):
+    if is_block_arg(arg0):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_fast_gelu_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_fast_gelu_f16", core.dtype("fp16")),
+            }, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
 def ultra_gelu(arg0, _builder=None):
     if is_block_arg(arg0):
-        return core.extern_elementwise("", "", [
-            arg0,
-        ], {
-            (core.dtype("fp32"), ): ("__cn_vector_ultra_gelu_f32", core.dtype("fp32")),
-        }, is_pure=True, _builder=_builder)
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_ultra_gelu_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_ultra_gelu_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_ultra_gelu_bf16", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
     else:
         return None
 
@@ -7319,6 +7592,23 @@ def ultra_sigmoid(arg0, _builder=None):
         return None
 
 
+@core.extern
+def abs_complex(arg0, _builder=None):
+    if is_block_arg(arg0):
+        ret_shape = arg0.shape
+        ret_shape[-1] = ret_shape[-1] // 2
+        return extern_elementwise_ext(
+            "", "", [
+                arg0,
+            ], {
+                (core.dtype("fp32"), ): ("__cn_vector_abs_complex_f32", core.dtype("fp32")),
+                (core.dtype("fp16"), ): ("__cn_vector_abs_complex_f16", core.dtype("fp16")),
+                (core.dtype("bf16"), ): ("__cn_vector_abs_complex_bf16", core.dtype("bf16")),
+            }, ret_shape, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
 # ARGS: outGroups, seedLo, seedHi, offsetLo, offsetHi, subsequenceLo, subsequenceHi, innerRounds
 @core.extern
 def philox(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, _builder=None):
@@ -7329,6 +7619,9 @@ def philox(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, _builder=None):
     args = [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7]
     args = [semantic.to_tensor(arg, _builder) for arg in args]
     args = [arg.handle for arg in args]
+    for id, arg in zip(range(0, 8), args):
+        if isinstance(arg, core.constexpr):
+            args[id] = _builder.get_uint32(arg.value)
     ret = _builder.create_extern_elementwise("", "", "__cn_vector_philox_u32", args, ret_type.to_ir(_builder), True)
     return core.tensor(ret, ret_type)
 
@@ -7344,6 +7637,9 @@ def philox_v2(arg0, arg1, arg2, arg3, arg4, arg5, _builder=None):
     args = [arg0, arg1, arg2, arg3, arg4, arg5]
     args = [semantic.to_tensor(arg, _builder) for arg in args]
     args = [arg.handle for arg in args]
+    for id, arg in zip(range(1, 5), [arg1, arg2, arg3, arg4]):
+        if isinstance(arg, core.constexpr):
+            args[id] = _builder.get_uint32(arg.value)
     ret = _builder.create_extern_elementwise("", "", "__cn_vector_philox_v2_u32", args, ret_type.to_ir(_builder), True)
     return core.tensor(ret, ret_type)
 
@@ -7365,12 +7661,16 @@ def philox_v3(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, _builder=None):
     args = [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7]
     args = [semantic.to_tensor(arg, _builder) for arg in args]
     args = [arg.handle for arg in args]
+    for id, arg in zip(range(1, 5), [arg1, arg2, arg3, arg4]):
+        if isinstance(arg, core.constexpr):
+            args[id] = _builder.get_uint32(arg.value)
     ret = _builder.create_extern_elementwise("", "", "__cn_vector_philox_v3_u32", args, ret_type.to_ir(_builder), True)
     return core.tensor(ret, ret_type)
 
 
 @core.extern
 def ultra_silu_float2half(arg0, _builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_silu_float2half: the dtype of input must be float32'
     ret_type = core.block_type(core.float16, arg0.shape)
     args = [arg0]
     args = [semantic.to_tensor(arg, _builder) for arg in args]
@@ -7382,6 +7682,7 @@ def ultra_silu_float2half(arg0, _builder=None):
 
 @core.extern
 def ultra_silu_float2bfloat16(arg0, _builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_silu_float2bfloat16: the dtype of input must be float32'
     ret_type = core.block_type(core.bfloat16, arg0.shape)
     args = [arg0]
     args = [semantic.to_tensor(arg, _builder) for arg in args]
@@ -7393,6 +7694,7 @@ def ultra_silu_float2bfloat16(arg0, _builder=None):
 
 @core.extern
 def ultra_silubp_float2half(arg0, _builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_silubp_float2half: the dtype of input must be float32'
     ret_type = core.block_type(core.float16, arg0.shape)
     args = [arg0]
     args = [semantic.to_tensor(arg, _builder) for arg in args]
@@ -7404,6 +7706,7 @@ def ultra_silubp_float2half(arg0, _builder=None):
 
 @core.extern
 def ultra_silubp_float2bfloat16(arg0, _builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_silubp_float2bfloat16: the dtype of input must be float32'
     ret_type = core.block_type(core.bfloat16, arg0.shape)
     args = [arg0]
     args = [semantic.to_tensor(arg, _builder) for arg in args]
@@ -7415,50 +7718,60 @@ def ultra_silubp_float2bfloat16(arg0, _builder=None):
 
 @core.extern
 def ultra_silu_mul_float2half(arg0, arg1, _builder=None):
-    ret_type = core.block_type(core.float16, arg0.shape)
     assert (not is_block_arg(arg1)), 'ultra_silu_mul_float2half: arg1 must be a scalar'
-    args = [arg0, arg1]
-    args = [semantic.to_tensor(arg, _builder) for arg in args]
-    args = [arg.handle for arg in args]
-    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_silu_mul_scalar_f32_outf16", args,
-                                             ret_type.to_ir(_builder), True)
-    return core.tensor(ret, ret_type)
+    return extern_elementwise_ext("", "", [
+        arg0,
+        arg1,
+    ], {
+        (
+            core.dtype("fp32"),
+            core.dtype("fp32"),
+        ): ("__cn_vector_ultra_silu_mul_scalar_f32_outf16", core.dtype("fp16")),
+    }, arg0.shape, is_pure=True, _builder=_builder)
 
 
 @core.extern
 def ultra_silu_mul_float2bfloat16(arg0, arg1, _builder=None):
-    ret_type = core.block_type(core.bfloat16, arg0.shape)
     assert (not is_block_arg(arg1)), 'ultra_silu_mul_float2bfloat16: arg1 must be a scalar'
-    args = [arg0, arg1]
-    args = [semantic.to_tensor(arg, _builder) for arg in args]
-    args = [arg.handle for arg in args]
-    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_silu_mul_scalar_f32_outbf16", args,
-                                             ret_type.to_ir(_builder), True)
-    return core.tensor(ret, ret_type)
+    return extern_elementwise_ext("", "", [
+        arg0,
+        arg1,
+    ], {
+        (
+            core.dtype("fp32"),
+            core.dtype("fp32"),
+        ): ("__cn_vector_ultra_silu_mul_scalar_f32_outbf16", core.dtype("bf16")),
+    }, arg0.shape, is_pure=True, _builder=_builder)
 
 
 @core.extern
 def ultra_silubp_mul_float2half(arg0, arg1, _builder=None):
-    ret_type = core.block_type(core.float16, arg0.shape)
     assert (not is_block_arg(arg1)), 'ultra_silubp_mul_float2half: arg1 must be a scalar'
-    args = [arg0, arg1]
-    args = [semantic.to_tensor(arg, _builder) for arg in args]
-    args = [arg.handle for arg in args]
-    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_silubp_mul_scalar_f32_outf16", args,
-                                             ret_type.to_ir(_builder), True)
-    return core.tensor(ret, ret_type)
+    return extern_elementwise_ext(
+        "", "", [
+            arg0,
+            arg1,
+        ], {
+            (
+                core.dtype("fp32"),
+                core.dtype("fp32"),
+            ): ("__cn_vector_ultra_silubp_mul_scalar_f32_outf16", core.dtype("fp16")),
+        }, arg0.shape, is_pure=True, _builder=_builder)
 
 
 @core.extern
 def ultra_silubp_mul_float2bfloat16(arg0, arg1, _builder=None):
-    ret_type = core.block_type(core.bfloat16, arg0.shape)
     assert (not is_block_arg(arg1)), 'ultra_silubp_mul_float2bfloat16: arg1 must be a scalar'
-    args = [arg0, arg1]
-    args = [semantic.to_tensor(arg, _builder) for arg in args]
-    args = [arg.handle for arg in args]
-    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_silubp_mul_scalar_f32_outbf16", args,
-                                             ret_type.to_ir(_builder), True)
-    return core.tensor(ret, ret_type)
+    return extern_elementwise_ext(
+        "", "", [
+            arg0,
+            arg1,
+        ], {
+            (
+                core.dtype("fp32"),
+                core.dtype("fp32"),
+            ): ("__cn_vector_ultra_silubp_mul_scalar_f32_outbf16", core.dtype("bf16")),
+        }, arg0.shape, is_pure=True, _builder=_builder)
 
 
 # result = exp2((arg0 - arg1) * arg2)
@@ -7479,80 +7792,331 @@ def cycle_sub_mul_exp(arg0, arg1, arg2, _builder=None):
             (n % n_short == 0) and (n // n_short >= 16)
         ), "arg0 element num must be divisible by arg1 element num, and the ratio between the two must be greater than 16."
     arg0 = core.reshape(arg0, (n), can_reorder=True, _builder=_builder)
-    ret_type = core.block_type(arg0.dtype, arg0.shape)
-    args = [arg0, sub_val, arg2]
-    args = [semantic.to_tensor(arg, _builder) for arg in args]
-    args = [arg.handle for arg in args]
-    ret = _builder.create_extern_elementwise("", "", "__cn_vector_cycle_sub_exp_f32", args, ret_type.to_ir(_builder),
-                                             True)
-    ret_tensor = core.tensor(ret, ret_type)
-    return core.reshape(ret_tensor, ret_shape, can_reorder=True, _builder=_builder)
+    return extern_elementwise_ext(
+        "", "", [
+            arg0,
+            sub_val,
+            arg2,
+        ], {
+            (
+                core.dtype("fp32"),
+                core.dtype("fp32"),
+                core.dtype("fp32"),
+            ): ("__cn_vector_cycle_sub_exp_f32", core.dtype("fp32")),
+        }, arg0.shape, is_pure=True, _builder=_builder)
 
 
 @core.extern
 def fast_dividef(arg0, arg1, _builder=None):
-    args = [arg0, arg1]
-    args = [semantic.to_tensor(arg, _builder) for arg in args]
-    args = [arg.handle for arg in args]
-    ret = None
     if is_block_arg(arg0) and is_block_arg(arg1):
-        ret_type = core.block_type(arg0.dtype, arg0.shape)
-        if arg0.dtype.is_fp16():
-            ret = _builder.create_extern_elementwise("", "", "__cn_vector_fast_div_f16_rn", args,
-                                                     ret_type.to_ir(_builder), True)
-        if arg0.dtype.is_bf16():
-            ret = _builder.create_extern_elementwise("", "", "__cn_vector_fast_div_bf16_rn", args,
-                                                     ret_type.to_ir(_builder), True)
-        if arg0.dtype.is_fp32():
-            ret = _builder.create_extern_elementwise("", "", "__cn_vector_fast_div_f32_rn", args,
-                                                     ret_type.to_ir(_builder), True)
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_fast_div_f32_rn", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_fast_div_f16_rn", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_fast_div_bf16_rn", core.dtype("bf16")),
+            }, is_pure=True, _builder=_builder)
     elif is_block_arg(arg0) and not is_block_arg(arg1):
-        ret_type = core.block_type(arg0.dtype, arg0.shape)
-        if arg0.dtype.is_fp16():
-            ret = _builder.create_extern_elementwise("", "", "__cn_vector_fast_div_scalar_f16_rn", args,
-                                                     ret_type.to_ir(_builder), True)
-        if arg0.dtype.is_bf16():
-            ret = _builder.create_extern_elementwise("", "", "__cn_vector_fast_div_scalar_bf16_rn", args,
-                                                     ret_type.to_ir(_builder), True)
+        return extern_elementwise_ext(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_fast_div_scalar_f32_rn", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_fast_div_scalar_f16_rn", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_fast_div_scalar_bf16_rn", core.dtype("bf16")),
+            }, arg0.shape, is_pure=True, _builder=_builder)
     elif not is_block_arg(arg0) and is_block_arg(arg1):
-        ret_type = core.block_type(arg1.dtype, arg1.shape)
-        if arg0.dtype.is_fp16():
-            ret = _builder.create_extern_elementwise("", "", "__cn_scalar_fast_div_vector_f16_rn", args,
-                                                     ret_type.to_ir(_builder), True)
-        if arg0.dtype.is_bf16():
-            ret = _builder.create_extern_elementwise("", "", "__cn_scalar_fast_div_vector_bf16_rn", args,
-                                                     ret_type.to_ir(_builder), True)
-    if ret is not None:
-        return core.tensor(ret, ret_type)
+        return extern_elementwise_ext(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_scalar_fast_div_vector_f32_rn", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_scalar_fast_div_vector_f16_rn", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_scalar_fast_div_vector_bf16_rn", core.dtype("bf16")),
+            }, arg1.shape, is_pure=True, _builder=_builder)
     else:
         return None
 
 
 @core.extern
-def ultra_pow(arg0, arg1, _builder=None):
-    args = [arg0, arg1]
-    args = [semantic.to_tensor(arg, _builder) for arg in args]
-    args = [arg.handle for arg in args]
-    ret = None
-    if is_block_arg(arg0) and is_block_arg(arg1):
-        ret_type = core.block_type(arg0.dtype, arg0.shape)
-        if arg0.dtype.is_fp32():
-            ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_pow_f32", args,
-                                                     ret_type.to_ir(_builder), True)
-    elif is_block_arg(arg0) and not is_block_arg(arg1):
-        ret_type = core.block_type(arg0.dtype, arg0.shape)
-        if arg0.dtype.is_fp32():
-            ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_pow_scalar_f32", args,
-                                                     ret_type.to_ir(_builder), True)
-    elif not is_block_arg(arg0) and is_block_arg(arg1):
-        ret_type = core.block_type(arg1.dtype, arg1.shape)
-        if arg0.dtype.is_fp32():
-            ret = _builder.create_extern_elementwise("", "", "__cn_scalar_ultra_pow_vector_f32", args,
-                                                     ret_type.to_ir(_builder), True)
-    if ret is not None:
-        return core.tensor(ret, ret_type)
+def pow(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) and not is_block_arg(arg1) and arg0.dtype.is_fp16():
+        return extern_elementwise_ext("", "", [
+            arg0,
+            arg1,
+        ], {
+            (
+                core.dtype("fp16"),
+                core.dtype("fp16"),
+            ): ("__cn_vector_pow_scalar_f16", core.dtype("fp16")),
+        }, arg0.shape, is_pure=True, _builder=_builder)
+    elif is_block_arg(arg0) or is_block_arg(arg1):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_pow_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_pow_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_pow_bf16", core.dtype("bf16")),
+                (
+                    core.dtype("int32"),
+                    core.dtype("int32"),
+                ): ("__cn_vector_pow_s32", core.dtype("int32")),
+            }, is_pure=True, _builder=_builder)
+    elif not is_block_arg(arg0) and not is_block_arg(arg1):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_scalar_pow_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_scalar_pow_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_scalar_pow_bf16", core.dtype("bf16")),
+                (
+                    core.dtype("int32"),
+                    core.dtype("int32"),
+                ): ("__cn_scalar_pow_s32", core.dtype("int32")),
+            }, is_pure=True, _builder=_builder)
     else:
         return None
+
+
+@core.extern
+def mod(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) and is_block_arg(arg1):
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_mod_bf16", core.dtype("bf16")),
+                (
+                    core.dtype("int32"),
+                    core.dtype("int32"),
+                ): ("__cn_vector_mod_s32", core.dtype("int32")),
+                (
+                    core.dtype("uint32"),
+                    core.dtype("uint32"),
+                ): ("__cn_vector_mod_u32", core.dtype("uint32")),
+                (
+                    core.dtype("int16"),
+                    core.dtype("int16"),
+                ): ("__cn_vector_mod_s16", core.dtype("int16")),
+                (
+                    core.dtype("uint16"),
+                    core.dtype("uint16"),
+                ): ("__cn_vector_mod_u16", core.dtype("uint16")),
+                (
+                    core.dtype("int8"),
+                    core.dtype("int8"),
+                ): ("__cn_vector_mod_s8", core.dtype("int8")),
+                (
+                    core.dtype("uint8"),
+                    core.dtype("uint8"),
+                ): ("__cn_vector_mod_u8", core.dtype("uint8")),
+                (
+                    core.dtype("int64"),
+                    core.dtype("int64"),
+                ): ("__cn_vector_mod_s64", core.dtype("int64")),
+                (
+                    core.dtype("uint64"),
+                    core.dtype("uint64"),
+                ): ("__cn_vector_mod_u64", core.dtype("uint64")),
+            }, is_pure=True, _builder=_builder)
+    elif is_block_arg(arg0) and not is_block_arg(arg1):
+        return extern_elementwise_ext(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_vector_mod_scalar_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_vector_mod_scalar_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_vector_mod_scalar_bf16", core.dtype("bf16")),
+            }, arg0.shape, is_pure=True, _builder=_builder)
+    elif not is_block_arg(arg0) and is_block_arg(arg1):
+        return extern_elementwise_ext(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("fp32"),
+                    core.dtype("fp32"),
+                ): ("__cn_scalar_mod_vector_f32", core.dtype("fp32")),
+                (
+                    core.dtype("fp16"),
+                    core.dtype("fp16"),
+                ): ("__cn_scalar_mod_vector_f16", core.dtype("fp16")),
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_scalar_mod_vector_bf16", core.dtype("bf16")),
+            }, arg1.shape, is_pure=True, _builder=_builder)
+    else:
+        return core.extern_elementwise(
+            "", "", [
+                arg0,
+                arg1,
+            ], {
+                (
+                    core.dtype("bf16"),
+                    core.dtype("bf16"),
+                ): ("__cn_scalar_mod_bf16", core.dtype("bf16")),
+                (
+                    core.dtype("int32"),
+                    core.dtype("int32"),
+                ): ("__cn_scalar_mod_s32", core.dtype("int32")),
+                (
+                    core.dtype("uint32"),
+                    core.dtype("uint32"),
+                ): ("__cn_scalar_mod_u32", core.dtype("uint32")),
+                (
+                    core.dtype("int16"),
+                    core.dtype("int16"),
+                ): ("__cn_scalar_mod_s16", core.dtype("int16")),
+                (
+                    core.dtype("uint16"),
+                    core.dtype("uint16"),
+                ): ("__cn_scalar_mod_u16", core.dtype("uint16")),
+                (
+                    core.dtype("int8"),
+                    core.dtype("int8"),
+                ): ("__cn_scalar_mod_s8", core.dtype("int8")),
+                (
+                    core.dtype("uint8"),
+                    core.dtype("uint8"),
+                ): ("__cn_scalar_mod_u8", core.dtype("uint8")),
+                (
+                    core.dtype("int64"),
+                    core.dtype("int64"),
+                ): ("__cn_scalar_mod_s64", core.dtype("int64")),
+                (
+                    core.dtype("uint64"),
+                    core.dtype("uint64"),
+                ): ("__cn_scalar_mod_u64", core.dtype("uint64")),
+            }, is_pure=True, _builder=_builder)
+
+
+@core.extern
+def ultra_pow(arg0, arg1, _builder=None):
+    if is_block_arg(arg0) and is_block_arg(arg1):
+        return core.extern_elementwise("", "", [
+            arg0,
+            arg1,
+        ], {
+            (
+                core.dtype("fp32"),
+                core.dtype("fp32"),
+            ): ("__cn_vector_ultra_pow_f32", core.dtype("fp32")),
+        }, is_pure=True, _builder=_builder)
+    elif is_block_arg(arg0) and not is_block_arg(arg1):
+        return extern_elementwise_ext("", "", [
+            arg0,
+            arg1,
+        ], {
+            (
+                core.dtype("fp32"),
+                core.dtype("fp32"),
+            ): ("__cn_vector_ultra_pow_scalar_f32", core.dtype("fp32")),
+        }, arg0.shape, is_pure=True, _builder=_builder)
+    elif not is_block_arg(arg0) and is_block_arg(arg1):
+        return extern_elementwise_ext("", "", [
+            arg0,
+            arg1,
+        ], {
+            (
+                core.dtype("fp32"),
+                core.dtype("fp32"),
+            ): ("__cn_scalar_ultra_pow_vector_f32", core.dtype("fp32")),
+        }, arg1.shape, is_pure=True, _builder=_builder)
+    else:
+        return None
+
+
+@core.extern
+def ultra_gelu_float2half(arg0, _builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_gelu_float2half: the dtype of input must be float32'
+    ret_type = core.block_type(core.float16, arg0.shape)
+    args = [arg0]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_gelu_f32_outf16", args,
+                                             ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
+
+
+@core.extern
+def ultra_gelu_float2bfloat16(arg0, _builder=None):
+    assert (arg0.dtype.is_fp32()), 'ultra_gelu_float2bfloat16: the dtype of input must be float32'
+    ret_type = core.block_type(core.bfloat16, arg0.shape)
+    args = [arg0]
+    args = [semantic.to_tensor(arg, _builder) for arg in args]
+    args = [arg.handle for arg in args]
+    ret = _builder.create_extern_elementwise("", "", "__cn_vector_ultra_gelu_f32_outbf16", args,
+                                             ret_type.to_ir(_builder), True)
+    return core.tensor(ret, ret_type)
 
 
 popcnt = popc

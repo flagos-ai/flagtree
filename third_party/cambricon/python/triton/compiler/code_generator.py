@@ -646,7 +646,7 @@ class CodeGenerator(ast.NodeVisitor):
         if _is_triton_tensor(rhs):
             reverse_method_name = re.sub(r"__(.*)__", r"__r\1__", method_name)
             return getattr(rhs, reverse_method_name)(lhs, _builder=self.builder)
-        return getattr(lhs, method_name)(rhs)
+        return getattr(constexpr(lhs), method_name)(constexpr(rhs))
 
     def visit_BinOp(self, node):
         lhs = self.visit(node.left)

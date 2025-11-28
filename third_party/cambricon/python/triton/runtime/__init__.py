@@ -3,6 +3,9 @@ from .cache import RedisRemoteCacheBackend, RemoteCacheBackend
 from .driver import driver
 from .jit import JITFunction, KernelInterface, MockTensor, TensorWrapper, reinterpret
 from .errors import OutOfResources, InterpreterError
+from .libentry import libentry, libtuner, LibCache, libcache
+from .fast_libentry import fast_libentry
+from .code_cache import config_cache_dir
 
 __all__ = [
     "autotune",
@@ -20,4 +23,10 @@ __all__ = [
     "reinterpret",
     "RemoteCacheBackend",
     "TensorWrapper",
+    "fast_libentry",
+    "libentry",
+    "libtuner",
+    "LibCache",
+    "config_cache_dir",
+    "libcache",
 ]

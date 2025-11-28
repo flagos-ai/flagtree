@@ -517,12 +517,16 @@ def gen_src_inp_shapes_gather_dim1(inp_shapes):
 
 TEST_SHAPES = [
     (64, 64),
-    #(256, 256),
-    #(1024, 1024),
-    #(4096, 4096),
-    #(1024, 65536),
-    #(1229312, 512),
-    #(1433600, 512),
+]
+
+BENCH_SHAPES = [
+    (64, 64),
+    (256, 256),
+    (1024, 1024),
+    (4096, 4096),
+    (1024, 65536),
+    (1229312, 512),
+    (1433600, 512),
 ]
 
 dtypes = [torch.float32, torch.float16]
@@ -583,9 +587,9 @@ def gen_perf_configs(mode, dim):
     need_check_res = False
 
     if mode == "gather" and dim == 1:
-        all_src_inp_shapes = gen_src_inp_shapes_gather_dim1(TEST_SHAPES)
+        all_src_inp_shapes = gen_src_inp_shapes_gather_dim1(BENCH_SHAPES)
     else:
-        all_src_inp_shapes = gen_src_inp_shapes(TEST_SHAPES, mode)
+        all_src_inp_shapes = gen_src_inp_shapes(BENCH_SHAPES, mode)
 
     for src_inp_shapes in all_src_inp_shapes:
         src_dim0, src_dim1, inp_dim0, inp_dim1 = src_inp_shapes

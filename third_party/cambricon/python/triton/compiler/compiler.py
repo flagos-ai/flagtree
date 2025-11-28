@@ -155,8 +155,6 @@ class AttrsDescriptor:
         for prop_name in self.constant_properties:
             for p in self.arg_properties.get(prop_name, []):
                 constants[p] = self.property_values[prop_name]
-        for v in self.equal_to_none:
-            constants[v] = None
         return constants
 
     def filter_out_constants(self):
@@ -300,6 +298,7 @@ class ASTSource:
         def compat(constants, signature):
             if all(not isinstance(key, str) for key in constants):
                 return constants, signature
+            signature = signature.copy()
             signature |= {key: 'constexpr' for key, _ in constants.items() if key not in signature}
             idx_map = list()
             for k, v in signature.items():
@@ -309,7 +308,8 @@ class ASTSource:
             for _, key in idx_map:
                 new_signature[key] = signature[key]
             signature = new_signature
-            constexprs = find_paths_if(list(signature.values()), lambda _, val: val == "constexpr")
+            constexprs = find_paths_if(list(dict(key=key, ty=ty) for key, ty in signature.items()),
+                                       lambda _, it: it["key"] in constants or it["ty"] == "constexpr")
             constexprs = {path: constants[get_iterable_path(list(signature.keys()), path)] for path in constexprs}
             return constexprs, signature
 
