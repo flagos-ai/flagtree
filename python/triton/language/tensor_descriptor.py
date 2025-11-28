@@ -21,7 +21,7 @@ from triton.language.semantic import (
     _str_to_eviction_policy,
 )
 
-from ._utils import validate_block_shape, get_primitive_bitwidth
+from ._utils import validate_block_shape
 
 
 def _unwrap_if_constexpr(o):
@@ -227,6 +227,9 @@ class dtype(base_type):
         name = _unwrap_if_constexpr(name)
         self.name = name
         assert name in dtype.SINT_TYPES + dtype.UINT_TYPES + dtype.FP_TYPES + dtype.OTHER_TYPES, name
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_func_specialization
+        get_primitive_bitwidth = flagtree_backend_func_specialization("get_primitive_bitwidth")
         self.primitive_bitwidth = get_primitive_bitwidth(name)
         self.itemsize = self.primitive_bitwidth // 8
         if name in dtype.SINT_TYPES:
