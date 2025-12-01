@@ -62,6 +62,7 @@ class DriverConfig:
 
 driver = DriverConfig()
 
+
 # flagtree backend specialization
 def spec(function_name: str, *args, **kwargs):
     if hasattr(driver.active, "spec"):
