@@ -524,6 +524,7 @@ def add_links():
 class plugin_install(install):
 
     def run(self):
+        helper.uninstall_triton()
         add_links()
         install.run(self)
         helper.post_install()
@@ -532,6 +533,7 @@ class plugin_install(install):
 class plugin_develop(develop):
 
     def run(self):
+        helper.uninstall_triton()
         add_links()
         develop.run(self)
         helper.post_install()
