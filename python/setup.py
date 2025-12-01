@@ -635,7 +635,8 @@ setup(
     version="0.3.0" + os.environ.get("FLAGTREE_WHEEL_VERSION_SUFFIX", ""),
     author="FlagOS",
     author_email="contact@flagos.io",
-    description="A unified compiler supporting multiple AI chip backends for custom Deep Learning operations, which is forked from triton-lang/triton.",
+    description=
+    "A unified compiler supporting multiple AI chip backends for custom Deep Learning operations, which is forked from triton-lang/triton.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=packages,
