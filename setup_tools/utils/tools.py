@@ -7,8 +7,6 @@ from io import BytesIO
 import urllib.request
 from dataclasses import dataclass
 import json
-# 上上上级
-p3 = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 from python.build_helpers import get_base_dir
 import platform
