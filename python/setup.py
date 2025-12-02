@@ -609,6 +609,7 @@ def add_links():
 class plugin_install(install):
 
     def run(self):
+        helper.uninstall_triton()
         add_links()
         install.run(self)
         helper.post_install()
@@ -617,6 +618,7 @@ class plugin_install(install):
 class plugin_develop(develop):
 
     def run(self):
+        helper.uninstall_triton()
         add_links()
         develop.run(self)
         helper.post_install()
@@ -732,13 +734,19 @@ if helper.flagtree_backend == "cambricon":
     packages, package_dir, package_data = helper.configure_cambricon_packages_and_data(
         packages, package_dir, package_data)
 
+readme_path = os.path.join(get_base_dir(), "README.md")
+with open(readme_path, "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
 setup(
-    name=os.environ.get("TRITON_WHEEL_NAME", "triton"),
-    version="3.2.0" + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
-    author="Philippe Tillet",
-    author_email="phil@openai.com",
-    description="A language and compiler for custom Deep Learning operations",
-    long_description="",
+    name=os.environ.get("FLAGTREE_WHEEL_NAME", "flagtree"),
+    version="0.3.0" + os.environ.get("FLAGTREE_WHEEL_VERSION_SUFFIX", ""),
+    author="FlagOS",
+    author_email="contact@flagos.io",
+    description=
+    "A unified compiler supporting multiple AI chip backends for custom Deep Learning operations, which is forked from triton-lang/triton.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     packages=packages,
     package_dir=package_dir,
     entry_points=get_entry_points(),
