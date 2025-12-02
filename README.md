@@ -8,12 +8,11 @@ FlagTree is an open source, unified compiler for multiple AI chips project dedic
 Installation dependencies (ensure you use the correct python3.x version):
 ```shell
 apt install zlib1g zlib1g-dev libxml2 libxml2-dev  # ubuntu
-cd python; python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Building and Installation (Recommended for environments with good network connectivity):
 ```shell
-cd python
 export FLAGTREE_BACKEND=backendxxx
 python3 -m pip install . --no-build-isolation -v
 ```
