@@ -20,6 +20,7 @@ public:
   virtual bool isRegistered() const;
   virtual int getDMATag() const;
   virtual int getSharedMemoryTag() const;
+  virtual int getAscendTag() const;
   virtual std::string getReduceStrategy() const;
   virtual std::string getFlagTreeBackend() const;
 };

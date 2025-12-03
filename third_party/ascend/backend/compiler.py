@@ -81,7 +81,7 @@ def ttir_to_linalg(mod, metadata, opt, *, named_ops=False):
     ascend.passes.convert.add_triton_to_linalg_incubated(
     pm,
     global_kernel=False,
-    named_ops=True,
+    named_ops=named_ops,
     enable_nd2nz_on_vector=enable_nd2nz_on_vector
     )
     pm.run(mod)

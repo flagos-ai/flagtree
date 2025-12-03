@@ -15,6 +15,8 @@ int UnifiedHardware::getDMATag() const { return 0; }
 
 int UnifiedHardware::getSharedMemoryTag() const { return 0; }
 
+int UnifiedHardware::getAscendTag() const { return 0; }
+
 std::string UnifiedHardware::getReduceStrategy() const {
   return "linalg_reduce";
 }
