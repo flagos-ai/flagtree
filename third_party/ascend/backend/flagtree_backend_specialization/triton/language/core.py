@@ -13,7 +13,7 @@ from triton.language.core import (
     mul,
 )
 
-from triton.language.tensor_descriptor import tensor_descriptor, tensor_descriptor_base
+from .tensor_descriptor import tensor_descriptor, tensor_descriptor_base
 
 def ext_cast_set_overflow_modes():
     return ["trunc", "saturate"]

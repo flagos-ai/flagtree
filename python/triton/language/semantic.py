@@ -1989,7 +1989,7 @@ def make_tensor_descriptor(
     strides: List[tl.tensor],
     block_shape: List[tl.constexpr],
     builder: ir.builder
-) -> tensor_descriptor:
+):
     # flagtree backend specialization
     from triton.runtime.driver import flagtree_backend_specialization
     return flagtree_backend_specialization('ext_semantic_make_tensor_descriptor', base, shape, strides, block_shape, builder)

@@ -1684,7 +1684,7 @@ def _experimental_descriptor_store(desc_pointer, value, offsets, _builder=None):
 
 
 @builtin
-def load_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union[constexpr, tensor]],
+def load_tensor_descriptor(desc, offsets: Sequence[Union[constexpr, tensor]],
                            _builder=None) -> tensor:
     # flagtree backend specialization
     from triton.runtime.driver import flagtree_backend_specialization
@@ -1692,7 +1692,7 @@ def load_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union
 
 
 @builtin
-def store_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union[constexpr, tensor]], value: tensor,
+def store_tensor_descriptor(desc, offsets: Sequence[Union[constexpr, tensor]], value: tensor,
                             _builder=None) -> tensor:
     # flagtree backend specialization
     from triton.runtime.driver import flagtree_backend_specialization
@@ -1706,7 +1706,7 @@ def make_tensor_descriptor(
     strides: List[tensor],
     block_shape: List[constexpr],
     _builder=None,
-) -> tensor_descriptor:
+):
     # flagtree backend specialization
     from triton.runtime.driver import flagtree_backend_specialization
     return flagtree_backend_specialization('ext_core_make_tensor_descriptor', base, shape, strides, block_shape, _builder)

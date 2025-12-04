@@ -1,10 +1,9 @@
 from typing import List
 import triton.language as tl
 from triton._C.libtriton import ir
-from triton.language import cast
-from triton.language.semantic import to_tensor, bitcast, wrap_tensor
+from triton.language.semantic import to_tensor, bitcast, wrap_tensor, cast
 from triton.language._utils import TRITON_MAX_TENSOR_NUMEL
-from triton.language.tensor_descriptor import (
+from .tensor_descriptor import (
     _unwrap_if_constexpr,
     _unwrap_shape,
     block_type,
