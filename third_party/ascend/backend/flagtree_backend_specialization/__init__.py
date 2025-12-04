@@ -5,6 +5,7 @@ from .triton.runtime.jit import *
 from .triton.runtime.autotuner import *
 from .triton.language._utils import *
 from .triton.language.core import *
+from .triton.language.standard import *
 from .triton.language.semantic import *
 from .triton.testing import *
 
@@ -128,6 +129,14 @@ __all__  = [
     "ext_semantic_scalar_constant",
     "ext_semantic_make_scalar",
     "ext_semantic_make_tensor_descriptor",
+    # language.standard
+    "flip",
+    "sigmoid",
+    "softmax",
+    "isfinited",
+    "finitef",
+    "rint",
+    "atan2",
     # testing
     'is_do_bench_npu',
     'ext_do_bench_npu',

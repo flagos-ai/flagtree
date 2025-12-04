@@ -518,12 +518,7 @@ def get_max_simd_tflops(dtype, clock_rate, device=None):
 
 # Patch the triton language API here because triton's __init__.py
 # import testing in the last stages.
-from .language.standard_ext import flip, sigmoid, softmax, isfinited, finitef, rint, atan2
 from . import language
-
-language.flip = flip
-language.sigmoid = sigmoid
-language.softmax = softmax
 
 language.umulhi = language.extra.ascend.libdevice.umulhi
 language.exp = language.extra.ascend.libdevice.exp
@@ -558,7 +553,3 @@ language.math.floor = language.extra.ascend.libdevice.floor
 language.math.ceil = language.extra.ascend.libdevice.ceil
 language.math._check_dtype = language.extra.ascend.libdevice._check_dtype
 language.math.fma = language.extra.ascend.libdevice.fma
-language.math.finitef = finitef
-language.math.isfinited = isfinited
-language.math.rint = rint
-language.math.atan2 = atan2
