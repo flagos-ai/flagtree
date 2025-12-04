@@ -10,8 +10,16 @@ import sys
 
 
 # flagtree backend language.standard func specialization
-def spec_standard_func(spec_func):
-    setattr(sys.modules[__name__], spec_func.__name__, spec_func)
+def spec_standard_func(spec):
+    spec_func_list = ["flip", "sigmoid", "softmax", "isfinited", "finitef", "rint", "atan2"]
+    for spec_func_name in spec_func_list:
+        if hasattr(spec, spec_func_name):
+            spec_func = getattr(spec, spec_func_name)
+            setattr(sys.modules[__name__], spec_func.__name__, spec_func)
+            setattr(sys.modules["triton.language"], spec_func.__name__, spec_func)
+            setattr(sys.modules["triton.language.math"], spec_func.__name__, spec_func)
+        else:
+            raise AttributeError(f"Module '{spec.__name__}' has no attribute '{spec_func_name}'")
 
 
 def _log2(i: core.constexpr):
@@ -463,24 +471,24 @@ def interleave(a, b):
 @jit
 @math._add_math_1arg_docstr("isfinited")
 def isfinited(x):
-    ...
+    raise NotImplementedError("isfinited is not implemented")
 
 
 @core._tensor_member_fn
 @jit
 @math._add_math_1arg_docstr("finitef")
 def finitef(x):
-    ...
+    raise NotImplementedError("finitef is not implemented")
 
 
 @core._tensor_member_fn
 @jit
 @math._add_math_1arg_docstr("rint")
 def rint(x):
-    ...
+    raise NotImplementedError("rint is not implemented")
 
 @core._tensor_member_fn
 @jit
 @math._add_math_2arg_docstr("atan2")
 def atan2(y, x):
-    ...
+    raise NotImplementedError("atan2 is not implemented")

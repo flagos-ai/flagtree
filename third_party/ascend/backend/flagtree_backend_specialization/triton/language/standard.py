@@ -4,6 +4,8 @@ from triton.language.core import float32, int1
 from triton.language.extra.ascend.libdevice import flip as ascend_flip
 from triton.runtime.jit import jit
 
+@core._tensor_member_fn
+@jit
 def flip(x, dim=None):
     """
     Flips a tensor `x` along the dimension `dim`.
@@ -25,6 +27,9 @@ def sigmoid(x):
     core.static_assert(_is_floating_type == True, f"Expected dtype fp16/fp32/bf16, but got {core.constexpr(x.dtype)}")
     return (1 / (1 + math.exp(-x.to(core.float32)))).to(x.dtype)
 
+@core._tensor_member_fn
+@jit
+@math._add_math_1arg_docstr("softmax")
 def softmax(x, ieee_rounding=False):
     _is_int8_type: core.constexpr = x.dtype.is_int8()
     core.static_assert(not _is_int8_type, f"Expected dtype fp16/fp32/bf16, but got int8 or int1")
@@ -35,6 +40,9 @@ def softmax(x, ieee_rounding=False):
     den = sum(num, 0)
     return math.fdiv(num, den, ieee_rounding).to(x.dtype)
 
+@core._tensor_member_fn
+@jit
+@math._add_math_1arg_docstr("isfinited")
 def isfinited(x):
     _is_int8_type: core.constexpr = x.dtype.is_int8()
     core.static_assert(not _is_int8_type, f"Expected dtype fp16/fp32/bf16, but got int8 or int1")
@@ -44,6 +52,9 @@ def isfinited(x):
     inf_mask = math.isinf(x)
     return (~nan_mask & ~inf_mask).to(int1)
 
+@core._tensor_member_fn
+@jit
+@math._add_math_1arg_docstr("finitef")
 def finitef(x):
     _is_int8_type: core.constexpr = x.dtype.is_int8()
     core.static_assert(not _is_int8_type, f"finitef only supports float32, but got int8 or int1")
@@ -52,6 +63,9 @@ def finitef(x):
     inf_mask = math.isinf(x)
     return (~nan_mask & ~inf_mask).to(int1)
 
+@core._tensor_member_fn
+@jit
+@math._add_math_1arg_docstr("rint")
 def rint(x):
     _is_int8_type: core.constexpr = x.dtype.is_int8()
     core.static_assert(not _is_int8_type, f"Expected dtype fp16/fp32/bf16, but got int8 or int1")
@@ -61,6 +75,9 @@ def rint(x):
 
 pi: core.constexpr = math_pi
 
+@core._tensor_member_fn
+@jit
+@math._add_math_2arg_docstr("atan2")
 def atan2(y, x):
     _is_int8_type_x: core.constexpr = x.dtype.is_int8()
     core.static_assert(not _is_int8_type_x, f"Expected dtype fp16/fp32/bf16, but got int8 or int1")

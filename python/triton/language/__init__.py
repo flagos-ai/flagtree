@@ -22,6 +22,10 @@ from .standard import (
     xor_sum,
     zeros,
     zeros_like,
+    isfinited,
+    finitef,
+    rint,
+    atan2
 )
 from .core import (
     PropagateNan,
@@ -157,6 +161,7 @@ __all__ = [
     "argmin",
     "associative_scan",
     "assume",
+    "atan2",
     "atomic_add",
     "atomic_and",
     "atomic_cas",
@@ -196,6 +201,7 @@ __all__ = [
     "extra",
     "extract_slice",
     "fdiv",
+    "finitef",
     "flip",
     "float16",
     "float32",
@@ -220,6 +226,7 @@ __all__ = [
     "int32",
     "int64",
     "int8",
+    "isfinited",
     "ir",
     "join",
     "load",
@@ -257,6 +264,7 @@ __all__ = [
     "ravel",
     "reduce",
     "reshape",
+    "rint",
     "rsqrt",
     "sigmoid",
     "sin",

@@ -109,7 +109,7 @@ class NPUDriver(DriverBase):
         from triton.backends.ascend import flagtree_backend_specialization
         self.flagtree_backend_specialization = flagtree_backend_specialization
         from triton.language.standard import spec_standard_func
-        spec_standard_func(flagtree_backend_specialization.sigmoid)
+        spec_standard_func(flagtree_backend_specialization)
         super().__init__()
 
     @classmethod
@@ -276,7 +276,7 @@ def extract_device_print_code_from_cann():
         new_code = new_code.replace('__CCELIB_RT_MEMCPY_DEVICE_TO_HOST', 'RT_MEMCPY_DEVICE_TO_HOST')
         return new_code
 
-    # the following headers should be included in this order 
+    # the following headers should be included in this order
     return '\n'.join([
         read_header('common/common_impl.h'),
         read_header('internal/debug_tunnel/payload.h'),
