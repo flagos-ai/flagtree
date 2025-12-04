@@ -1793,6 +1793,16 @@ class TritonSemantic(Generic[TensorTy]):
         x.handle.set_attr("tt.constancy", ir.make_attr(values, x.handle.get_context()))
         return x
 
+
+# ===----------------------------------------------------------------------===
+#                               Memory Space
+# ===----------------------------------------------------------------------===
+
+
+    def assign_memory_space(self, x: TensorTy, memory_space: str) -> TensorTy:
+        x.handle.set_attr("tt.memory_space", ir.make_str_attr(memory_space, x.handle.get_context()))
+        return x
+
     def debug_barrier(self) -> TensorTy:
         return self.tensor(self.builder.create_barrier(), tl.void)
 

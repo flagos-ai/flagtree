@@ -1,4 +1,4 @@
-add_mlir_library(TritonAMDGPUTestAnalysis
+add_triton_library(TritonAMDGPUTestAnalysis
   TestAMDRangeAnalysis.cpp
   TestAMDGPUMembar.cpp
   TestAxisInfo.cpp

@@ -728,6 +728,10 @@ void init_triton_ir(py::module &&m) {
         values));
   });
 
+  m.def("make_str_attr", [](const std::string &value, MLIRContext &context) {
+    return mlir::cast<Attribute>(StringAttr::get(&context, value));
+  });
+
   m.def(
       "parse_mlir_module",
       [](const std::string &inputFilename, MLIRContext &context) {

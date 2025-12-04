@@ -2840,6 +2840,19 @@ def map_elementwise(
 # Compiler Hint Ops
 # -----------------------
 
+@builtin
+def assign_memory_space(input, space, _builder=None):
+    '''
+    Assign a memory space to the tensor :code:`input`.
+
+    :param input: the input tensor
+    :type input: Tensor
+    :param space: the memory space to assign. Can be one of "shared_memory", "tensor_memory", "register" or any other target-specific memory space.
+    :type space: str
+    '''
+    space = _constexpr_to_value(space)
+    return semantic.assign_memory_space(input, space)
+
 
 @builtin
 def debug_barrier(_semantic=None):

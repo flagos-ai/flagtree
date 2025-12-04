@@ -1,4 +1,4 @@
-add_mlir_library(TritonTestAnalysis
+add_triton_library(TritonTestAnalysis
   TestAlias.cpp
   TestAxisInfo.cpp
   TestAllocation.cpp

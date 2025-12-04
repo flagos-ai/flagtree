@@ -3,6 +3,18 @@
 
 include "mlir/Pass/PassBase.td"
 
+def TritonGPUEarlyAssignMemorySpace : Pass<"tritongpu-early-assign-memory-space", "mlir::ModuleOp"> {
+  let summary = "early assign memory space";
+
+  let description = [{
+    This pass assigns memory spaces to tensor pointers according to `tt.memory_space` attribute on tensors.
+    This is done early to enable subsequent passes to make better optimization decisions based on memory spaces.
+  }];
+
+  let dependentDialects = ["mlir::triton::gpu::TritonGPUDialect",
+                           "mlir::triton::TritonDialect"];
+}
+
 def TritonGPUPipeline : Pass<"tritongpu-pipeline", "mlir::ModuleOp"> {
   let summary = "pipeline";
 
