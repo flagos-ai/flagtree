@@ -149,6 +149,13 @@ function(add_triton_object name)
     INTERFACE $<TARGET_OBJECTS:${name}>
   )
 
+  if (FLAGTREE_BACKEND STREQUAL "ascend")
+    set(ASCENDNPU_IR_SRC_DIR ${PROJECT_SOURCE_DIR}/third_party/ascendnpu-ir)
+    set(ASCENDNPU_IR_BINARY_DIR ${PROJECT_BINARY_DIR}/third_party/ascendnpu-ir)
+    include_directories(${ASCENDNPU_IR_SRC_DIR}/bishengir/include)
+    include_directories(${ASCENDNPU_IR_BINARY_DIR}/bishengir/include)
+  endif()
+
   #add_library(${name} OBJECT ${ARG_UNPARSED_ARGUMENTS})
   if(ARG_DEPENDS)
     add_dependencies(${name} ${ARG_DEPENDS})
