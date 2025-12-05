@@ -83,9 +83,11 @@ Check driver status with efsmi. Example output:
 +-----------------------------+-------------------+---------------------------+
 ```
 
-### 5. Enter Docker Container
+### 5. Restart Docker Container and Enter
 
 ```bash
+# Restart docker
+docker restart enflame-flagtree
 # Execute docker
 docker exec -it enflame-flagtree bash
 ```

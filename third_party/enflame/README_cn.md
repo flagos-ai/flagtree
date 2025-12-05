@@ -83,9 +83,11 @@ efsmi
 +-----------------------------+-------------------+---------------------------+
 ```
 
-### 5. 进入Docker容器
+### 5. 重启Docker容器后进入
 
 ```bash
+# 重启docker
+docker restart enflame-flagtree
 # 执行docker
 docker exec -it enflame-flagtree bash
 ```
