@@ -376,3 +376,11 @@ class parallel(range):
     def __init__(self, arg1, arg2=None, step=None, num_stages=None, loop_unroll_factor=None, bind_sub_block: bool = False):
         super().__init__(arg1, arg2, step, num_stages, loop_unroll_factor)
         self.bind_sub_block = bind_sub_block
+
+core_ext_spec_func_list = [
+    "gather", "insert_slice", "extract_slice", "get_element", "__add__",
+    "__radd__", "__sub__", "__rsub__", "__mul__", "__rmul__", "__lshift__",
+    "__rshift__", "compile_hint", "sort", "multibuffer", "sync_block_all",
+    "sync_block_set", "sync_block_wait", "load_tensor_descriptor",
+    "store_tensor_descriptor", "make_tensor_descriptor", "dtype_to_ir", "parallel"
+]

@@ -387,3 +387,8 @@ def ext_semantic_make_tensor_descriptor(
     handle = builder.create_make_tensor_descriptor(base_handle, [s.handle for s in shape],
                                                     [s.handle for s in strides], block_shape, is_signed_int)
     return tensor_descriptor(handle, shape, strides, desc_block_type)
+
+semantic_ext_spec_func_list = [
+    "gather", "insert_slice", "extract_slice", "get_element", "compile_hint",
+    "custom_op", "sort", "scalar_constant", "make_scalar", "make_tensor_descriptor"
+]

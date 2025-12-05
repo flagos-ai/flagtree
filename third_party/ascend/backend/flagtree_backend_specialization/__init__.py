@@ -79,6 +79,7 @@ __all__  = [
     "make_tensor_descriptor",
     "dtype_to_ir",
     "parallel",
+    "core_ext_spec_func_list",
     # language.semantic
     "is_arange_check_power_of_two",
     "check_arange_less_than_max_numel",
@@ -131,6 +132,7 @@ __all__  = [
     "ext_semantic_scalar_constant",
     "ext_semantic_make_scalar",
     "ext_semantic_make_tensor_descriptor",
+    "semantic_ext_spec_func_list",
     # language.standard
     "flip",
     "sigmoid",

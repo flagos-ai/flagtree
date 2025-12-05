@@ -14,10 +14,7 @@ T = TypeVar('T')
 # flagtree backend language.semantic func specialization
 def spec_semantic_func(spec):
     import sys
-    semantic_spec_func_list = [
-        "gather", "insert_slice", "extract_slice", "get_element", "compile_hint",
-        "custom_op", "sort", "scalar_constant", "make_scalar", "make_tensor_descriptor"
-    ]
+    semantic_spec_func_list = spec.semantic_ext_spec_func_list
 
     for spec_func_name in semantic_spec_func_list:
         if hasattr(spec, spec_func_name):

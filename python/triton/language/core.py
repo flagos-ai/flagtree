@@ -25,13 +25,7 @@ PropagateNan = ir.PROPAGATE_NAN
 # flagtree backend language.core func specialization
 def spec_core_func(spec):
     import sys
-    core_spec_func_list = [
-        "gather", "insert_slice", "extract_slice", "get_element", "__add__",
-        "__radd__", "__sub__", "__rsub__", "__mul__", "__rmul__", "__lshift__",
-        "__rshift__", "compile_hint", "sort", "multibuffer", "sync_block_all",
-        "sync_block_set", "sync_block_wait", "load_tensor_descriptor",
-        "store_tensor_descriptor", "make_tensor_descriptor", "dtype_to_ir", "parallel"
-    ]
+    core_spec_func_list = spec.core_ext_spec_func_list
 
     current_module_name = __name__
     parent_module_name = '.'.join(current_module_name.split('.')[:-1])
