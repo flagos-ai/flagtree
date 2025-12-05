@@ -22,6 +22,29 @@ TRITON_BUILTIN = "__triton_builtin__"
 PropagateNan = ir.PROPAGATE_NAN
 
 
+# flagtree backend language.core func specialization
+def spec_core_func(spec):
+    import sys
+    core_spec_func_list = [
+        "gather", "insert_slice", "extract_slice", "get_element", "__add__",
+        "__radd__", "__sub__", "__rsub__", "__mul__", "__rmul__", "__lshift__",
+        "__rshift__", "compile_hint", "sort", "multibuffer", "sync_block_all",
+        "sync_block_set", "sync_block_wait", "load_tensor_descriptor",
+        "store_tensor_descriptor", "make_tensor_descriptor", "dtype_to_ir", "parallel"
+    ]
+
+    current_module_name = __name__
+    parent_module_name = '.'.join(current_module_name.split('.')[:-1])
+
+    for spec_func_name in core_spec_func_list:
+        if hasattr(spec, spec_func_name):
+            spec_func = getattr(spec, spec_func_name)
+            # triton.language
+            setattr(sys.modules[parent_module_name], spec_func.__name__, spec_func)
+            # triton.language.core
+            setattr(sys.modules[__name__], spec_func.__name__, spec_func)
+
+
 def builtin(fn: T) -> T:
     """Mark a function as a builtin."""
     assert callable(fn)
@@ -1684,35 +1707,6 @@ def _experimental_descriptor_store(desc_pointer, value, offsets, _builder=None):
     return semantic.descriptor_store(desc_pointer, value, offsets, _builder)
 
 
-@builtin
-def load_tensor_descriptor(desc, offsets: Sequence[Union[constexpr, tensor]],
-                           _builder=None) -> tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_load_tensor_descriptor', desc, offsets, _builder)
-
-
-@builtin
-def store_tensor_descriptor(desc, offsets: Sequence[Union[constexpr, tensor]], value: tensor,
-                            _builder=None) -> tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_store_tensor_descriptor', desc, offsets, value, _builder)
-
-
-@builtin
-def make_tensor_descriptor(
-    base: tensor,
-    shape: List[tensor],
-    strides: List[tensor],
-    block_shape: List[constexpr],
-    _builder=None,
-):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_make_tensor_descriptor', base, shape, strides, block_shape, _builder)
-
-
 @_tensor_member_fn
 @builtin
 def store(pointer, value, mask=None, boundary_check=(), cache_modifier="", eviction_policy="", _builder=None):
@@ -1790,57 +1784,6 @@ def advance(base, offsets, _builder=None):
     """
     return semantic.advance(base, offsets, _builder)
 
-
-@_tensor_member_fn
-@builtin
-def insert_slice(ful, sub, offsets, sizes, strides, _builder=None, _generator=None) -> tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_insert_slice', ful, sub, offsets, sizes, strides, _builder, _generator)
-
-
-@_tensor_member_fn
-@builtin
-def extract_slice(ful, offsets, sizes, strides, _builder=None, _generator=None) -> tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_extract_slice', ful, offsets, sizes, strides, _builder, _generator)
-
-
-@_tensor_member_fn
-@builtin
-def get_element(src, indice, _builder=None, _generator=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_get_element', src, indice, _builder, _generator)
-
-
-@builtin
-def multibuffer(src: tensor, size, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    flagtree_backend_specialization('ext_core_multibuffer', src, size, _builder)
-
-
-@builtin
-def sync_block_all(mode, event_id, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    flagtree_backend_specialization('ext_core_sync_block_all', mode, event_id, _builder)
-
-
-@builtin
-def sync_block_set(sender, receiver, event_id, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    flagtree_backend_specialization('ext_core_sync_block_set', sender, receiver, event_id, _builder)
-
-
-@builtin
-def sync_block_wait(sender, receiver, event_id, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    flagtree_backend_specialization('ext_core_sync_block_wait', sender, receiver, event_id, _builder)
 
 # -----------------------
 # Atomic Memory Operations
@@ -2094,61 +2037,6 @@ def clamp(x, min, max, propagate_nan: constexpr = PropagateNan.NONE, _builder=No
     return semantic.clamp(x, min, max, propagate_nan, _builder)
 
 
-@builtin
-def __add__(self, other, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_add', self, other, _builder)
-
-
-@builtin
-def __radd__(self, other, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_radd', self, other, _builder)
-
-
-@builtin
-def __sub__(self, other, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_sub', self, other, _builder)
-
-
-@builtin
-def __rsub__(self, other, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_rsub', self, other, _builder)
-
-
-@builtin
-def __mul__(self, other, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_mul', self, other, _builder)
-
-
-@builtin
-def __rmul__(self, other, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_rmul', self, other, _builder)
-
-
-@builtin
-def __lshift__(self, other, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_lshift', self, other, _builder)
-
-
-@builtin
-def __rshift__(self, other, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_rshift', self, other, _builder)
-
 # -----------------------
 # Reductions
 # -----------------------
@@ -2268,12 +2156,6 @@ def _reduce_with_indices(input, axis, combine_fn, keep_dims=False, _builder=None
     return rvalue, rindices
 
 
-@builtin
-def sort(ptr, dim=-1, descending=False, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_sort', ptr, dim, descending, _builder)
-
 # -----------------------
 # Scans
 # -----------------------
@@ -2350,13 +2232,6 @@ def histogram(input, num_bins, _builder=None, _generator=None):
     return semantic.histogram(input, num_bins, _builder)
 
 
-@_tensor_member_fn
-@builtin
-def gather(src, index, axis, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_gather', src, index, axis, _builder)
-
 # -----------------------
 # Compiler Hint Ops
 # -----------------------
@@ -2428,12 +2303,6 @@ def assume(cond, _builder=None):
     '''
     return semantic.assume(semantic.to_tensor(cond, _builder), _builder)
 
-
-@builtin
-def compile_hint(ptr, hint_name, hint_val=None, _builder=None):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    flagtree_backend_specialization('ext_core_compile_hint', ptr, hint_name, hint_val, _builder)
 
 # -----------------------
 # Debugging functions
@@ -2767,21 +2636,6 @@ class range:
         raise RuntimeError("tl.range can only be used in @triton.jit'd functions")
 
 
-# flagtree backend specialization
-class parallel(range):
-    """
-    Iterator that counts upward forever, with parallel execution semantics.
-
-    This is a special iterator used to implement similar semantics to Python's :code:`range` in the context of
-    :code:`triton.jit` functions. In addition, it allows user to pass extra attributes to the compiler.
-    :param bind_sub_block: Tells the compiler if multiple vector cores participate in the loop.
-        This is used in the mixed cube-vector kernel on 910B. The number of vector cores is determined by the number of
-        iteration in this loop. Currently on 910B, max 2 vector cores could be used.
-    """
-    def __init__(self, arg1, arg2=None, step=None, num_stages=None, loop_unroll_factor=None, bind_sub_block: bool = False):
-        super().__init__(arg1, arg2, step, num_stages, loop_unroll_factor)
-        self.bind_sub_block = bind_sub_block
-
 # -----------------------
 # Extern functions
 # -----------------------
@@ -2886,9 +2740,3 @@ def binary_op_type_legalization(lhs, rhs, builder):
 def extern(fn):
     """A decorator for external functions."""
     return builtin(fn)
-
-
-def dtype_to_ir(self, builder: ir.builder) -> ir.type:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_core_dtype_to_ir', self, builder)

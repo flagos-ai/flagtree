@@ -471,30 +471,3 @@ def interleave(a, b):
         # understand that if we take the `if` above we definitely don't run this
         # `else`.
         return core.reshape(c, c.shape[:-2] + [2 * c.shape[-2]])
-
-
-@core._tensor_member_fn
-@jit
-@math._add_math_1arg_docstr("isfinited")
-def isfinited(x):
-    raise NotImplementedError("isfinited is not implemented")
-
-
-@core._tensor_member_fn
-@jit
-@math._add_math_1arg_docstr("finitef")
-def finitef(x):
-    raise NotImplementedError("finitef is not implemented")
-
-
-@core._tensor_member_fn
-@jit
-@math._add_math_1arg_docstr("rint")
-def rint(x):
-    raise NotImplementedError("rint is not implemented")
-
-@core._tensor_member_fn
-@jit
-@math._add_math_2arg_docstr("atan2")
-def atan2(y, x):
-    raise NotImplementedError("atan2 is not implemented")

@@ -11,6 +11,21 @@ from . import math
 T = TypeVar('T')
 
 
+# flagtree backend language.semantic func specialization
+def spec_semantic_func(spec):
+    import sys
+    semantic_spec_func_list = [
+        "gather", "insert_slice", "extract_slice", "get_element", "compile_hint",
+        "custom_op", "sort", "scalar_constant", "make_scalar", "make_tensor_descriptor"
+    ]
+
+    for spec_func_name in semantic_spec_func_list:
+        if hasattr(spec, spec_func_name):
+            spec_func = getattr(spec, "ext_semantic_" + spec_func_name)
+            # triton.language.semantic
+            setattr(sys.modules[__name__], spec_func_name, spec_func)
+
+
 class IncompatibleTypeErrorImpl(Exception):
 
     def __init__(self, type_a, type_b):
@@ -1927,69 +1942,3 @@ def advance(base: tl.tensor, offsets, builder: ir.builder) -> tl.tensor:
 
     # Advanced block pointer type is the same as before
     return tl.tensor(builder.create_advance(base.handle, offsets), base.type)
-
-
-def gather(src: tl.tensor, index: tl.tensor, axis: int, builder: ir.builder) -> tl.tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_semantic_gather', src, index, axis, builder)
-
-
-def insert_slice(ful: tl.tensor, sub: tl.tensor, offsets: List[tl.tensor], sizes: List[int], strides: List[int], builder: ir.builder) -> tl.tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_semantic_insert_slice', ful, sub, offsets, sizes, strides, builder)
-
-
-def extract_slice(ful: tl.tensor, offsets: List[tl.tensor], sizes: List[int], strides: List[int], builder: ir.builder) -> tl.tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_semantic_extract_slice', ful, offsets, sizes, strides, builder)
-
-
-def get_element(src: tl.tensor, indice: List[tl.tensor], builder: ir.builder):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_semantic_get_element', src, indice, builder)
-
-
-def compile_hint(ptr: tl.tensor, hint_name: str, hint_val, builder: ir.builder):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    flagtree_backend_specialization("ext_semantic_compile_hint", ptr, hint_name, hint_val, builder)
-
-
-def custom_op(builder: ir.builder, op_name: str, **kwargs):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    flagtree_backend_specialization('ext_semantic_custom_op', builder, op_name, **kwargs)
-
-
-def sort(ptr: tl.tensor, dim: int, descending, builder: ir.builder):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_semantic_sort', ptr, dim, descending, builder)
-
-
-def scalar_constant(value, dtype: tl.dtype, builder: ir.builder) -> tl.tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_semantic_scalar_constant', value, dtype, builder)
-
-
-def make_scalar(value, dtype: tl.dtype, builder: ir.builder) -> tl.tensor:
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_semantic_make_scalar', value, dtype, builder)
-
-
-def make_tensor_descriptor(
-    base: tl.tensor,
-    shape: List[tl.tensor],
-    strides: List[tl.tensor],
-    block_shape: List[tl.constexpr],
-    builder: ir.builder
-):
-    # flagtree backend specialization
-    from triton.runtime.driver import flagtree_backend_specialization
-    return flagtree_backend_specialization('ext_semantic_make_tensor_descriptor', base, shape, strides, block_shape, builder)

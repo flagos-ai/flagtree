@@ -1,11 +1,15 @@
 from typing import List, Sequence, Union
 from triton._C.libtriton import ir
 import triton.language.semantic as semantic
+from . import semantic as semantic_spec
 from triton.language.core import (
+    builtin,
+    _tensor_member_fn,
     _unwrap_iterable,
     _constexpr_to_value,
     constexpr,
     tensor,
+    range,
     check_bit_width,
     _unwrap_if_constexpr,
     add,
@@ -21,7 +25,7 @@ def ext_cast_set_overflow_modes():
 def ext_cast_check_overflow_mode(overflow_mode, overflow_modes, ret, _builder):
     if overflow_mode is not None:
         if overflow_mode in overflow_modes:
-            semantic.compile_hint(ret, "overflow_mode", overflow_mode, _builder)
+            semantic_spec.ext_semantic_compile_hint(ret, "overflow_mode", overflow_mode, _builder)
         else:
             raise ValueError(f"Unknown overflow_mode:{overflow_mode} is found.")
 
@@ -39,7 +43,9 @@ def check_dot_invalid_input_precision(input_precision):
             "tf32x3",
         ], "input_precision == tf32 or tf32x3 is invalid, please use input_precision='hf32' on Ascend instead."
 
-def ext_core_gather(src, index, axis, _builder=None):
+@_tensor_member_fn
+@builtin
+def gather(src, index, axis, _builder=None):
     """Gather from a tensor along a given dimension.
     :param src: the source tensor
     :type src: Tensor
@@ -49,9 +55,11 @@ def ext_core_gather(src, index, axis, _builder=None):
     :type axis: int
     """
     axis = _constexpr_to_value(axis)
-    return semantic.gather(src, index, axis, _builder)
+    return semantic_spec.ext_semantic_gather(src, index, axis, _builder)
 
-def ext_core_insert_slice(ful, sub, offsets, sizes, strides, _builder=None, _generator=None) -> tensor:
+@_tensor_member_fn
+@builtin
+def insert_slice(ful, sub, offsets, sizes, strides, _builder=None, _generator=None) -> tensor:
     """
     Insert a tensor to another tensor as specified by the operation’s offsets, sizes and strides arguments.
 
@@ -72,10 +80,12 @@ def ext_core_insert_slice(ful, sub, offsets, sizes, strides, _builder=None, _gen
         semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
         for o in offsets
     ]
-    out = semantic.insert_slice(ful, sub, new_offsets, sizes, strides, _builder)
+    out = semantic_spec.ext_semantic_insert_slice(ful, sub, new_offsets, sizes, strides, _builder)
     return out
 
-def ext_core_extract_slice(ful, offsets, sizes, strides, _builder=None, _generator=None) -> tensor:
+@_tensor_member_fn
+@builtin
+def extract_slice(ful, offsets, sizes, strides, _builder=None, _generator=None) -> tensor:
     """
     Extract a tensor from another tensor as specified by the operation’s offsets, sizes and strides arguments.
 
@@ -93,10 +103,12 @@ def ext_core_extract_slice(ful, offsets, sizes, strides, _builder=None, _generat
         semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
         for o in offsets
     ]
-    sub = semantic.extract_slice(ful, new_offsets, sizes, strides, _builder)
+    sub = semantic_spec.ext_semantic_extract_slice(ful, new_offsets, sizes, strides, _builder)
     return sub
 
-def ext_core_get_element(src, indice, _builder=None, _generator=None):
+@_tensor_member_fn
+@builtin
+def get_element(src, indice, _builder=None, _generator=None):
     """
     get_element op reads a ranked tensor and returns one element as specified by the given indices.
     The result of the op is a value with the same type as the elements of the tensor.
@@ -112,34 +124,42 @@ def ext_core_get_element(src, indice, _builder=None, _generator=None):
         semantic.to_tensor(i, _builder) if isinstance(i, constexpr) else i
         for i in indice
     ]
-    return semantic.get_element(src, new_indice, _builder)
+    return semantic_spec.ext_semantic_get_element(src, new_indice, _builder)
 
-def ext_core_add(self, other, _builder=None):
+@builtin
+def __add__(self, other, _builder=None):
     return add(self, other, sanitize_overflow=False, _builder=_builder)
 
-def ext_core_radd(self, other, _builder=None):
+@builtin
+def __radd__(self, other, _builder=None):
     return add(other, self, sanitize_overflow=False, _builder=_builder)
 
-def ext_core_sub(self, other, _builder=None):
+@builtin
+def __sub__(self, other, _builder=None):
     return sub(self, other, sanitize_overflow=False, _builder=_builder)
 
-def ext_core_rsub(self, other, _builder=None):
+@builtin
+def __rsub__(self, other, _builder=None):
     return sub(other, self, sanitize_overflow=False, _builder=_builder)
 
-def ext_core_mul(self, other, _builder=None):
+@builtin
+def __mul__(self, other, _builder=None):
     return mul(self, other, sanitize_overflow=False, _builder=_builder)
 
-def ext_core_rmul(self, other, _builder=None):
+@builtin
+def __rmul__(self, other, _builder=None):
     return mul(other, self, sanitize_overflow=False, _builder=_builder)
 
-def ext_core_lshift(self, other, _builder=None):
+@builtin
+def __lshift__(self, other, _builder=None):
     if self.type.scalar.is_floating():
         raise TypeError(f"unexpected type {self.type.scalar}")
     check_bit_width(self, other)
     other = _unwrap_if_constexpr(other)
     return semantic.shl(self, other, _builder)
 
-def ext_core_rshift(self, other, _builder=None):
+@builtin
+def __rshift__(self, other, _builder=None):
     if self.type.scalar.is_floating():
         raise TypeError(f"unexpected type {self.type.scalar}")
     other = _unwrap_if_constexpr(other)
@@ -149,7 +169,8 @@ def ext_core_rshift(self, other, _builder=None):
     else:
         return semantic.lshr(self, other, _builder)
 
-def ext_core_compile_hint(ptr, hint_name, hint_val=None, _builder=None):
+@builtin
+def compile_hint(ptr, hint_name, hint_val=None, _builder=None):
     def _unwrap(val):
         return _unwrap_if_constexpr(val) if val else val
 
@@ -160,9 +181,10 @@ def ext_core_compile_hint(ptr, hint_name, hint_val=None, _builder=None):
     else:
         hint_val = _unwrap(hint_val)
     hint_val = _unwrap_if_constexpr(hint_val) if hint_val else hint_val
-    semantic.compile_hint(ptr, hint_name, hint_val, _builder)
+    semantic_spec.ext_semantic_compile_hint(ptr, hint_name, hint_val, _builder)
 
-def ext_core_sort(ptr, dim=-1, descending=False, _builder=None):
+@builtin
+def sort(ptr, dim=-1, descending=False, _builder=None):
     """
     Triton sort 前端接口
 
@@ -185,13 +207,14 @@ def ext_core_sort(ptr, dim=-1, descending=False, _builder=None):
     else:
         descending = bool(descending)
 
-    ret = semantic.sort(ptr, dim, descending, _builder)
+    ret = semantic_spec.ext_semantic_sort(ptr, dim, descending, _builder)
     base_ty = ptr.type.scalar if hasattr(ptr.type, "scalar") else ptr.type
     if base_ty.is_int8() or base_ty.is_int16():
-        semantic.compile_hint(ret, "overflow_mode", constexpr("saturate"), _builder)
+        semantic_spec.ext_semantic_compile_hint(ret, "overflow_mode", constexpr("saturate"), _builder)
     return ret
 
-def ext_core_multibuffer(src: tensor, size, _builder=None):
+@builtin
+def multibuffer(src: tensor, size, _builder=None):
     """
     Set multi_buffer for an existing tensor
     :src: tensor set to bufferize multiple time
@@ -199,17 +222,19 @@ def ext_core_multibuffer(src: tensor, size, _builder=None):
     """
     buffer_size = _constexpr_to_value(size)
     assert isinstance(buffer_size, int) and buffer_size == 2, f"only support bufferize equals 2"
-    semantic.compile_hint(src, "multi_buffer", buffer_size, _builder)
+    semantic_spec.ext_semantic_compile_hint(src, "multi_buffer", buffer_size, _builder)
 
-def ext_core_sync_block_all(mode, event_id, _builder=None):
+@builtin
+def sync_block_all(mode, event_id, _builder=None):
     mode = _constexpr_to_value(mode)
     event_id = _constexpr_to_value(event_id)
     assert isinstance(mode, str), f"mode: {mode} is not string"
     assert isinstance(event_id, int) and (event_id >= 0) and (event_id < 16), f"event_id: {event_id} should be 0 ~ 15"
     assert mode == "all_cube" or mode == "all_vector" or mode == "all", f"ERROR: mode = {mode}, only supports all_cube/all_vector/all"
-    semantic.custom_op(_builder, "sync_block_all", mode=mode, event_id=event_id)
+    semantic_spec.ext_semantic_custom_op(_builder, "sync_block_all", mode=mode, event_id=event_id)
 
-def ext_core_sync_block_set(sender, receiver, event_id, _builder=None):
+@builtin
+def sync_block_set(sender, receiver, event_id, _builder=None):
     sender = _constexpr_to_value(sender)
     receiver = _constexpr_to_value(receiver)
     event_id = _constexpr_to_value(event_id)
@@ -218,9 +243,10 @@ def ext_core_sync_block_set(sender, receiver, event_id, _builder=None):
     assert isinstance(event_id, int) and (event_id >= 0) and (event_id < 16), f"event_id: {event_id} should be 0 ~ 15"
     if sender == receiver:
         raise ValueError(f'Unexpected pair: {sender} -> {receiver}, only supports cube -> vector or vector -> cube')
-    semantic.custom_op(_builder, "sync_block_set", sender=sender, event_id=event_id)
+    semantic_spec.ext_semantic_custom_op(_builder, "sync_block_set", sender=sender, event_id=event_id)
 
-def ext_core_sync_block_wait(sender, receiver, event_id, _builder=None):
+@builtin
+def sync_block_wait(sender, receiver, event_id, _builder=None):
     sender = _constexpr_to_value(sender)
     receiver = _constexpr_to_value(receiver)
     event_id = _constexpr_to_value(event_id)
@@ -229,19 +255,22 @@ def ext_core_sync_block_wait(sender, receiver, event_id, _builder=None):
     assert isinstance(event_id, int) and (event_id >= 0) and (event_id < 16), f"event_id: {event_id} should be 0 ~ 15"
     if sender == receiver:
         raise ValueError(f'Unexpected pair: {sender} -> {receiver}, only supports cube -> vector or vector -> cube')
-    semantic.custom_op(_builder, "sync_block_wait", sender=sender, event_id=event_id)
+    semantic_spec.ext_semantic_custom_op(_builder, "sync_block_wait", sender=sender, event_id=event_id)
 
-def ext_core_load_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union[constexpr, tensor]],
+@builtin
+def load_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union[constexpr, tensor]],
                                     _builder=None) -> tensor:
     """Load a block of data from a tensor descriptor."""
     return desc.load(offsets, _builder=_builder)
 
-def ext_core_store_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union[constexpr, tensor]], value: tensor,
+@builtin
+def store_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union[constexpr, tensor]], value: tensor,
                                      _builder=None) -> tensor:
     """Store a block of data to a tensor descriptor."""
     return desc.store(offsets, value, _builder=_builder)
 
-def ext_core_make_tensor_descriptor(
+@builtin
+def make_tensor_descriptor(
     base: tensor,
     shape: List[tensor],
     strides: List[tensor],
@@ -295,9 +324,9 @@ def ext_core_make_tensor_descriptor(
         inplace_abs[grid](x, M, N, M_BLOCK, N_BLOCK)
 
     """
-    return semantic.make_tensor_descriptor(base, shape, strides, block_shape, _builder)
+    return semantic_spec.ext_semantic_make_tensor_descriptor(base, shape, strides, block_shape, _builder)
 
-def ext_core_dtype_to_ir(self, builder: ir.builder) -> ir.type:
+def dtype_to_ir(self, builder: ir.builder) -> ir.type:
     if self.name.startswith("fp8"):
         raise ValueError(f'unexpected type fp8.')
 
@@ -332,3 +361,18 @@ def ext_core_dtype_to_ir(self, builder: ir.builder) -> ir.type:
     elif self.name == 'fp64':
         return builder.get_double_ty()
     raise ValueError(f'fail to convert {self} to ir type')
+
+
+class parallel(range):
+    """
+    Iterator that counts upward forever, with parallel execution semantics.
+
+    This is a special iterator used to implement similar semantics to Python's :code:`range` in the context of
+    :code:`triton.jit` functions. In addition, it allows user to pass extra attributes to the compiler.
+    :param bind_sub_block: Tells the compiler if multiple vector cores participate in the loop.
+        This is used in the mixed cube-vector kernel on 910B. The number of vector cores is determined by the number of
+        iteration in this loop. Currently on 910B, max 2 vector cores could be used.
+    """
+    def __init__(self, arg1, arg2=None, step=None, num_stages=None, loop_unroll_factor=None, bind_sub_block: bool = False):
+        super().__init__(arg1, arg2, step, num_stages, loop_unroll_factor)
+        self.bind_sub_block = bind_sub_block
