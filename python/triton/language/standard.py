@@ -11,15 +11,21 @@ import sys
 
 # flagtree backend language.standard func specialization
 def spec_standard_func(spec):
-    spec_func_list = ["flip", "sigmoid", "softmax", "isfinited", "finitef", "rint", "atan2"]
-    for spec_func_name in spec_func_list:
+    standard_spec_func_list = ["flip", "sigmoid", "softmax", "isfinited", "finitef", "rint", "atan2"]
+
+    current_module_name = __name__
+    parent_module_name = '.'.join(current_module_name.split('.')[:-1])
+    math_module_name = f"{parent_module_name}.math"
+
+    for spec_func_name in standard_spec_func_list:
         if hasattr(spec, spec_func_name):
             spec_func = getattr(spec, spec_func_name)
+            # triton.language.standard
             setattr(sys.modules[__name__], spec_func.__name__, spec_func)
-            setattr(sys.modules["triton.language"], spec_func.__name__, spec_func)
-            setattr(sys.modules["triton.language.math"], spec_func.__name__, spec_func)
-        else:
-            raise AttributeError(f"Module '{spec.__name__}' has no attribute '{spec_func_name}'")
+            # triton.language
+            setattr(sys.modules[parent_module_name], spec_func.__name__, spec_func)
+            # triton.language.math
+            setattr(sys.modules[math_module_name], spec_func.__name__, spec_func)
 
 
 def _log2(i: core.constexpr):

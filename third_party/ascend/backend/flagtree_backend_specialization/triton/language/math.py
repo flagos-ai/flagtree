@@ -1,2 +1,36 @@
 import triton.language as language
+umulhi = language.extra.ascend.libdevice.umulhi
+exp = language.extra.ascend.libdevice.exp
+exp2 = language.extra.ascend.libdevice.exp2
+log = language.extra.ascend.libdevice.log
+log2 = language.extra.ascend.libdevice.log2
+cos = language.extra.ascend.libdevice.cos
+sin = language.extra.ascend.libdevice.sin
+sqrt = language.extra.ascend.libdevice.sqrt
+sqrt_rn = language.extra.ascend.libdevice.sqrt_rn
+rsqrt = language.extra.ascend.libdevice.rsqrt
+div_rn = language.extra.ascend.libdevice.div_rn
+erf = language.extra.ascend.libdevice.erf
+tanh = language.extra.ascend.libdevice.tanh
+floor = language.extra.ascend.libdevice.floor
+ceil = language.extra.ascend.libdevice.ceil
+fma = language.extra.ascend.libdevice.fma
+_check_dtype = language.extra.ascend.libdevice._check_dtype
+
+isnan = language.extra.ascend.libdevice.isnan
+isinf = language.extra.ascend.libdevice.isinf
+reciprocal = language.extra.ascend.libdevice.reciprocal
 relu = language.extra.ascend.libdevice.relu
+log1p = language.extra.ascend.libdevice.log1p
+tan = language.extra.ascend.libdevice.tan
+atan = language.extra.ascend.libdevice.atan
+tanh = language.extra.ascend.libdevice.tanh
+ilogb = language.extra.ascend.libdevice.ilogb
+ldexp = language.extra.ascend.libdevice.ldexp
+pow = language.extra.ascend.libdevice.pow
+flip = language.extra.ascend.libdevice.flip
+atan2 = language.extra.ascend.libdevice.atan2
+div_rz = language.extra.ascend.libdevice.div_rz
+fmod = language.extra.ascend.libdevice.fmod
+trunc = language.extra.ascend.libdevice.trunc
+round = language.extra.ascend.libdevice.round
