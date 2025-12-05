@@ -11,6 +11,7 @@
 #include "triton-shared/TritonToHIVM/TritonToHIVM.h"
 #include "triton-shared/TritonToLLVM/TritonToLLVM.h"
 #include "triton-shared/TritonToUnstructureIncubated/UnstructureConversionPass.h"
+#include "triton-shared/BubbleUpOperation/BubbleUpOperation.h"
 #include "triton-shared/TritonToAnnotation/TritonToAnnotation.h"
 
 #define PY_SSIZE_T_CLEAN
@@ -35,6 +36,8 @@ void init_triton_ascend_passes_convert(py::module &&m) {
                      mlir::triton::createTritonToHFusionPass);
   ADD_PASS_WRAPPER_0("add_triton_to_llvm",
                      mlir::triton::createTritonToLLVMPass);
+  ADD_PASS_WRAPPER_0("add_bubble_up_operation",
+                     mlir::triton::createBubbleUpOperationPass);
   m.def(
       "add_triton_to_linalg_incubated",
       [](mlir::PassManager &pm,
