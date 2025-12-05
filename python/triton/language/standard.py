@@ -11,7 +11,7 @@ import sys
 
 # flagtree backend language.standard func specialization
 def spec_standard_func(spec):
-    standard_spec_func_list = ["flip", "sigmoid", "softmax", "isfinited", "finitef", "rint", "atan2"]
+    standard_spec_func_list = spec.standard_ext_spec_func_list
 
     current_module_name = __name__
     parent_module_name = '.'.join(current_module_name.split('.')[:-1])

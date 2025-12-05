@@ -141,6 +141,7 @@ __all__  = [
     "finitef",
     "rint",
     "atan2",
+    "standard_ext_spec_func_list",
     # language.math
     "umulhi",
     "exp",
@@ -176,6 +177,8 @@ __all__  = [
     "fmod",
     "trunc",
     "round",
+    "math_ext_base_func_list",
+    "math_ext_spec_func_list",
     # testing
     'is_do_bench_npu',
     'ext_do_bench_npu',

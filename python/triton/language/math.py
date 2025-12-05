@@ -9,16 +9,8 @@ T = core.TypeVar('T')
 # flagtree backend language.math func specialization
 def spec_math_func(spec):
     import sys
-    base_math_func_list = [
-        "umulhi", "exp", "exp2", "log", "log2", "cos",
-        "sin", "sqrt", "sqrt_rn", "rsqrt", "div_rn", "erf",
-        "tanh", "floor", "ceil", "fma", "_check_dtype"
-    ]
-    ext_math_func_list = [
-        "isnan", "isinf", "reciprocal", "relu", "log1p", "tan",
-        "atan", "tanh", "ilogb", "ldexp", "pow", "flip", "atan2",
-        "div_rz", "fmod", "trunc", "round"
-    ]
+    base_math_func_list = spec.math_ext_base_func_list
+    ext_math_func_list = spec.math_ext_spec_func_list
 
     current_module_name = __name__
     parent_module_name = '.'.join(current_module_name.split('.')[:-1])

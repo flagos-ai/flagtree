@@ -95,3 +95,5 @@ def atan2(y, x):
     add_pi = core.where((x < 0) & (y >= 0), pi, 0.0)
     sub_pi = core.where((x < 0) & (y < 0), -pi, 0.0)
     return (base + add_pi + sub_pi).to(x.dtype)
+
+standard_ext_spec_func_list = ["flip", "sigmoid", "softmax", "isfinited", "finitef", "rint", "atan2"]

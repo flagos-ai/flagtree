@@ -34,3 +34,14 @@ div_rz = language.extra.ascend.libdevice.div_rz
 fmod = language.extra.ascend.libdevice.fmod
 trunc = language.extra.ascend.libdevice.trunc
 round = language.extra.ascend.libdevice.round
+
+math_ext_base_func_list = [
+    "umulhi", "exp", "exp2", "log", "log2", "cos",
+    "sin", "sqrt", "sqrt_rn", "rsqrt", "div_rn", "erf",
+    "tanh", "floor", "ceil", "fma", "_check_dtype"
+]
+math_ext_spec_func_list = [
+    "isnan", "isinf", "reciprocal", "relu", "log1p", "tan",
+    "atan", "tanh", "ilogb", "ldexp", "pow", "flip", "atan2",
+    "div_rz", "fmod", "trunc", "round"
+]
