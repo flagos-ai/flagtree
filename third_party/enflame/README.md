@@ -1,8 +1,8 @@
-# Flagtree Framework - Enflame Accelerator Support
+# Flagtree Third Party Backend - Enflame Accelerator Support
 
 ## Overview
 
-Flagtree is a high-performance computing framework optimized for Enflame accelerators. This repository provides core component backend bindings and test suites for developing and deploying applications on Enflame hardware platforms.
+Flagtree Third Party Backend for Enflame accelerators, including core component backend bindings and test suites for developing and deploying applications on Enflame hardware platforms.
 
 ## Prerequisites
 
