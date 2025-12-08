@@ -22,6 +22,23 @@ TRITON_BUILTIN = "__triton_builtin__"
 PropagateNan = ir.PROPAGATE_NAN
 
 
+# flagtree backend language.core func specialization
+def spec_core_func(spec):
+    import sys
+    core_spec_func_list = spec.core_ext_spec_func_list
+
+    current_module_name = __name__
+    parent_module_name = '.'.join(current_module_name.split('.')[:-1])
+
+    for spec_func_name in core_spec_func_list:
+        if hasattr(spec, spec_func_name):
+            spec_func = getattr(spec, spec_func_name)
+            # triton.language
+            setattr(sys.modules[parent_module_name], spec_func.__name__, spec_func)
+            # triton.language.core
+            setattr(sys.modules[__name__], spec_func.__name__, spec_func)
+
+
 def builtin(fn: T) -> T:
     """Mark a function as a builtin."""
     assert callable(fn)
@@ -1292,6 +1309,11 @@ def trans(input: tensor, *dims, _builder=None):
     """
     if not dims:
         dims = (1, 0)
+
+    # flagtree backend specialization
+    from triton.runtime.driver import flagtree_backend_specialization
+    dims = flagtree_backend_specialization('ext_trans_unwrap_iterable', dims)
+
     return semantic.permute(input, dims, _builder)
 
 
@@ -1480,9 +1502,10 @@ def expand_dims(input, axis, _builder=None):
     return ret
 
 
+# flagtree backend specialization add new params: "overflow_mode"
 @_tensor_member_fn
 @builtin
-def cast(input, dtype: dtype, fp_downcast_rounding: Optional[str] = None, bitcast: bool = False, _builder=None):
+def cast(input, dtype: dtype, fp_downcast_rounding: Optional[str] = None, bitcast: bool = False, overflow_mode: Optional[str] = None, _builder=None):
     """
     Casts a tensor to the given :code:`dtype`.
 
@@ -1497,13 +1520,25 @@ def cast(input, dtype: dtype, fp_downcast_rounding: Optional[str] = None, bitcas
     :param bitcast: If true, the tensor is bitcasted to the given
         :code:`dtype`, instead of being numerically casted.
     :type bitcast: bool, optional
+    :param overflow_mode: When overflow_mode is not set or is "trunc",
+        truncation (cut-off) will be used to handle overflow. When
+        overflow_mode is "sautrate", the maximum value of the data type
+        will be used to handle overflow.
+    :type overflow_mode: string, optional
     """
+    # flagtree backend specialization
+    from triton.runtime.driver import flagtree_backend_specialization
+    overflow_modes = flagtree_backend_specialization('ext_cast_set_overflow_modes')
+
     input = semantic.to_tensor(input, _builder)
     if isinstance(bitcast, constexpr):
         bitcast = bitcast.value
     if bitcast:
         return semantic.bitcast(input, dtype, _builder)
-    return semantic.cast(input, dtype, _builder, fp_downcast_rounding)
+    # flagtree backend specialization
+    ret = semantic.cast(input, dtype, _builder, fp_downcast_rounding)
+    flagtree_backend_specialization('ext_cast_check_overflow_mode', overflow_mode, overflow_modes, ret, _builder)
+    return ret
 
 
 # -----------------------
@@ -1537,11 +1572,18 @@ def dot(input, other, acc=None, input_precision=None, allow_tf32=None, max_num_i
       specified (i.e. at least one must be :code:`None`).
     """
     assert input_precision is None or allow_tf32 is None, "Only one of input_precision and allow_tf32 can be specified"
+
+    # flagtree backend specialization
+    from triton.runtime.driver import flagtree_backend_specialization
+    flagtree_backend_specialization('check_dot_deprecated_param_allow_tf32', allow_tf32)
+
     if input_precision is None:
         supports_tf32 = _builder and "tf32" in _builder.options.allowed_dot_input_precisions
         default_precision = "tf32" if (supports_tf32 and (allow_tf32 or allow_tf32 is None)) else "ieee"
         input_precision = os.getenv("TRITON_F32_DEFAULT", default_precision)
-
+    else:
+        # flagtree backend specialization
+        flagtree_backend_specialization('check_dot_invalid_input_precision', input_precision)
     input_precision = _constexpr_to_value(input_precision)
     out_dtype = _constexpr_to_value(out_dtype)
     max_num_imprecise_acc = _constexpr_to_value(max_num_imprecise_acc)
