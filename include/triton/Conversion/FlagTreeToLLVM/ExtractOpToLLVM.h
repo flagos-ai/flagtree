@@ -5,9 +5,9 @@
 #include "triton/Conversion/TritonGPUToLLVM/TargetInfoBase.h"
 
 namespace mlir::triton::flagtree {
-void populateExtractOpToLLVMPatterns(
-    mlir::LLVMTypeConverter &typeConverter,RewritePatternSet &patterns,
-    PatternBenefit benefit);
+void populateExtractOpToLLVMPatterns(mlir::LLVMTypeConverter &typeConverter,
+                                     RewritePatternSet &patterns,
+                                     PatternBenefit benefit);
 }
 
 #endif
