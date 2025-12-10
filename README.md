@@ -100,8 +100,8 @@ The corresponding Triton version is 3.3
 # Recommended: Use Ubuntu 22.04
 mkdir -p ~/.flagtree/aipu; cd ~/.flagtree/aipu
 # x64 in the simulated environment, arm64 on the ARM development board
-wget https://oaitriton.blob.core.windows.net/public/llvm-builds/llvm-a66376b0-ubuntu-x64.tar.gz
-tar zxvf llvm-a66376b0-ubuntu-x64.tar.gz
+wget https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans/llvm-a66376b0-ubuntu-x64-clang16-lld16_v0.4.0.tar.gz
+tar zxvf llvm-a66376b0-ubuntu-x64-clang16-lld16_v0.4.0.tar.gz
 cd ${YOUR_CODE_DIR}/flagtree/
 git checkout -b triton_v3.3.x origin/triton_v3.3.x
 export FLAGTREE_BACKEND=aipu
@@ -167,6 +167,7 @@ tar zxvf enflame-llvm21-d752c5b-gcc9-x64_v0.3.0.tar.gz
 cd ${YOUR_CODE_DIR}/flagtree/python
 export FLAGTREE_BACKEND=enflame
 python3 -m pip install . --no-build-isolation -v
+```
 
 [nvidia](/third_party/nvidia/)
 To build with default backends nvidia, amd, triton_shared cpu:
@@ -197,11 +198,11 @@ export LLVM_INCLUDE_DIRS=$LLVM_SYSPATH/include
 export LLVM_LIBRARY_DIR=$LLVM_SYSPATH/lib
 cd ${YOUR_CODE_DIR}/flagtree
 cd python  # For Triton 3.1, 3.2, 3.3, you need to enter the python directory to build
-git checkout main              # 对应 Triton 3.1
-git checkout -b triton_v3.2.x  # 对应 Triton 3.2
-git checkout -b triton_v3.3.x  # 对应 Triton 3.3
-git checkout -b triton_v3.4.x  # 对应 Triton 3.4
-git checkout -b triton_v3.5.x  # 对应 Triton 3.5
+git checkout main              # For Triton 3.1
+git checkout -b triton_v3.2.x  # For Triton 3.2
+git checkout -b triton_v3.3.x  # For Triton 3.3
+git checkout -b triton_v3.4.x  # For Triton 3.4
+git checkout -b triton_v3.5.x  # For Triton 3.5
 unset FLAGTREE_BACKEND
 python3 -m pip install . --no-build-isolation -v
 # If you need to build other backends afterward, you should clear LLVM-related environment variables
