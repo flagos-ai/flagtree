@@ -8,6 +8,7 @@ import contextlib
 import ast
 import types
 import pandas as pd
+import torch
 import pickle
 from dataclasses import dataclass
 from typing import Callable, Any
@@ -31,6 +32,10 @@ def flagtree_do_bench(fn, warmup=10, rep=5, quantiles=None, return_mode="mean") 
     return bench.results[return_mode]
 
 
+def get_cuda_impl(op_name):
+    return torch._C._dispatch_get_registrations_for_dispatch_key("CUDA").get(op_name, None)
+
+
 def check_ncu():
     cmd = ["ncu", "--query-metrics"]
     try:
@@ -44,7 +49,7 @@ def check_ncu():
         return False
 
 
-def run_warmup(_fn, warmup):
+def function_warmup(_fn, warmup):
     '''
         Referred to triton.testing.do_bench
     '''
@@ -148,9 +153,38 @@ class FuncAttrs:
     functor_source: str = ''
     Argument_serialized: bool = False
     Argument_serialized_path: str = ''
+    calls: list = None,
+    modules: list = None,
+    deps_path: list = None
 
 
 class CodeGenerator:
+
+    save_path: str = ''
+
+    def gen_benchmark_python_code(self, _fn: Callable[..., Any] = None, Trait: FuncAttrs = None, save=True):
+        script_code = IndentedBuffer()
+        fn_src_code_string = textwrap.dedent(inspect.getsource(_fn))
+        script_code = IndentedBuffer()
+        CodeGenerator._gen_import_and_path(script_code, Trait, path_mode='insert')
+
+        if Trait.is_lambda:
+            CodeGenerator._gen_lambda_source_code(script_code, Trait)
+        else:
+            script_code.writeline(fn_src_code_string)
+            script_code.writeline(f'{_fn.__name__}()')
+        script_code.writeline("torch.cuda.synchronize()")
+
+        CodeGenerator._gen_import_and_path(script_code, Trait, path_mode='remove')
+        self.save_script_code(script_code)
+
+    def save_script_code(self, script_code: IndentedBuffer):
+        script = script_code.getvalue()
+        python_temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".py")
+        python_temp_file.close()
+        with open(python_temp_file.name, 'w+') as f:
+            f.write(script)
+        self.save_path = python_temp_file.name
 
     @staticmethod
     def gen_load_args_kwargs_method(script_code: IndentedBuffer, Trait: FuncAttrs):
@@ -166,7 +200,7 @@ class CodeGenerator:
         script_code.writeline(f"{Trait.functor_source}(*args, **kwargs)")
 
     @staticmethod
-    def _gen_import_and_path(script_code: IndentedBuffer, unpacked, path_mode='insert'):
+    def _gen_import_and_path(script_code: IndentedBuffer, Trait: FuncAttrs, path_mode='insert'):
         sys_path_action_str = '0, '
         if path_mode == 'insert':
             script_code.writeline('import torch')
@@ -179,10 +213,10 @@ class CodeGenerator:
             script_code.writeline(f"sys.path.{path_mode}({sys_path_action_str}'{user_package_path}')")
 
         # create extra modules
-        if not unpacked:
+        if Trait.is_lambda:
             return
         else:
-            calls, modules, deps_path = unpacked
+            calls, modules, deps_path = Trait.calls, Trait.modules, Trait.deps_path
         for path in deps_path:
             if not os.path.isdir(path):
                 path = os.path.dirname(path)
@@ -276,57 +310,13 @@ class FunctionExtractor:
 
     def analyse_general(self, fn):
         source = inspect.getsource(fn)
-        return FuncAttrs(source=source, ast_tree=ast.parse(textwrap.dedent(source)), is_lambda=False,
-                         _globals=fn.__globals__)
+        ast_tree = ast.parse(textwrap.dedent(source))
+        calls, modules, deps_path = self._get_current_function_used_mod(fn, ast_tree)
+        return FuncAttrs(source=source, ast_tree=ast_tree, is_lambda=False, _globals=fn.__globals__, calls=calls,
+                         modules=modules, deps_path=deps_path)
 
-
-'''
-    FlagtreeBench using ncu to measure performance
-'''
-
-
-class FlagtreeBench:
-
-    def __init__(self, current_fn, warmup=10, rep=5, quantiles=None, return_mode="mean", metrics='gpu__time_duration'):
-        if check_ncu():
-            self._current_fn = current_fn
-            self.metrics = metrics
-            self.warmup = warmup
-            self.rep = rep
-            self.quantiles = quantiles
-            self.return_mode = return_mode
-            self.triton_funcs = []
-            self._create_temp_file()
-            print(self.python_exec.name, self.out_csv.name)
-
-    @staticmethod
-    def gather_triton_jit_kernel(mod):
-        '''
-            attrs temporarily adds specialized support to the kernel of flag_gems.
-            About flag_gems see https://github.com/flagos-ai/FlagGems
-        '''
-        if FlagtreeBench.is_from_sitepackages(mod):
-            return set()
-
-        kernels = set()
-        attrs = ['AnonymousLibTunerImpl', 'LibEntry', 'JITFunction']
-        for node in dir(mod):
-            if node.startswith('__'):
-                continue
-            obj = getattr(mod, node)
-            if hasattr(obj, '__class__') and obj.__class__.__name__ in attrs:
-                kernels.add(node)
-        return kernels
-
-    @staticmethod
-    def is_from_sitepackages(mod):
-        return 'site-packages' in mod.__file__
-
-    def _get_current_function_used_mod(self, _fn=None):
-        attrs = self.fn_trait
-        if attrs.is_lambda:
-            return None
-        func_global_dict = attrs._globals
+    def _get_current_function_used_mod(self, _fn=None, ast_tree=None):
+        func_global_dict = _fn.__globals__
         modules = set()
         calls = set()
         deps_path = set()
@@ -350,7 +340,7 @@ class FlagtreeBench:
                     if fun_name in func_global_dict:
                         func_instance = func_global_dict[fun_name]
                         mod_instance = __import__(func_instance.__module__)
-                        triton_jit_kernels.update(FlagtreeBench.gather_triton_jit_kernel(mod_instance))
+                        triton_jit_kernels.update(FunctionExtractor.gather_triton_jit_kernel(mod_instance))
                         if hasattr(mod_instance, '__file__'):
                             mod_dir_path = os.path.dirname(mod_instance.__file__)
                             deps_path.add(mod_dir_path)
@@ -361,24 +351,59 @@ class FlagtreeBench:
                     if isinstance(node.func.value, ast.Name):
                         mod = node.func.value.id
                         mod_instance = func_global_dict[mod]
-                        triton_jit_kernels.update(FlagtreeBench.gather_triton_jit_kernel(mod_instance))
+                        triton_jit_kernels.update(FunctionExtractor.gather_triton_jit_kernel(mod_instance))
                 self.generic_visit(node)
 
-        Visitor().visit(attrs.ast_tree)
+        Visitor().visit(ast_tree)
         return (calls, modules, deps_path)
 
-    def _create_temp_file(self):
-        self.python_exec = tempfile.NamedTemporaryFile(delete=False, suffix=".py")
-        self.python_exec.close()
+    @staticmethod
+    def gather_triton_jit_kernel(mod):
+        '''
+            attrs temporarily adds specialized support to the kernel of flag_gems.
+            About flag_gems see https://github.com/flagos-ai/FlagGems
+        '''
+        if FunctionExtractor.is_from_sitepackages(mod):
+            return set()
 
+        kernels = set()
+        attrs = ['AnonymousLibTunerImpl', 'LibEntry', 'JITFunction']
+        for node in dir(mod):
+            if node.startswith('__'):
+                continue
+            obj = getattr(mod, node)
+            if hasattr(obj, '__class__') and obj.__class__.__name__ in attrs:
+                kernels.add(node)
+        return kernels
+
+    @staticmethod
+    def is_from_sitepackages(mod):
+        return 'site-packages' in mod.__file__
+
+
+'''
+    FlagtreeBench using ncu to measure performance
+'''
+
+
+class FlagtreeBench:
+
+    def __init__(self, current_fn, warmup=10, rep=5, quantiles=None, return_mode="mean", metrics='gpu__time_duration'):
+        if check_ncu():
+            self._current_fn = current_fn
+            self.metrics = metrics
+            self.warmup = warmup
+            self.rep = rep
+            self.quantiles = quantiles
+            self.return_mode = return_mode
+            self._create_temp_file()
+
+    def _create_temp_file(self):
         self.out_csv = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
         self.out_csv.close()
 
-    def _write_script(self, script):
-        with open(self.python_exec.name, 'w+') as f:
-            f.write(script)
-
-    def _exec(self):
+    def run_code_script(self):
+        path = self.code_instance.save_path
         cmd = [
             "ncu",
             "--metrics",
@@ -387,9 +412,9 @@ class FlagtreeBench:
             "--log-file",
             self.out_csv.name,
             "python3",
-            self.python_exec.name,
+            path,
         ]
-        print(f"[INFO]: ncu running on {self.python_exec.name}")
+        print(f"[INFO]: ncu running on {path}")
         subprocess.run(cmd, check=True)
         self._pure_csv_log()
 
@@ -417,32 +442,14 @@ class FlagtreeBench:
         index_dict['mean'] = index_dict['avg']
         return index_dict
 
-    def _generate_script(self, _fn=None):
-        _fn = _fn or self._current_fn
-        fn_src_code_string = textwrap.dedent(inspect.getsource(_fn))
-        script_code = IndentedBuffer()
-        unpacked = self._get_current_function_used_mod()
-        CodeGenerator._gen_import_and_path(script_code, unpacked, path_mode='insert')
-
-        if self.fn_trait.is_lambda:
-            CodeGenerator._gen_lambda_source_code(script_code, self.fn_trait)
-        else:
-            script_code.writeline(fn_src_code_string)
-            script_code.writeline(f'{_fn.__name__}()')
-        script_code.writeline("torch.cuda.synchronize()")
-
-        CodeGenerator._gen_import_and_path(script_code, unpacked, path_mode='remove')
-
-        self.script = script_code.getvalue()
-        self._write_script(self.script)
-
     def do_bench(self) -> float:
         '''
             Measure the GPU kernel time of fn() using ncu.
             Generate a temporary Python file and then run it with 'ncu'.
         '''
         self.fn_trait = FunctionExtractor(self._current_fn).trait
-        self._generate_script()
-        run_warmup(self._current_fn, self.warmup)
-        self._exec()
+        self.code_instance = CodeGenerator()
+        self.code_instance.gen_benchmark_python_code(_fn=self._current_fn, Trait=self.fn_trait)
+        function_warmup(self._current_fn, self.warmup)
+        self.run_code_script()
         self.results = self._get_index()
