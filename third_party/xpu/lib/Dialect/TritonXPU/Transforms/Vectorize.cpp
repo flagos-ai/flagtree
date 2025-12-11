@@ -3,13 +3,14 @@
 // Copyright (C) 2025 by Kunlunxin. All rights reserved.
 //
 //===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// TODO: Pass Description
+//===----------------------------------------------------------------------===//
 
 // clang-format off
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/TritonXPU/IR/Dialect.h"
 #include "triton/Dialect/TritonXPU/Transforms/Passes.h"
-#include "llvm/Support/raw_ostream.h"
 // clang-format on
 
 #define DEBUG_TYPE "tritonxpu-vectorize"
@@ -1489,10 +1490,7 @@ struct TritonXPUVectorizePass
 
     if (ReduceVec) {
       // For [Load -> Reduce] || [Broadcast -> Reduce]
-      llvm::SetVector<triton::xpu::ReduceOp> reduceOps;
-      mod.walk([&](triton::xpu::ReduceOp redOp) { reduceOps.insert(redOp); });
-
-      for (auto redOp : reduceOps) {
+      mod.walk([&](triton::xpu::ReduceOp redOp) {
         for (int i = 0; i < redOp.getOperands().size() - 1; ++i) {
           auto reduceOperand = redOp.getOperands()[i];
           auto reduceOperandOp = reduceOperand.getDefiningOp();
@@ -1554,7 +1552,7 @@ struct TritonXPUVectorizePass
             }
           }
         }
-      }
+      });
     }
 
     // For [Broadcast -> Store]
