@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 import textwrap
 import inspect
 import tempfile
@@ -156,6 +157,7 @@ class FuncAttrs:
     calls: list = None,
     modules: list = None,
     deps_path: list = None
+    is_flaggems_functor: bool = False
 
 
 class CodeGenerator:
@@ -195,9 +197,14 @@ class CodeGenerator:
             with script_code.indent():
                 script_code.writeline("data = pickle.load(f)")
                 script_code.writeline("return data['args'], data['kwargs']")
-
         script_code.writeline(f"args, kwargs = load_args_kwargs('{Trait.Argument_serialized_path}')")
-        script_code.writeline(f"{Trait.functor_source}(*args, **kwargs)")
+        if Trait.is_flaggems_functor:
+            script_code.writeline("import flag_gems")
+            script_code.writeline("with flag_gems.use_gems():")
+            with script_code.indent():
+                script_code.writeline(f"{Trait.functor_source}(*args, **kwargs)")
+        else:
+            script_code.writeline(f"{Trait.functor_source}(*args, **kwargs)")
 
     @staticmethod
     def _gen_import_and_path(script_code: IndentedBuffer, Trait: FuncAttrs, path_mode='insert'):
@@ -295,7 +302,7 @@ class FunctionExtractor:
             return FuncAttrs(_globals=fn.__globals__, source=inspect.getsource(fn), is_torch_method=is_torch_method,
                              Argument_serialized=True, Argument_serialized_path=serialized_path,
                              functor_source=functor_source, ast_tree=ast.parse(textwrap.dedent(source)),
-                             is_lambda=is_lambda)
+                             is_lambda=is_lambda, is_flaggems_functor=FunctionExtractor.is_flaggems_operator())
 
         casehandlers = [handlecase_single, handlecase_both, handlecase_all]
         casehandlers_mapping = {}
@@ -312,8 +319,16 @@ class FunctionExtractor:
         source = inspect.getsource(fn)
         ast_tree = ast.parse(textwrap.dedent(source))
         calls, modules, deps_path = self._get_current_function_used_mod(fn, ast_tree)
-        return FuncAttrs(source=source, ast_tree=ast_tree, is_lambda=False, _globals=fn.__globals__, calls=calls,
-                         modules=modules, deps_path=deps_path)
+        return FuncAttrs(
+            source=source,
+            ast_tree=ast_tree,
+            is_lambda=False,
+            _globals=fn.__globals__,
+            calls=calls,
+            modules=modules,
+            deps_path=deps_path,
+            is_flaggems_functor=FunctionExtractor.is_flaggems_operator(),
+        )
 
     def _get_current_function_used_mod(self, _fn=None, ast_tree=None):
         func_global_dict = _fn.__globals__
@@ -380,6 +395,15 @@ class FunctionExtractor:
     def is_from_sitepackages(mod):
         return 'site-packages' in mod.__file__
 
+    @staticmethod
+    def is_flaggems_operator():
+        try:
+            import flag_gems
+            with flag_gems.use_gems():
+                return False
+        except Exception:
+            return True
+
 
 '''
     FlagtreeBench using ncu to measure performance
@@ -411,11 +435,10 @@ class FlagtreeBench:
             "--csv",
             "--log-file",
             self.out_csv.name,
-            "python3",
+            sys.executable,
             path,
         ]
-        print(f"[INFO]: ncu running on {path}")
-        subprocess.run(cmd, check=True)
+        subprocess.Popen(cmd, text=True).communicate()
         self._pure_csv_log()
 
     def _pure_csv_log(self):
@@ -431,7 +454,7 @@ class FlagtreeBench:
         patterns = "at::|std::|void"
         index_dict = dict.fromkeys(indexs, 0)
         df = pd.read_csv(self.out_csv.name)
-        if self.fn_trait.is_torch_method:
+        if self.fn_trait.is_torch_method and not self.fn_trait.is_flaggems_functor:
             metric_values = df[df["Kernel Name"].str.contains(patterns, regex=True)][["Metric Name", "Metric Value"]]
         else:
             metric_values = df[~df["Kernel Name"].str.contains(patterns, regex=True)][["Metric Name", "Metric Value"]]
