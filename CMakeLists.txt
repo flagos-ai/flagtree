@@ -65,6 +65,12 @@ endfunction()
 project(triton)
 include(CTest)
 
+set(_env_flir "$ENV{FLIR_BUILD_INCUBATED}")
+if(NOT _env_flir)
+  set(_env_flir OFF)
+endif()
+set(FLIR_BUILD_INCUBATED "${_env_flir}" CACHE BOOL "Build FLIR incubated passes")
+
 if(NOT WIN32)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 endif()
