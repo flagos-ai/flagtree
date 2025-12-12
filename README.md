@@ -83,6 +83,7 @@ export TX8_DEPS_ROOT=~/.flagtree/tsingmicro/tx8_deps
 cd ${YOUR_CODE_DIR}/flagtree/
 git checkout -b triton_v3.3.x origin/triton_v3.3.x
 export FLAGTREE_BACKEND=tsingmicro
+cd ./python/
 python3 -m pip install . --no-build-isolation -v
 ```
 [ascend](https://github.com/FlagTree/flagtree/blob/triton_v3.2.x/python/setup_tools/setup_helper.py)
