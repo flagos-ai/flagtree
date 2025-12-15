@@ -3,13 +3,14 @@
 // Copyright (C) 2025 by Kunlunxin. All rights reserved.
 //
 //===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// TODO: Pass Description
+//===----------------------------------------------------------------------===//
 
 // clang-format off
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/TritonXPU/IR/Dialect.h"
 #include "triton/Dialect/TritonXPU/Transforms/Passes.h"
-#include "llvm/Support/raw_ostream.h"
 // clang-format on
 
 #define DEBUG_TYPE "tritonxpu-vectorize"

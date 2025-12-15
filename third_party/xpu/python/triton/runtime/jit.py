@@ -1074,6 +1074,10 @@ class MockTensor:
     def data_ptr():
         return 0  # optimistically assumes multiple of 16
 
+    @staticmethod
+    def numel():
+        return 0
+
 
 class TensorWrapper:
 
