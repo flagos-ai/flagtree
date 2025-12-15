@@ -271,14 +271,14 @@ LogicalResult MaskState::parseAnd(arith::AndIOp andOp, const Location loc,
   if (failed(lhsState.parse(andOp.getLhs(), loc, builder)))
     return failure();
   if (auto splatOp = andOp.getLhs().getDefiningOp<triton::SplatOp>())
-    if(!splatOp && !lhsState.isMask())
+    if (!splatOp && !lhsState.isMask())
       return failure();
 
   MaskState rhsState;
   if (failed(rhsState.parse(andOp.getRhs(), loc, builder)))
     return failure();
   if (auto splatOp = andOp.getRhs().getDefiningOp<triton::SplatOp>())
-    if(!splatOp && !rhsState.isMask())
+    if (!splatOp && !rhsState.isMask())
       return failure();
 
   return this->minStates(lhsState, rhsState, loc, builder);

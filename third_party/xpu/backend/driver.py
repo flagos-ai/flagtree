@@ -15,12 +15,12 @@ dirname = os.path.dirname(os.path.realpath(__file__))
 arch = int(os.environ.get('TRITON_XPU_ARCH', '3'))
 # 因为这里是还没有进入到compile阶段的一个判定，然后xpu4及以上不走这个target，所以就暂时仍使用xpu3的头文件和链接库，之后会在compile阶段再次判定
 if arch >= 4:
-  arch = 3
+    arch = 3
 include_dir = [os.path.join(dirname, f"xpu{arch}", "include")]
 libdevice_dir = os.path.join(dirname, f"xpu{arch}", "lib")
 library_dir = os.path.join(dirname, f"xpu{arch}", "so")
-if (os.path.exists(os.path.join(library_dir, "libLaunch_shared.a")) or
-    os.path.exists(os.path.join(library_dir, "liblaunch_shared.so"))):
+if (os.path.exists(os.path.join(library_dir, "libLaunch_shared.a"))
+        or os.path.exists(os.path.join(library_dir, "liblaunch_shared.so"))):
     libraries = ['launch', 'xpurt', 'launch_shared']
 else:
     libraries = ['launch', 'xpurt']
@@ -131,7 +131,8 @@ def make_launcher(constants, signature, ids, metadata):
 
     # Record the end of regular arguments;
     # subsequent arguments are architecture-specific descriptors, such as tensor descriptors for CUDA.
-    arg_decls = ', '.join(f"{ty_to_cpp(ty)} arg{i}" + (f", int64_t arg{i}_numel" if ty[0] == "*" else "") for i, ty in signature.items())
+    arg_decls = ', '.join(f"{ty_to_cpp(ty)} arg{i}" + (f", int64_t arg{i}_numel" if ty[0] == "*" else "")
+                          for i, ty in signature.items())
 
     def _extracted_type(ty):
         if ty[0] == '*':
@@ -154,7 +155,7 @@ def make_launcher(constants, signature, ids, metadata):
             "uint64_t": "K",
         }[ty]
 
-    def generate_kernel_params(signature, constants, type_mapping = None):
+    def generate_kernel_params(signature, constants, type_mapping=None):
         params = []
         if type_mapping is None:
             type_mapping = {
@@ -175,24 +176,18 @@ def make_launcher(constants, signature, ids, metadata):
             if i in constants:
                 continue
             type_enum = type_mapping.get(ty, 0)
-            params.append(
-                f"{{{i}l, (int64_t)&arg{i}, (int64_t)(sizeof(arg{i})), "
-                f"{f'arg{i}_numel' if i in tensor_args else '0l'}, "
-                f"{type_enum}l}}"
-            )
+            params.append(f"{{{i}l, (int64_t)&arg{i}, (int64_t)(sizeof(arg{i})), "
+                          f"{f'arg{i}_numel' if i in tensor_args else '0l'}, "
+                          f"{type_enum}l}}")
         return f"{{ {', '.join(params) + (', ' if params else ' ')}{{0l, 0l, 0l, 0l, 0l}} }}"
 
     def generate_const_params(constants):
         params = []
         for i, val in constants.items():
             if isinstance(val, bool):
-                params.append(
-                    f"{{{i}l, 5, {1 if val else 0}l}}"
-                )
+                params.append(f"{{{i}l, 5, {1 if val else 0}l}}")
             elif isinstance(val, int):
-                params.append(
-                    f"{{{i}l, 4, {val}l}}"
-                )
+                params.append(f"{{{i}l, 4, {val}l}}")
         return f"{{ {', '.join(params) + (', ' if params else ' ')}{{0l, 0l, 0l}} }}"
 
     # drop type info

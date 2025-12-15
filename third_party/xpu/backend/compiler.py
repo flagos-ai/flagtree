@@ -70,6 +70,7 @@ def parse_floating_range_string(range_str: str) -> Optional[Tuple[Optional[float
 
     return start_val, end_val
 
+
 @functools.lru_cache(None)
 def file_hash(path):
     with open(path, "rb") as f:
@@ -216,7 +217,9 @@ class XPUBackend(BaseBackend):
         # F/O Prefix For Function/Optimization Macro
         is_use_mask_zero = metadata["is_use_mask_zero"]
         if is_use_mask_zero:
-            warnings.warn(f'XRE Version Must Be More than 5.0.21.37 (After 2025.07.22). And echo 1 > /proc/kunlun/dev4/dma_excp_mask', UserWarning)
+            warnings.warn(
+                f'XRE Version Must Be More than 5.0.21.37 (After 2025.07.22). And echo 1 > /proc/kunlun/dev4/dma_excp_mask',
+                UserWarning)
         TTXPU_F_INTERLEAVE = 0 if metadata["grid"] != (12, 1, 1) else int(os.environ.get("TRITONXPU_INTERLEAVE", 1))
         TTXPU_F_OHTER_VALUE_SIM = int(os.environ.get("TRITONXPU_OTHER_SIM", 0))
         TTXPU_F_STORE_MASK_SIM = int(os.environ.get("TRITONXPU_STORE_MASK_SIM", 0))
@@ -265,7 +268,8 @@ class XPUBackend(BaseBackend):
         else:
             xpu.passes.ttxpuir.add_convert_triton_to_tritonxpu_pass(pm, opt.arch, XPUBackend.buffer_len, core_num)
             xpu.passes.ttxpuir.add_tritonxpu_print_pass(pm)
-            xpu.passes.ttxpuir.add_tritonxpu_gm2lm_pass(pm, opt.arch, TTXPU_O_ATOMIC_SIM, opt.isClusterOneCoreActOnly, is_use_mask_zero)
+            xpu.passes.ttxpuir.add_tritonxpu_gm2lm_pass(pm, opt.arch, TTXPU_O_ATOMIC_SIM, opt.isClusterOneCoreActOnly,
+                                                        is_use_mask_zero)
             if not metadata["isCloseMemoryCache"]:
                 xpu.passes.ttxpuir.add_tritonxpu_memory_cache_pass(pm, XPUBackend.buffer_len,
                                                                    core_num) if not TTXPU_O_CLOSE_OPT else None
@@ -282,7 +286,8 @@ class XPUBackend(BaseBackend):
                 xpu.passes.ttxpuir.add_tritonxpu_offset_state_pass(
                     pm, 0, XPUBackend.buffer_len, is_use_mask_zero) if not TTXPU_O_CLOSE_OPT else None  # dumpFlag=0
             passes.common.add_canonicalizer(pm)
-            xpu.passes.ttxpuir.add_tritonxpu_legalize_pass(pm, XPUBackend.buffer_len, core_num, groups_per_cluster, is_use_mask_zero)
+            xpu.passes.ttxpuir.add_tritonxpu_legalize_pass(pm, XPUBackend.buffer_len, core_num, groups_per_cluster,
+                                                           is_use_mask_zero)
             passes.common.add_canonicalizer(pm)
             if not TTXPU_F_OHTER_VALUE_SIM:
                 xpu.passes.ttxpuir.add_tritonxpu_mask_pass(pm, opt.isClusterOneCoreActOnly, is_use_mask_zero)
@@ -300,10 +305,11 @@ class XPUBackend(BaseBackend):
             passes.common.add_canonicalizer(pm)
             xpu.passes.ttxpuir.add_tritonxpu_alloca_pass(pm, XPUBackend.buffer_len, core_num)
             if not metadata["isCloseMemoryAsync"]:
-                xpu.passes.ttxpuir.add_tritonxpu_memory_async_pass(pm, 0) if not TTXPU_O_CLOSE_OPT else None  # dumpFlag=0
+                xpu.passes.ttxpuir.add_tritonxpu_memory_async_pass(pm,
+                                                                   0) if not TTXPU_O_CLOSE_OPT else None  # dumpFlag=0
             if not metadata["isCloseUnrollControl"]:
-                xpu.passes.ttxpuir.add_tritonxpu_unroll_control_pass(pm, XPUBackend.buffer_len,
-                                                                     core_num, is_use_mask_zero) if not TTXPU_O_CLOSE_OPT else None
+                xpu.passes.ttxpuir.add_tritonxpu_unroll_control_pass(
+                    pm, XPUBackend.buffer_len, core_num, is_use_mask_zero) if not TTXPU_O_CLOSE_OPT else None
             xpu.passes.ttxpuir.add_tritonxpu_store_control_pass(pm) if not TTXPU_O_CLOSE_OPT else None
             if not TTXPU_F_OHTER_VALUE_SIM:
                 xpu.passes.ttxpuir.add_tritonxpu_other_sim_pass(pm, XPUBackend.buffer_len, core_num)
@@ -394,7 +400,8 @@ class XPUBackend(BaseBackend):
     @staticmethod
     def make_llir(mod, metadata, opt):
         XPUBackend.make_ewtable(mod, metadata, opt)
-        metadata["tensor_args"] = xpu.get_tensor_args(mod, metadata["tensor_args"]) if metadata["is_sdnn"] is True else []
+        metadata["tensor_args"] = xpu.get_tensor_args(mod,
+                                                      metadata["tensor_args"]) if metadata["is_sdnn"] is True else []
 
         # TritonXPU -> LLVM-IR (MLIR)
         pm = ir.pass_manager(mod.context)
@@ -407,7 +414,8 @@ class XPUBackend(BaseBackend):
             xpu.passes.ttsdnnir.add_convert_tritonsdnn_to_llvm_pass(pm, opt.arch)
         else:
             passes.ttgpuir.add_allocate_shared_memory(pm)
-            xpu.passes.ttxpuir.add_convert_tritonxpu_to_llvm_pass(pm, opt.arch, XPUBackend.buffer_len, metadata["is_use_mask_zero"])
+            xpu.passes.ttxpuir.add_convert_tritonxpu_to_llvm_pass(pm, opt.arch, XPUBackend.buffer_len,
+                                                                  metadata["is_use_mask_zero"])
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
 

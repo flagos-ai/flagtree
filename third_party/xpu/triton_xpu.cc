@@ -364,7 +364,7 @@ void init_triton_xpu(py::module &&m) {
   });
 
   // check if it is a sdnn kernel
-  defineIsSDNNKernel(m); //is_sdnn_kernel
+  defineIsSDNNKernel(m); // is_sdnn_kernel
 
   m.def("get_tensor_args", [](mlir::ModuleOp &mod,
                               std::vector<int64_t> &tensorArgs) {
@@ -431,7 +431,8 @@ void init_triton_xpu(py::module &&m) {
 
   defineGetLutInfo(m);
 
-  m.def("get_buffer_len", [](mlir::ModuleOp &mod, unsigned maxBufferSize, int elemBytes) {
+  m.def("get_buffer_len", [](mlir::ModuleOp &mod, unsigned maxBufferSize,
+                             int elemBytes) {
     unsigned bufferLen = maxBufferSize;
 
     auto _get_buffer_len = [&](mlir::Type &ptrTy, unsigned maxBufferSize,

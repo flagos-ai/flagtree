@@ -24,7 +24,7 @@ template <> struct is_xpu_memory_op<triton::xpu::SM2GMOp> {
   static const bool value = true;
 };
 
-#define XPU_MEMORY_MASK_OP                                                          \
+#define XPU_MEMORY_MASK_OP                                                     \
   triton::xpu::GM2LMMaskOp, triton::xpu::LM2GMMaskOp, triton::xpu::SM2GMMaskOp
 
 template <class T> struct is_xpu_memory_mask_op {
@@ -53,7 +53,7 @@ template <> struct is_xpu_memory_op<triton::xpu::SM2GMMaskOp> {
   triton::xpu::SvaddFOp, triton::xpu::SvmulFOp, triton::xpu::SvsubFOp,         \
       triton::xpu::SvmaxFOp
 
-#define COMBINE_BINARY_OP                                                             \
+#define COMBINE_BINARY_OP                                                      \
   arith::AddFOp, arith::MulFOp, arith::MaxNumFOp, arith::MinNumFOp,            \
       arith::OrIOp, arith::XOrIOp, arith::AndIOp
 

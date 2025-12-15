@@ -25,7 +25,6 @@ using namespace mlir;
 using namespace mlir::LLVM;
 using mlir::LLVM::detail::createIntrinsicCall;
 
-
 void mlir::registerLLVMXPUDialectTranslation(DialectRegistry &registry) {
   registerLLVMXPUSDNNDialectTranslation(registry);
   registry.insert<XPU::LLVMXPUDialect>();

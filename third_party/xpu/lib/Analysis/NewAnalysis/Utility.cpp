@@ -320,7 +320,6 @@ void getOpLine(ModuleOp &m, DenseMap<mlir::Operation *, unsigned> &op2Line) {
   m.walk([&](mlir::Operation *op) { op2Line[op] = line++; });
 }
 
-
 int64_t getTensorSize(Type type) {
   if (auto tensorTy = dyn_cast<RankedTensorType>(type))
     return product(tensorTy.getShape());

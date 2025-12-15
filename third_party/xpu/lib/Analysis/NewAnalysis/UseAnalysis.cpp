@@ -21,9 +21,9 @@ using namespace dataflow;
 // Use Analysis
 // Note that logic below should evolve with triton-to-affine pass
 //===----------------------------------------------------------------------===//
-void
-triton::UseAnalysis::visitOperation(Operation *op, ArrayRef<UseInfo *> operands,
-                                    ArrayRef<const UseInfo *> results) {
+void triton::UseAnalysis::visitOperation(Operation *op,
+                                         ArrayRef<UseInfo *> operands,
+                                         ArrayRef<const UseInfo *> results) {
   // If an op only produces pointer, all its operands are used as meta data.
   // This accounts for scenarios such as addptr in a loop whose result is
   // yielded. In this case, if the loop returns data tensors, addptr will be
