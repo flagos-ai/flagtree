@@ -302,6 +302,7 @@ class Config:
     def all_kwargs(self):
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
+        ext_Config_all_kwargs = flagtree_backend_specialization('ext_Config_all_kwargs', self) or ()
 
         return {
             **self.kwargs, **{
@@ -315,7 +316,7 @@ class Config:
                     ("reg_dec_producer", self.reg_dec_producer),
                     ("reg_inc_consumer", self.reg_inc_consumer),
                     ("maxnreg", self.maxnreg),
-                ) + flagtree_backend_specialization('ext_Config_all_kwargs', self) if v is not None
+                ) + ext_Config_all_kwargs if v is not None
             }
         }
 

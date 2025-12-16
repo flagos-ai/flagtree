@@ -88,6 +88,8 @@ class ASTSource:
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
         flagtree_backend_specialization("ext_ASTSource_attrs", self)
+        if self.attrs is None:
+            self.attrs = AttrsDescriptor()
 
     def hash(self):
         sorted_sig = [v for k, v in sorted(self.signature.items())]

@@ -348,7 +348,7 @@ if offline_handler.is_offline:
 else:
     print('[INFO] Offline Build: No offline build for triton origin toolkits')
 
-download_flagtree_third_party("triton_shared", condition=(not flagtree_backend))
+#download_flagtree_third_party("triton_shared", condition=(not flagtree_backend))
 
 download_flagtree_third_party("flir", condition=(flagtree_backend == "ascend"), hock=utils.ascend.precompile_hook_flir,
                               required=True)
