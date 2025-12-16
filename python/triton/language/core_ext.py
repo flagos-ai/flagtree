@@ -1,47 +1,132 @@
-from typing import List, Sequence, Union
+import os
+from typing import List, Sequence, Optional, Union
+
 from triton._C.libtriton import ir
-import triton.language.semantic as semantic
-from . import semantic as semantic_spec
+from triton.language import semantic as real_semantic
 from triton.language.core import (
-    builtin,
+    _constexpr_to_value,
     _tensor_member_fn,
     _unwrap_iterable,
-    _constexpr_to_value,
+    builtin,
     constexpr,
+    dtype as real_dtype,
+    float32,
     tensor,
-    range,
     check_bit_width,
     _unwrap_if_constexpr,
+    range,
     add,
     sub,
     mul,
 )
-
+from typing import Optional
+from . import semantic_ext as semantic
 from .tensor_descriptor import tensor_descriptor, tensor_descriptor_base
 
-def ext_cast_set_overflow_modes():
-    return ["trunc", "saturate"]
 
-def ext_cast_check_overflow_mode(overflow_mode, overflow_modes, ret, _builder):
+@_tensor_member_fn
+@builtin
+def cast(input, dtype: real_dtype, fp_downcast_rounding: Optional[str] = None, bitcast: bool = False, overflow_mode: Optional[str] = None, _builder=None):
+    """
+    Casts a tensor to the given :code:`dtype`.
+
+    :param dtype: The target data type.
+    :type dtype: tl.dtype
+    :param fp_downcast_rounding: The rounding mode for downcasting
+        floating-point values. This parameter is only used when self is a
+        floating-point tensor and dtype is a floating-point type with a
+        smaller bitwidth. Supported values are :code:`"rtne"` (round to
+        nearest, ties to even) and :code:`"rtz"` (round towards zero).
+    :type fp_downcast_rounding: str, optional
+    :param bitcast: If true, the tensor is bitcasted to the given
+        :code:`dtype`, instead of being numerically casted.
+    :type bitcast: bool, optional
+    :param overflow_mode: When overflow_mode is not set or is "trunc",
+        truncation (cut-off) will be used to handle overflow. When
+        overflow_mode is "sautrate", the maximum value of the data type
+        will be used to handle overflow.
+    :type overflow_mode: string, optional
+    """
+    overflow_modes = ["trunc", "saturate"]
+    input = semantic.to_tensor(input, _builder)
+    if isinstance(bitcast, constexpr):
+        bitcast = bitcast.value
+    if bitcast:
+        return semantic.bitcast(input, dtype, _builder)
+    ret = semantic.cast(input, dtype, _builder, fp_downcast_rounding)
     if overflow_mode is not None:
         if overflow_mode in overflow_modes:
-            semantic_spec.ext_semantic_compile_hint(ret, "overflow_mode", overflow_mode, _builder)
+            semantic.compile_hint(ret, "overflow_mode", overflow_mode, _builder)
         else:
             raise ValueError(f"Unknown overflow_mode:{overflow_mode} is found.")
+    return ret
 
-def ext_trans_unwrap_iterable(dims):
-    return _unwrap_iterable(dims)
 
-def check_dot_deprecated_param_allow_tf32(allow_tf32):
+@_tensor_member_fn
+@builtin
+def trans(input: tensor, *dims, _builder=None):
+    """
+    Permutes the dimensions of a tensor.
+
+    If the parameter :code:`dims` is not specified, the function defaults to a (1,0) permutation,
+    effectively transposing a 2D tensor.
+
+    :param input: The input tensor.
+    :param dims: The desired ordering of dimensions.  For example,
+        :code:`(2, 1, 0)` reverses the order dims in a a 3D tensor.
+
+    :code:`dims` can be passed as a tuple or as individual parameters: ::
+
+        # These are equivalent
+        trans(x, (2, 1, 0))
+        trans(x, 2, 1, 0)
+
+    :py:func:`permute` is equivalent to this function, except it doesn't
+    have the special case when no permutation is specified.
+    """
+    if not dims:
+        dims = (1, 0)
+    dims = _unwrap_iterable(dims)
+    return real_semantic.permute(input, dims, _builder)
+
+
+@builtin
+def dot(
+    input,
+    other,
+    acc=None,
+    input_precision=None,
+    allow_tf32=None,
+    max_num_imprecise_acc=None,
+    out_dtype=float32,
+    _builder=None,
+):
+    assert (
+        input_precision is None or allow_tf32 is None
+    ), "Only one of input_precision and allow_tf32 can be specified"
     assert (
         not allow_tf32
     ), "allow_tf32 is deprecated, please use input_precision='hf32' on Ascend instead."
-
-def check_dot_invalid_input_precision(input_precision):
-    assert input_precision not in [
+    if input_precision is None:
+        supports_tf32 = (
+            _builder and "tf32" in _builder.options.allowed_dot_input_precisions
+        )
+        default_precision = (
+            "tf32" if (supports_tf32 and (allow_tf32 or allow_tf32 is None)) else "ieee"
+        )
+        input_precision = os.getenv("TRITON_F32_DEFAULT", default_precision)
+    else:
+        assert input_precision not in [
             "tf32",
             "tf32x3",
         ], "input_precision == tf32 or tf32x3 is invalid, please use input_precision='hf32' on Ascend instead."
+    input_precision = _constexpr_to_value(input_precision)
+    out_dtype = _constexpr_to_value(out_dtype)
+    max_num_imprecise_acc = _constexpr_to_value(max_num_imprecise_acc)
+    return semantic.dot(
+        input, other, acc, input_precision, max_num_imprecise_acc, out_dtype, _builder
+    )
+
 
 @_tensor_member_fn
 @builtin
@@ -55,7 +140,8 @@ def gather(src, index, axis, _builder=None):
     :type axis: int
     """
     axis = _constexpr_to_value(axis)
-    return semantic_spec.ext_semantic_gather(src, index, axis, _builder)
+    return semantic.gather(src, index, axis, _builder)
+
 
 @_tensor_member_fn
 @builtin
@@ -77,11 +163,12 @@ def insert_slice(ful, sub, offsets, sizes, strides, _builder=None, _generator=No
     assert len(ful.shape) > 0
     assert len(ful.shape) == len(sub.shape)
     new_offsets = [
-        semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
+        real_semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
         for o in offsets
     ]
-    out = semantic_spec.ext_semantic_insert_slice(ful, sub, new_offsets, sizes, strides, _builder)
+    out = semantic.insert_slice(ful, sub, new_offsets, sizes, strides, _builder)
     return out
+
 
 @_tensor_member_fn
 @builtin
@@ -100,10 +187,10 @@ def extract_slice(ful, offsets, sizes, strides, _builder=None, _generator=None) 
     """
     assert len(ful.shape) > 0
     new_offsets = [
-        semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
+        real_semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
         for o in offsets
     ]
-    sub = semantic_spec.ext_semantic_extract_slice(ful, new_offsets, sizes, strides, _builder)
+    sub = semantic.extract_slice(ful, new_offsets, sizes, strides, _builder)
     return sub
 
 @_tensor_member_fn
@@ -121,10 +208,10 @@ def get_element(src, indice, _builder=None, _generator=None):
     """
     assert len(src.shape) > 0
     new_indice = [
-        semantic.to_tensor(i, _builder) if isinstance(i, constexpr) else i
+        real_semantic.to_tensor(i, _builder) if isinstance(i, constexpr) else i
         for i in indice
     ]
-    return semantic_spec.ext_semantic_get_element(src, new_indice, _builder)
+    return semantic.get_element(src, new_indice, _builder)
 
 @builtin
 def __add__(self, other, _builder=None):
@@ -150,6 +237,7 @@ def __mul__(self, other, _builder=None):
 def __rmul__(self, other, _builder=None):
     return mul(other, self, sanitize_overflow=False, _builder=_builder)
 
+
 @builtin
 def __lshift__(self, other, _builder=None):
     if self.type.scalar.is_floating():
@@ -157,6 +245,7 @@ def __lshift__(self, other, _builder=None):
     check_bit_width(self, other)
     other = _unwrap_if_constexpr(other)
     return semantic.shl(self, other, _builder)
+
 
 @builtin
 def __rshift__(self, other, _builder=None):
@@ -168,6 +257,22 @@ def __rshift__(self, other, _builder=None):
         return semantic.ashr(self, other, _builder)
     else:
         return semantic.lshr(self, other, _builder)
+
+
+class parallel(range):
+    """
+    Iterator that counts upward forever, with parallel execution semantics.
+
+    This is a special iterator used to implement similar semantics to Python's :code:`range` in the context of
+    :code:`triton.jit` functions. In addition, it allows user to pass extra attributes to the compiler.
+    :param bind_sub_block: Tells the compiler if multiple vector cores participate in the loop.
+        This is used in the mixed cube-vector kernel on 910B. The number of vector cores is determined by the number of
+        iteration in this loop. Currently on 910B, max 2 vector cores could be used.
+    """
+    def __init__(self, arg1, arg2=None, step=None, num_stages=None, loop_unroll_factor=None, bind_sub_block: bool = False):
+        super().__init__(arg1, arg2, step, num_stages, loop_unroll_factor)
+        self.bind_sub_block = bind_sub_block
+
 
 @builtin
 def compile_hint(ptr, hint_name, hint_val=None, _builder=None):
@@ -181,7 +286,8 @@ def compile_hint(ptr, hint_name, hint_val=None, _builder=None):
     else:
         hint_val = _unwrap(hint_val)
     hint_val = _unwrap_if_constexpr(hint_val) if hint_val else hint_val
-    semantic_spec.ext_semantic_compile_hint(ptr, hint_name, hint_val, _builder)
+    semantic.compile_hint(ptr, hint_name, hint_val, _builder)
+
 
 @builtin
 def sort(ptr, dim=-1, descending=False, _builder=None):
@@ -207,12 +313,13 @@ def sort(ptr, dim=-1, descending=False, _builder=None):
     else:
         descending = bool(descending)
 
-    ret = semantic_spec.ext_semantic_sort(ptr, dim, descending, _builder)
+    ret = semantic.sort(ptr, dim, descending, _builder)
     base_ty = ptr.type.scalar if hasattr(ptr.type, "scalar") else ptr.type
     if base_ty.is_int8() or base_ty.is_int16():
-        semantic_spec.ext_semantic_compile_hint(ret, "overflow_mode", constexpr("saturate"), _builder)
+        semantic.compile_hint(ret, "overflow_mode", constexpr("saturate"), _builder)
     return ret
 
+    
 @builtin
 def multibuffer(src: tensor, size, _builder=None):
     """
@@ -222,7 +329,8 @@ def multibuffer(src: tensor, size, _builder=None):
     """
     buffer_size = _constexpr_to_value(size)
     assert isinstance(buffer_size, int) and buffer_size == 2, f"only support bufferize equals 2"
-    semantic_spec.ext_semantic_compile_hint(src, "multi_buffer", buffer_size, _builder)
+    semantic.compile_hint(src, "multi_buffer", buffer_size, _builder)
+
 
 @builtin
 def sync_block_all(mode, event_id, _builder=None):
@@ -231,7 +339,8 @@ def sync_block_all(mode, event_id, _builder=None):
     assert isinstance(mode, str), f"mode: {mode} is not string"
     assert isinstance(event_id, int) and (event_id >= 0) and (event_id < 16), f"event_id: {event_id} should be 0 ~ 15"
     assert mode == "all_cube" or mode == "all_vector" or mode == "all", f"ERROR: mode = {mode}, only supports all_cube/all_vector/all"
-    semantic_spec.ext_semantic_custom_op(_builder, "sync_block_all", mode=mode, event_id=event_id)
+    semantic.custom_op(_builder, "sync_block_all", mode=mode, event_id=event_id)
+
 
 @builtin
 def sync_block_set(sender, receiver, event_id, _builder=None):
@@ -243,7 +352,8 @@ def sync_block_set(sender, receiver, event_id, _builder=None):
     assert isinstance(event_id, int) and (event_id >= 0) and (event_id < 16), f"event_id: {event_id} should be 0 ~ 15"
     if sender == receiver:
         raise ValueError(f'Unexpected pair: {sender} -> {receiver}, only supports cube -> vector or vector -> cube')
-    semantic_spec.ext_semantic_custom_op(_builder, "sync_block_set", sender=sender, event_id=event_id)
+    semantic.custom_op(_builder, "sync_block_set", sender=sender, event_id=event_id)
+
 
 @builtin
 def sync_block_wait(sender, receiver, event_id, _builder=None):
@@ -255,19 +365,22 @@ def sync_block_wait(sender, receiver, event_id, _builder=None):
     assert isinstance(event_id, int) and (event_id >= 0) and (event_id < 16), f"event_id: {event_id} should be 0 ~ 15"
     if sender == receiver:
         raise ValueError(f'Unexpected pair: {sender} -> {receiver}, only supports cube -> vector or vector -> cube')
-    semantic_spec.ext_semantic_custom_op(_builder, "sync_block_wait", sender=sender, event_id=event_id)
+    semantic.custom_op(_builder, "sync_block_wait", sender=sender, event_id=event_id)
+
 
 @builtin
 def load_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union[constexpr, tensor]],
-                                    _builder=None) -> tensor:
+                           _builder=None) -> tensor:
     """Load a block of data from a tensor descriptor."""
     return desc.load(offsets, _builder=_builder)
 
+
 @builtin
 def store_tensor_descriptor(desc: tensor_descriptor_base, offsets: Sequence[Union[constexpr, tensor]], value: tensor,
-                                     _builder=None) -> tensor:
+                            _builder=None) -> tensor:
     """Store a block of data to a tensor descriptor."""
     return desc.store(offsets, value, _builder=_builder)
+
 
 @builtin
 def make_tensor_descriptor(
@@ -324,7 +437,8 @@ def make_tensor_descriptor(
         inplace_abs[grid](x, M, N, M_BLOCK, N_BLOCK)
 
     """
-    return semantic_spec.ext_semantic_make_tensor_descriptor(base, shape, strides, block_shape, _builder)
+    return semantic.make_tensor_descriptor(base, shape, strides, block_shape, _builder)
+
 
 def dtype_to_ir(self, builder: ir.builder) -> ir.type:
     if self.name.startswith("fp8"):
@@ -361,26 +475,4 @@ def dtype_to_ir(self, builder: ir.builder) -> ir.type:
     elif self.name == 'fp64':
         return builder.get_double_ty()
     raise ValueError(f'fail to convert {self} to ir type')
-
-
-class parallel(range):
-    """
-    Iterator that counts upward forever, with parallel execution semantics.
-
-    This is a special iterator used to implement similar semantics to Python's :code:`range` in the context of
-    :code:`triton.jit` functions. In addition, it allows user to pass extra attributes to the compiler.
-    :param bind_sub_block: Tells the compiler if multiple vector cores participate in the loop.
-        This is used in the mixed cube-vector kernel on 910B. The number of vector cores is determined by the number of
-        iteration in this loop. Currently on 910B, max 2 vector cores could be used.
-    """
-    def __init__(self, arg1, arg2=None, step=None, num_stages=None, loop_unroll_factor=None, bind_sub_block: bool = False):
-        super().__init__(arg1, arg2, step, num_stages, loop_unroll_factor)
-        self.bind_sub_block = bind_sub_block
-
-core_ext_spec_func_list = [
-    "gather", "insert_slice", "extract_slice", "get_element", "__add__",
-    "__radd__", "__sub__", "__rsub__", "__mul__", "__rmul__", "__lshift__",
-    "__rshift__", "compile_hint", "sort", "multibuffer", "sync_block_all",
-    "sync_block_set", "sync_block_wait", "load_tensor_descriptor",
-    "store_tensor_descriptor", "make_tensor_descriptor", "dtype_to_ir", "parallel"
-]
+    

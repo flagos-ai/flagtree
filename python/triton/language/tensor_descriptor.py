@@ -1,4 +1,4 @@
-# TODO: When upgrading to Triton 3.4.0, remove this file,
+# TODO: When upgrading to Triton 3.4.0, remove this file, 
 #       use the upstream Triton functions, and update core.py and semantic.py accordingly.
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from triton.language.semantic import (
     _str_to_eviction_policy,
 )
 
-from triton.language._utils import validate_block_shape
+from ._utils import validate_block_shape, get_primitive_bitwidth
 
 
 def _unwrap_if_constexpr(o):
@@ -227,9 +227,6 @@ class dtype(base_type):
         name = _unwrap_if_constexpr(name)
         self.name = name
         assert name in dtype.SINT_TYPES + dtype.UINT_TYPES + dtype.FP_TYPES + dtype.OTHER_TYPES, name
-        # flagtree backend specialization
-        from ._utils import spec_get_primitive_bitwidth
-        get_primitive_bitwidth = spec_get_primitive_bitwidth
         self.primitive_bitwidth = get_primitive_bitwidth(name)
         self.itemsize = self.primitive_bitwidth // 8
         if name in dtype.SINT_TYPES:

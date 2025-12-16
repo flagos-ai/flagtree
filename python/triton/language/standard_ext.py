@@ -1,8 +1,11 @@
 from math import pi as math_pi
 from triton.language import core, math
-from triton.language.core import float32, int1
-from triton.language.extra.ascend.libdevice import flip as ascend_flip
+from triton.language import float32, int1
+from triton.language.standard import max, sum
 from triton.runtime.jit import jit
+from triton.language.extra.ascend.libdevice import flip as ascend_flip
+
+
 
 @core._tensor_member_fn
 @jit
@@ -95,5 +98,3 @@ def atan2(y, x):
     add_pi = core.where((x < 0) & (y >= 0), pi, 0.0)
     sub_pi = core.where((x < 0) & (y < 0), -pi, 0.0)
     return (base + add_pi + sub_pi).to(x.dtype)
-
-standard_ext_spec_func_list = ["flip", "sigmoid", "softmax", "isfinited", "finitef", "rint", "atan2"]
