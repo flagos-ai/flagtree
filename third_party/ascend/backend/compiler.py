@@ -68,25 +68,15 @@ def make_ttir(mod, metadata, opt):
 def ttir_to_linalg(mod, metadata, opt, *, named_ops=False):
     pm = ir.pass_manager(mod.context)
     pm.enable_debug()
-    enable_nd2nz_on_vector = metadata["enable_nd2nz_on_vector"]
     # Add pass here.
-    # ascend.passes.convert.add_triton_to_linalg_pipeline(pm)
-    ascend.passes.convert.add_triton_linearize(pm)
-    ascend.passes.convert.add_triton_discretemaskaccessconversion(pm)
-    ascend.passes.convert.add_triton_to_annotation(pm)
-    ascend.passes.convert.add_triton_to_unstructure(pm)
-    ascend.passes.convert.add_triton_to_hivm(pm)
-    ascend.passes.convert.add_triton_to_hfusion(pm)
-    ascend.passes.convert.add_triton_to_llvm(pm)
-    ascend.passes.convert.add_bubble_up_operation(pm)
-    ascend.passes.convert.add_triton_to_linalg_incubated(
-    pm,
-    global_kernel=False,
-    named_ops=named_ops,
-    enable_nd2nz_on_vector=enable_nd2nz_on_vector
-    )
+    ascend.passes.convert.add_triton_to_linalg_pipeline(pm)
     pm.run(mod)
     return str(mod)
+    '''
+    with open('/home/zhengyang/FlagTree/triton-op-ir/ops/01_vector_add/cache_ascend/add_kernel.ttadapter', 'r', encoding='utf-8') as f:
+        content = f.read()
+    return content
+    '''
 
 
 def linalg_to_llir(linalg: str, metadata, opt):

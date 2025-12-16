@@ -26,8 +26,6 @@ class Module:
     name: str
     url: str
     commit_id: str = None
-    branch: str = None
-    tag: str = None
     dst_path: str = None
     spec_submodule: str = None
 

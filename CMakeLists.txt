@@ -65,12 +65,6 @@ endfunction()
 project(triton)
 include(CTest)
 
-set(_env_flir "$ENV{FLIR_BUILD_INCUBATED}")
-if(NOT _env_flir)
-  set(_env_flir OFF)
-endif()
-set(FLIR_BUILD_INCUBATED "${_env_flir}" CACHE BOOL "Build FLIR incubated passes")
-
 if(NOT WIN32)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 endif()
@@ -154,13 +148,6 @@ function(add_triton_object name)
     PRIVATE ${ARG_UNPARSED_ARGUMENTS}
     INTERFACE $<TARGET_OBJECTS:${name}>
   )
-
-  if (FLAGTREE_BACKEND STREQUAL "ascend")
-    set(ASCENDNPU_IR_SRC_DIR ${PROJECT_SOURCE_DIR}/third_party/ascendnpu-ir)
-    set(ASCENDNPU_IR_BINARY_DIR ${PROJECT_BINARY_DIR}/third_party/ascendnpu-ir)
-    include_directories(${ASCENDNPU_IR_SRC_DIR}/bishengir/include)
-    include_directories(${ASCENDNPU_IR_BINARY_DIR}/bishengir/include)
-  endif()
 
   #add_library(${name} OBJECT ${ARG_UNPARSED_ARGUMENTS})
   if(ARG_DEPENDS)
