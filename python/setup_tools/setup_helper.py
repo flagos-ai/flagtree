@@ -348,7 +348,8 @@ def handle_plugin_backend(editable):
         if flagtree_backend == "iluvatar":
             dst_install_plugin_dir = os.path.dirname(os.path.abspath(__file__)) + "/../triton/_C"
         elif flagtree_backend == "mthreads":
-            dst_install_plugin_dir = os.path.dirname(os.path.abspath(__file__)) + "/../../third_party/mthreads/python/triton/_C"
+            dst_install_plugin_dir = os.path.dirname(
+                os.path.abspath(__file__)) + "/../../third_party/mthreads/python/triton/_C"
         if not os.path.exists(dst_install_plugin_dir):
             os.makedirs(dst_install_plugin_dir)
         shutil.copy(src_install_plugin_path, dst_install_plugin_dir)
