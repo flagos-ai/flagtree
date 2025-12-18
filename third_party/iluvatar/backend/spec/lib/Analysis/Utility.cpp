@@ -1,5 +1,5 @@
-#include "triton/Analysis/spec_Utility.h"
 #include "triton/Analysis/Utility.h"
+#include "triton/Analysis/spec_Utility.h"
 #include "triton/Dialect/Triton/IR/Utility.h"
 #include "triton/Tools/Sys/GetEnv.hpp"
 
