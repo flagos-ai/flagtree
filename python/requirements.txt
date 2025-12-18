@@ -5,3 +5,4 @@ GitPython
 pytest
 scipy
 pybind11
+nanobind
