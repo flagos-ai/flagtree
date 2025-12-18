@@ -316,9 +316,8 @@ def compile(src, target=None, options=None):
             next_module.create_location_snapshot(ttgir_full_name)
             print(f"Create new locations for {ttgir_full_name}")
         # flagtree backend specialization
-        module = next_module
         from triton.runtime.driver import spec
-        module = spec("update_compile_module_after_stage", module, next_module, ext) or module
+        module = spec("update_compile_module_after_stage", module, next_module, ext) or next_module
 
     # flagtree backend specialization
     from triton.runtime.driver import spec
