@@ -1,5 +1,6 @@
 #include "triton/Analysis/Allocation.h"
 
+#include "triton/Analysis/spec_Utility.h"
 #include "triton/Dialect/Triton/IR/Utility.h"
 
 using ::mlir::triton::gpu::BlockedEncodingAttr;
