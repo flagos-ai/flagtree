@@ -915,9 +915,9 @@ class CodeGenerator(ast.NodeVisitor):
         num_stages = None
         loop_unroll_factor = None
 
-        bind_sub_block = None
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
+        bind_sub_block = None
         ext_it_class_support = flagtree_backend_specialization("visit_For_ext_support")
         ext_it_class_support = [] if ext_it_class_support is None else ext_it_class_support
         if IteratorClass in [language.range] + ext_it_class_support:
@@ -932,6 +932,7 @@ class CodeGenerator(ast.NodeVisitor):
             loop_unroll_factor = iterator.loop_unroll_factor
 
             # flagtree backend specialization
+            from triton.runtime.driver import flagtree_backend_specialization
             new_bind_sub_block = flagtree_backend_specialization("set_bind_sub_block_when_parallel", IteratorClass, iterator, bind_sub_block)
             if new_bind_sub_block is not None:
                 bind_sub_block = new_bind_sub_block
@@ -946,6 +947,7 @@ class CodeGenerator(ast.NodeVisitor):
             raise RuntimeError('Only `range` and `static_range` iterators are currently supported')
 
         # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
         new_bind_sub_block = flagtree_backend_specialization("check_override_bind_sub_block", self, node, bind_sub_block)
         if new_bind_sub_block is not None:
             bind_sub_block = new_bind_sub_block
@@ -1013,8 +1015,9 @@ class CodeGenerator(ast.NodeVisitor):
                 for_op.set_attr("tt.num_stages", self.builder.get_int32_attr(num_stages))
             if loop_unroll_factor is not None:
                 for_op.set_attr("tt.loop_unroll_factor", self.builder.get_int32_attr(loop_unroll_factor))
+            # flagtree backend specialization
             if bind_sub_block:
-                # flagtree backend specialization
+                from triton.runtime.driver import flagtree_backend_specialization
                 flagtree_backend_specialization("forop_setattr_for_bind_sub_block", self, for_op, bind_sub_block)
 
             self.scf_stack.append(node)

@@ -8,7 +8,7 @@ def get_spec_default_Autotuner_configs():
     from triton.runtime.autotuner import Config
     return Config({})
 
-def ext_Autotuner_do_bench_MLIRCompilationError(exception_types):
+def ext_Autotuner_do_bench_MLIRCompilationError():
     from ..compiler.errors import MLIRCompilationError
     return (MLIRCompilationError)
 
@@ -51,7 +51,7 @@ def ext_Autotuner_profile(autotuner, used_cached_result, args, kwargs):
     if not used_cached_result and autotuner.auto_profile_dir is not None:
         _profile(*args, config=autotuner.best_config, **kwargs)
 
-def set_Config_BiShengIR_options(config, bishengir_options):
+def set_Config_extra_options(config, bishengir_options):
     # BiShengIR Options allowed for autotune
     config.multibuffer = bishengir_options.get("multibuffer", None) # Compiler Default True
     config.unit_flag = bishengir_options.get("unit_flag", None) # Compiler Default False

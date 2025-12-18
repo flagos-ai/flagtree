@@ -174,8 +174,7 @@ class Autotuner(KernelInterface):
 
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
-        ext_do_bench_MLIRCompilationError = flagtree_backend_specialization("ext_Autotuner_do_bench_MLIRCompilationError")
-        ext_do_bench_MLIRCompilationError = () if ext_do_bench_MLIRCompilationError is None else ext_do_bench_MLIRCompilationError
+        ext_do_bench_MLIRCompilationError = flagtree_backend_specialization("ext_Autotuner_do_bench_MLIRCompilationError") or ()
 
         try:
             return self.do_bench(kernel_call, quantiles=(0.5, 0.2, 0.8))
@@ -280,11 +279,23 @@ class Config:
                        to ptx .maxnreg directive.  Not supported on all platforms.
     :ivar pre_hook: a function that will be called before the kernel is called. Parameters of this
                     function are args.
-    :ivar bishengir_options: dict of options that pass to bishengir.
+    :ivar extra_options: dict of extra options that pass to backend ir.  # flagtree backend specialization
     """
 
+    # flagtree backend specialization add new params: "extra_options"
     def __init__(self, kwargs, num_warps=None, num_stages=None, num_ctas=None, num_buffers_warp_spec=None, num_consumer_groups=None,
-                 reg_dec_producer=None, reg_inc_consumer=None, maxnreg=None, pre_hook=None, **bishengir_options):
+                 reg_dec_producer=None, reg_inc_consumer=None, maxnreg=None, pre_hook=None, **extra_options):
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        if not flagtree_backend_specialization('default_Config_arg_is_none'):
+            num_warps = 4 if num_warps is None else num_warps
+            num_stages = 2 if num_stages is None else num_stages
+            num_ctas = 1 if num_ctas is None else num_ctas
+            num_buffers_warp_spec = 0 if num_buffers_warp_spec is None else num_buffers_warp_spec
+            num_consumer_groups = 0 if num_consumer_groups is None else num_consumer_groups
+            reg_dec_producer = 0 if reg_dec_producer is None else reg_dec_producer
+            reg_inc_consumer = 0 if reg_inc_consumer is None else reg_inc_consumer
+
         self.kwargs = kwargs
         self.num_warps = num_warps
         self.num_ctas = num_ctas
@@ -298,13 +309,12 @@ class Config:
 
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
-        flagtree_backend_specialization('set_Config_BiShengIR_options', self, bishengir_options)
+        flagtree_backend_specialization('set_Config_extra_options', self, extra_options)
 
     def all_kwargs(self):
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
-        ext_Config_all_kwargs = flagtree_backend_specialization('ext_Config_all_kwargs', self)
-        ext_Config_all_kwargs = () if ext_Config_all_kwargs is None else ext_Config_all_kwargs
+        ext_Config_all_kwargs = flagtree_backend_specialization('ext_Config_all_kwargs', self) or ()
 
         return {
             **self.kwargs, **{
@@ -342,6 +352,8 @@ class Config:
         return ", ".join(res)
 
 
+# flagtree backend specialization add new params: "auto_profile_dir", "split_params",
+#     "tiling_params", "low_dims", "dual_reduction", "persistent_reduction"
 def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_value=None,
              pre_hook=None, post_hook=None, warmup=None, rep=None, use_cuda_graph=False, do_bench=None, auto_profile_dir=None,
              split_params=None, tiling_params=None, low_dims=None, dual_reduction=False, persistent_reduction=False):
@@ -414,8 +426,8 @@ def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_va
                                                    dual_reduction, persistent_reduction)
 
         return Autotuner(fn, fn.arg_names, configs, key, reset_to_zero, restore_value, pre_hook=pre_hook,
-                             post_hook=post_hook, prune_configs_by=prune_configs_by, warmup=warmup, rep=rep,
-                             use_cuda_graph=use_cuda_graph, do_bench=do_bench, auto_profile_dir=auto_profile_dir)
+                         post_hook=post_hook, prune_configs_by=prune_configs_by, warmup=warmup, rep=rep,
+                         use_cuda_graph=use_cuda_graph, do_bench=do_bench, auto_profile_dir=auto_profile_dir)
 
     return decorator
 

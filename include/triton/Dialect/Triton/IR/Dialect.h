@@ -35,7 +35,7 @@ struct GlobalMemory : public SideEffects::Resource::Base<GlobalMemory> {
 };
 
 class DialectInferLayoutInterface
-  : public DialectInterface::Base<DialectInferLayoutInterface> {
+    : public DialectInterface::Base<DialectInferLayoutInterface> {
 public:
   DialectInferLayoutInterface(Dialect *dialect) : Base(dialect) {}
 

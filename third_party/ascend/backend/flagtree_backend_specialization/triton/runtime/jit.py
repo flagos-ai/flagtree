@@ -24,9 +24,6 @@ def explicit_load_kernel_library(kernel):
     # explicitly define run method and load kernel binary
     kernel._init_handles()
 
-def is_JITFunction_spec_attr():
-    return True
-
 def get_JITFunction_spec_attr(deserialized_obj):
     from triton.backends.ascend.compiler import AscendAttrsDescriptor
     return AscendAttrsDescriptor.from_dict(deserialized_obj['attrs'])
