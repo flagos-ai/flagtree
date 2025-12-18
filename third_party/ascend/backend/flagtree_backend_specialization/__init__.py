@@ -38,6 +38,7 @@ __all__  = [
     'get_spec_default_Autotuner_configs',
     'ext_Autotuner_do_bench_MLIRCompilationError',
     'ext_Autotuner_profile',
+    'default_Config_arg_is_none',
     'set_Config_extra_options',
     'ext_Config_all_kwargs',
     'ext_Config_to_str',

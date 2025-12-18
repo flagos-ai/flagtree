@@ -51,6 +51,9 @@ def ext_Autotuner_profile(autotuner, used_cached_result, args, kwargs):
     if not used_cached_result and autotuner.auto_profile_dir is not None:
         _profile(*args, config=autotuner.best_config, **kwargs)
 
+def default_Config_arg_is_none():
+    return True
+
 def set_Config_extra_options(config, bishengir_options):
     # BiShengIR Options allowed for autotune
     config.multibuffer = bishengir_options.get("multibuffer", None) # Compiler Default True
