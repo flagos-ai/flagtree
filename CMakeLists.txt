@@ -340,6 +340,7 @@ if(NOT TRITON_BUILD_PYTHON_MODULE)
     add_subdirectory(third_party/${CODEGEN_BACKEND})
   endforeach()
   add_subdirectory(third_party/proton/Dialect)
+  # flagtree tle
   add_subdirectory(third_party/tle)
 endif()
 

@@ -1,5 +1,5 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
-
+# flagtree tle
 """
 TLE GEMM Integration Tests
 
@@ -14,16 +14,29 @@ import pytest
 import torch
 import triton
 import triton.language as tl
-import triton.language.extra.tle as tle
+import triton.experimental.tle as tle
 # 关闭 TF32，强制纯 FP32 累加
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 
+
 @triton.jit
 def gemm_kernel(
-    a_ptr, b_ptr, c_ptr, M, N, K,
-    stride_am, stride_ak, stride_bk, stride_bn, stride_cm, stride_cn,
-    BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr, BLOCK_K: tl.constexpr,
+    a_ptr,
+    b_ptr,
+    c_ptr,
+    M,
+    N,
+    K,
+    stride_am,
+    stride_ak,
+    stride_bk,
+    stride_bn,
+    stride_cm,
+    stride_cn,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_K: tl.constexpr,
 ):
     pid_m = tl.program_id(0)
     pid_n = tl.program_id(1)
@@ -34,16 +47,15 @@ def gemm_kernel(
     accumulator = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
     a_smem = tle.alloc([BLOCK_M, BLOCK_N], dtype=tl.float32, layout=None, scope=tle.smem, nv_mma_shared_layout=False)
     b_smem = tle.alloc([BLOCK_M, BLOCK_N], dtype=tl.float32, layout=None, scope=tle.smem, nv_mma_shared_layout=False)
-    
+
     for k_start in range(0, K, BLOCK_K):
         k_offs = k_start + tl.arange(0, BLOCK_K)
 
         a_ptrs = a_ptr + offs_m[:, None] * stride_am + k_offs[None, :] * stride_ak
         b_ptrs = b_ptr + k_offs[:, None] * stride_bk + offs_n[None, :] * stride_bn
 
-        
-        tle.copy(a_ptrs , a_smem, [BLOCK_M, BLOCK_N])
-        tle.copy(b_ptrs , b_smem, [BLOCK_M, BLOCK_N])
+        tle.copy(a_ptrs, a_smem, [BLOCK_M, BLOCK_N])
+        tle.copy(b_ptrs, b_smem, [BLOCK_M, BLOCK_N])
         a_tile = tle.local_load(a_smem)
         b_tile = tle.local_load(b_smem)
         accumulator += tl.dot(a_tile, b_tile, input_precision="ieee")
@@ -74,13 +86,9 @@ def tle_gemm(A, B, C, BLOCK_M=64, BLOCK_N=64, BLOCK_K=64):
     print(f"B stride: {stride_bk}, {stride_bn}")
     print(f"C stride: {stride_cm}, {stride_cn}")
 
-    gemm_kernel[grid](
-        A, B, C, M, N, K,
-        stride_am, stride_ak,
-        stride_bk, stride_bn,
-        stride_cm, stride_cn,
-        BLOCK_M, BLOCK_N, BLOCK_K
-    )
+    gemm_kernel[grid](A, B, C, M, N, K, stride_am, stride_ak, stride_bk, stride_bn, stride_cm, stride_cn, BLOCK_M,
+                      BLOCK_N, BLOCK_K)
+
 
 class TestTLEGEMM:
     """TLE GEMM Integration Tests"""
@@ -104,8 +112,6 @@ class TestTLEGEMM:
         # Verify results
         expected = torch.matmul(a, b)
         torch.testing.assert_close(c, expected, atol=1e-4, rtol=1e-4)
-
-
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
+# flagtree tle
 
 #!/usr/bin/env python3
 """
@@ -12,6 +13,7 @@ import subprocess
 import sys
 import os
 
+
 def run_triton_conversion(test_file, target="cuda:80", num_warps=4):
     """Run triton-opt conversion and return output"""
     # Find Triton root directory (go up from script location)
@@ -22,9 +24,7 @@ def run_triton_conversion(test_file, target="cuda:80", num_warps=4):
     rel_test_file = os.path.relpath(test_file, triton_root)
 
     cmd = [
-        "./build/cmake.linux-x86_64-cpython-3.10/bin/triton-opt",
-        rel_test_file,
-        "-split-input-file",
+        "./build/cmake.linux-x86_64-cpython-3.10/bin/triton-opt", rel_test_file, "-split-input-file",
         f"-convert-triton-to-tritongpu=target={target} num-warps={num_warps}"
     ]
 
@@ -34,15 +34,12 @@ def run_triton_conversion(test_file, target="cuda:80", num_warps=4):
     except Exception as e:
         return False, "", str(e)
 
+
 def verify_tle_operations(output):
     """Verify that TLE operations are present in the output"""
-    checks = [
-        ("ttg.local_alloc", "local_alloc operation"),
-        ("ttg.local_load", "local_load operation"),
-        ("!ttg.memdesc<", "memory descriptor type"),
-        ("#shared, #smem", "shared memory attribute"),
-        ("mutable>", "mutable attribute")
-    ]
+    checks = [("ttg.local_alloc", "local_alloc operation"), ("ttg.local_load", "local_load operation"),
+              ("!ttg.memdesc<", "memory descriptor type"), ("#shared, #smem", "shared memory attribute"),
+              ("mutable>", "mutable attribute")]
 
     results = []
     for pattern, description in checks:
@@ -51,6 +48,7 @@ def verify_tle_operations(output):
         print(f"✓ {description}: {'Present' if found else 'Missing'}")
 
     return all(result[1] for result in results)
+
 
 def main():
     """Main function"""
@@ -72,7 +70,7 @@ def main():
     success, stdout, stderr = run_triton_conversion(test_file)
 
     if not success:
-        print(f"❌ Conversion failed:")
+        print("❌ Conversion failed:")
         print(f"Stderr: {stderr}")
         return 1
 
@@ -109,6 +107,7 @@ def main():
         print("\n❌ Some TLE operations are missing")
         print("❌ Test failed")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

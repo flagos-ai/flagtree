@@ -311,6 +311,7 @@ class CUDABackend(BaseBackend):
         passes.ttir.add_loop_aware_cse(pm)
         passes.common.add_symbol_dce(pm)
         if capability // 10 >= 9:
+            # flagtree tle
             # Apply TLE TMA copy lowering before standard NVIDIA TMA lowering
             tle.tle_passes.add_lowering_tma_copy(pm)
             nvidia.passes.ttnvgpuir.add_tma_lowering(pm)

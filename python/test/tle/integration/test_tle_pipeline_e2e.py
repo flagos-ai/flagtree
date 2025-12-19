@@ -1,5 +1,5 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
-
+# flagtree tle
 """
 TLE End-to-End Integration Tests
 
@@ -15,14 +15,24 @@ import pytest
 import torch
 import triton
 import triton.language as tl
-import triton.language.extra.tle as tle
+import triton.experimental.tle as tle
 
 
 @triton.jit
 def elementwise_add_kernel(
-    a_ptr, b_ptr, c_ptr, xnumel, ynumel,
-    xstride_a, ystride_a, xstride_b, ystride_b, xstride_c, ystride_c,
-    XBLOCK: tl.constexpr, YBLOCK: tl.constexpr,
+    a_ptr,
+    b_ptr,
+    c_ptr,
+    xnumel,
+    ynumel,
+    xstride_a,
+    ystride_a,
+    xstride_b,
+    ystride_b,
+    xstride_c,
+    ystride_c,
+    XBLOCK: tl.constexpr,
+    YBLOCK: tl.constexpr,
 ):
     """
     Element-wise addition kernel using TLE pipeline
@@ -85,11 +95,7 @@ def elementwise_add(A, B, C, XBLOCK=32, YBLOCK=64):
     xnumel, ynumel = A.shape
     grid = (triton.cdiv(xnumel, XBLOCK), )
 
-    return elementwise_add_kernel[grid](
-        A, B, C, xnumel, ynumel,
-        *A.stride(), *B.stride(), *C.stride(),
-        XBLOCK, YBLOCK
-    )
+    return elementwise_add_kernel[grid](A, B, C, xnumel, ynumel, *A.stride(), *B.stride(), *C.stride(), XBLOCK, YBLOCK)
 
 
 class TestTLEPipelineEndToEnd:
@@ -185,7 +191,6 @@ class TestTLEPipelineEndToEnd:
         elementwise_add(a, b, c, 32, 128)
         torch.testing.assert_close(c, a + b, atol=1e-5, rtol=1e-5)
 
-
     def test_tle_module_import(self):
         """Test TLE module import (no GPU required)"""
         # Verify all necessary functions and types can be imported
@@ -195,7 +200,6 @@ class TestTLEPipelineEndToEnd:
         assert hasattr(tle, 'pipeline')
         assert hasattr(tle, 'scope')
         assert hasattr(tle, 'buffered_tensor')
-
 
         # Verify functions have docstrings
         assert tle.alloc.__doc__ is not None

@@ -1,4 +1,5 @@
 // Copyright (c) 2025 XCoreSigma Inc. All rights reserved.
+// flagtree tle
 
 #include "Python.h"
 #include "Transforms/Passes.h"
@@ -27,20 +28,20 @@ void init_triton_tle_ir(py::module &&m) {
   // Add TLE extensions to the existing TritonOpBuilder class
   builder_cls
       ->def("make_swizzled_shared_encoding_attr",
-           [](TritonOpBuilder &self, unsigned vectorSize, unsigned perPhase,
-              unsigned maxPhase, std::vector<unsigned> order,
-              std::vector<unsigned> CTAsPerCGA,
-              std::vector<unsigned> CTASplitNum,
-              std::vector<unsigned> CTAOrder) {
-             assert(order.size() == CTAsPerCGA.size() && "shape mismatch");
-             assert(order.size() == CTASplitNum.size() && "shape mismatch");
-             assert(order.size() == CTAOrder.size() && "shape mismatch");
-             auto context = self.getBuilder().getContext();
-             auto CTALayout = ttg::CTALayoutAttr::get(context, CTAsPerCGA,
-                                                      CTASplitNum, CTAOrder);
-             return mlir::cast<Attribute>(ttg::SwizzledSharedEncodingAttr::get(
-                 context, vectorSize, perPhase, maxPhase, order, CTALayout));
-           })
+            [](TritonOpBuilder &self, unsigned vectorSize, unsigned perPhase,
+               unsigned maxPhase, std::vector<unsigned> order,
+               std::vector<unsigned> CTAsPerCGA,
+               std::vector<unsigned> CTASplitNum,
+               std::vector<unsigned> CTAOrder) {
+              assert(order.size() == CTAsPerCGA.size() && "shape mismatch");
+              assert(order.size() == CTASplitNum.size() && "shape mismatch");
+              assert(order.size() == CTAOrder.size() && "shape mismatch");
+              auto context = self.getBuilder().getContext();
+              auto CTALayout = ttg::CTALayoutAttr::get(context, CTAsPerCGA,
+                                                       CTASplitNum, CTAOrder);
+              return mlir::cast<Attribute>(ttg::SwizzledSharedEncodingAttr::get(
+                  context, vectorSize, perPhase, maxPhase, order, CTALayout));
+            })
       .def("make_nv_mma_shared_encoding_attr",
            [](TritonOpBuilder &self, std::vector<int64_t> shape,
               std::vector<unsigned> order, Type &elemType,
@@ -89,9 +90,10 @@ void init_triton_tle_ir(py::module &&m) {
              return self.create<ttg::LocalAllocOp>(resultTy, value);
            })
       .def("create_tma_copy",
-           [](TritonOpBuilder &self, Value src, Value dst , std::vector<Value> &indices) {
-              self.create<ttg::TMACopyOp>(src, dst, indices);
-              return;
+           [](TritonOpBuilder &self, Value src, Value dst,
+              std::vector<Value> &indices) {
+             self.create<ttg::TMACopyOp>(src, dst, indices);
+             return;
            })
       .def("create_local_load",
            [](TritonOpBuilder &self, Type resultTy, Value memDesc) -> Value {

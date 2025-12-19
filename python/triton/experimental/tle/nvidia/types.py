@@ -1,27 +1,32 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
-
+# flagtree tle
 
 import triton.language.core as tl
 from typing import Optional, List, Tuple
-import enum
 from abc import abstractmethod
 from triton._C.libtriton import ir
 from triton.language.semantic import TritonSemantic
+
+
 class scope():
     """Storage type enum, defines storage location for TLE buffers"""
     NVIDIA = ['share_memory', 'tensor_memory']
+
     def __init__(self, name: str):
         self.name = name
-        assert name in scope.NVIDIA, name  
+        assert name in scope.NVIDIA, name
+
     def __repr__(self):
         return self.name
 
     def to_ir(self, builder: ir.builder) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.to_ir() must be overridden in subclasses")
 
-smem=scope('share_memory')
-tmem=scope('tensor_memory')
-    
+
+smem = scope('share_memory')
+tmem = scope('tensor_memory')
+
+
 class layout:
 
     def __init__(self):
@@ -88,8 +93,8 @@ class swizzled_shared_layout(shared_layout):
 
     def make_permute(self, dims):
         permuted_order = tuple(self.order[d] for d in dims)
-        return swizzled_shared_layout(self.vectorSize, self.perPhase, self.maxPhase, permuted_order,
-                                               self.numCTAs, self.numCTAsPerCGA, self.numCTASplit, self.numCTAOrder)
+        return swizzled_shared_layout(self.vectorSize, self.perPhase, self.maxPhase, permuted_order, self.numCTAs,
+                                      self.numCTAsPerCGA, self.numCTASplit, self.numCTAOrder)
 
     def to_ir(self, builder: ir.builder) -> None:
         return builder.make_swizzled_shared_encoding_attr(
@@ -101,6 +106,7 @@ class swizzled_shared_layout(shared_layout):
             self.numCTASplit,
             self.numCTAOrder,
         )
+
 
 class tensor_memory_layout(shared_layout):
 
@@ -134,6 +140,7 @@ class tensor_memory_layout(shared_layout):
             self.CTASplitM,
             self.CTASplitN,
         )
+
 
 class nv_mma_shared_layout(shared_layout):
 
@@ -204,6 +211,7 @@ class nv_mma_shared_layout(shared_layout):
                 and self.numCTASplit == other.numCTASplit and self.numCTAOrder == other.numCTAOrder
                 and self.fp4Padded == other.fp4Padded and self.swizzled == other.swizzled)
 
+
 class buffered_tensor(tl.base_value):
     """
     A symbolic type representing a tensor allocated in a manually managed buffer
@@ -236,6 +244,7 @@ class buffered_tensor(tl.base_value):
         self.type = buffered_tensor_type(element_ty, shape, storage, layout, semantic)
         # Following the practice in pytorch, dtype is scalar type
         self.dtype = element_ty
+
     def _flatten_ir(self, handles) -> None:
         handles.append(self.handle)
 
@@ -250,22 +259,22 @@ class buffered_tensor(tl.base_value):
             permuted_layout,
         )
 
+
 class buffered_tensor_type(tl.block_type):
 
-    def __init__(self, element_ty: tl.dtype, shape: List, storage: scope,
-                 layout: Optional[shared_layout] = None, semantic: TritonSemantic = None):
+    def __init__(self, element_ty: tl.dtype, shape: List, storage: scope, layout: Optional[shared_layout] = None,
+                 semantic: TritonSemantic = None):
         super().__init__(element_ty, shape)
         # Storage
         self.storage = storage
         # layout encoding
         self.layout = layout
         # Buffer number. 0 means a single buffer, 1+ means a buffer array.
-        assert semantic , "buffered_tensor array must be created with a builder"
+        assert semantic, "buffered_tensor array must be created with a builder"
         self.semantic = semantic
 
     def _unflatten_ir(self, handles: List[ir.value], cursor: int) -> Tuple[buffered_tensor, int]:
-        value = buffered_tensor(handles[cursor], self.scalar, self.shape,self.storage, self.layout,
-                                self.semantic)
+        value = buffered_tensor(handles[cursor], self.scalar, self.shape, self.storage, self.layout, self.semantic)
         return value, cursor + 1
 
     def mangle(self) -> str:
@@ -294,4 +303,3 @@ class buffered_tensor_type(tl.block_type):
 
     def _flatten_ir(self, handles) -> None:
         handles.append(self.handle)
-

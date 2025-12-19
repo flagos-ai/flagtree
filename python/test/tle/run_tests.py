@@ -1,6 +1,6 @@
-# Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
-
 #!/usr/bin/env python3
+# flagtree tle
+# Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
 """
 TLE Test Runner
 
@@ -11,6 +11,7 @@ import sys
 import os
 import subprocess
 from pathlib import Path
+
 
 def run_command(cmd, description, env=None):
     """Run command and display results"""
@@ -30,6 +31,7 @@ def run_command(cmd, description, env=None):
 
     return result.returncode == 0
 
+
 def main():
     """Main function"""
     print("🚀 Starting TLE Test Suite")
@@ -45,11 +47,7 @@ def main():
     all_passed = True
 
     # 1. Run basic unit tests (relative to current directory)
-    success = run_command(
-        f"python -m pytest unit/test_tle.py  -v --tb=short",
-        "TLE Basic Unit Tests",
-        env
-    )
+    success = run_command("python -m pytest unit/test_tle.py  -v --tb=short", "TLE Basic Unit Tests", env)
     all_passed = all_passed and success
 
     # 2. Run end-to-end tests (if GPU available)
@@ -64,11 +62,7 @@ def main():
             ]
 
             for test_file, description in integration_tests:
-                success = run_command(
-                    f"python -m pytest {test_file} -v --tb=short",
-                    description,
-                    env
-                )
+                success = run_command(f"python -m pytest {test_file} -v --tb=short", description, env)
                 all_passed = all_passed and success
         else:
             print("\n⚠️  Skipping end-to-end tests: CUDA GPU not detected")
@@ -80,11 +74,7 @@ def main():
     print("⚙️  MLIR Conversion Tests")
     print(f"{'='*60}")
 
-    success = run_command(
-        f"python mlir/verify_tle_conversion.py",
-        "TLE MLIR Conversion Tests",
-        env
-    )
+    success = run_command("python mlir/verify_tle_conversion.py", "TLE MLIR Conversion Tests", env)
     all_passed = all_passed and success
 
     # 4. Import testing (skip syntax check for now)
@@ -93,7 +83,7 @@ def main():
     print(f"{'='*60}")
 
     try:
-        import triton.language.extra.tle as tle
+        import triton.experimental.tle as tle
         print("✅ TLE module import successful")
 
         # Test basic functionality
@@ -118,6 +108,7 @@ def main():
     print(f"{'='*60}")
 
     return 0 if all_passed else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -1,5 +1,7 @@
 # TLE (Tensor Language Extension)
 
+<!-- flagtree tle -->
+
 TLE is a language extension for Triton that exposes shared memory and pipeline compile hints for high-performance computing. This extension is specifically optimized for NVIDIA H100 devices. Note: The TLE extension for Ascend 910B devices is available in a separate repository.
 
 ## Features
@@ -19,7 +21,7 @@ TLE is a language extension for Triton that exposes shared memory and pipeline c
 ```python
 import triton
 import triton.language as tl
-import triton.language.extra.tle as tle
+import triton.experimental.tle as tle
 
 @triton.jit
 def kernel(a_ptr, b_ptr, c_ptr, n, BLOCK_SIZE: tl.constexpr):

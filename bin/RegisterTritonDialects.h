@@ -62,6 +62,7 @@ inline void registerTritonDialects(mlir::DialectRegistry &registry) {
   mlir::triton::nvidia_gpu::registerTritonNvidiaGPUPasses();
   mlir::triton::instrument::registerTritonInstrumentPasses();
   mlir::triton::gluon::registerGluonPasses();
+  // flagtree tle
   mlir::triton::tle::registerPasses();
   mlir::test::registerTestAliasPass();
   mlir::test::registerTestAlignmentPass();

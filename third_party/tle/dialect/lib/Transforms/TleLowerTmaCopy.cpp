@@ -1,4 +1,5 @@
 // Copyright (c) 2025 XCoreSigma Inc. All rights reserved.
+// flagtree tle
 
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
@@ -7,10 +8,10 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "tle/dialect/include/Transforms/Passes.h"
+#include "triton/Dialect/Triton/IR/Utility.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #include "triton/Dialect/TritonNvidiaGPU/IR/Dialect.h"
-#include "triton/Dialect/Triton/IR/Utility.h"
-#include "tle/dialect/include/Transforms/Passes.h"
 #include "triton/Dialect/TritonNvidiaGPU/Transforms/TMAUtilities.h"
 
 using namespace mlir;
@@ -33,7 +34,8 @@ public:
     INVALID = -1
   };
 
-  TMACopyLowering(mlir::MLIRContext *context) : OpRewritePattern<TMACopyOp>(context) {}
+  TMACopyLowering(mlir::MLIRContext *context)
+      : OpRewritePattern<TMACopyOp>(context) {}
 
   LogicalResult matchAndRewrite(TMACopyOp op,
                                 PatternRewriter &rewriter) const override {
@@ -41,9 +43,11 @@ public:
     auto loc = op.getLoc();
 
     // Determine direction based on operand types
-    if (isa<TensorDescType>(op.getSrc().getType()) && isa<MemDescType>(op.getDst().getType())) {
+    if (isa<TensorDescType>(op.getSrc().getType()) &&
+        isa<MemDescType>(op.getDst().getType())) {
       direction = TransferDirection::GM_TO_SHARMEMORY;
-    } else if (isa<MemDescType>(op.getSrc().getType()) && isa<TensorDescType>(op.getDst().getType())) {
+    } else if (isa<MemDescType>(op.getSrc().getType()) &&
+               isa<TensorDescType>(op.getDst().getType())) {
       direction = TransferDirection::SHARMEMORY_TO_GM;
     } else {
       return failure();
@@ -54,15 +58,18 @@ public:
       auto srcType = cast<TensorDescType>(op.getSrc().getType());
       auto tensorType = srcType.getBlockType();
 
-      // Use the existing shared memory allocation (should use #shared encoding like Gluon)
+      // Use the existing shared memory allocation (should use #shared encoding
+      // like Gluon)
       Value dstMemDesc = op.getDst();
 
-      // Create minimal mbarrier allocation with #shared2 encoding (similar to our current implementation)
-      auto mbarrierCTALayout = gpu::CTALayoutAttr::get(
-          tensorType.getContext(), {1}, {1}, {0});
+      // Create minimal mbarrier allocation with #shared2 encoding (similar to
+      // our current implementation)
+      auto mbarrierCTALayout =
+          gpu::CTALayoutAttr::get(tensorType.getContext(), {1}, {1}, {0});
       auto mbarrierEncoding = gpu::SwizzledSharedEncodingAttr::get(
           tensorType.getContext(), 1, 1, 1, {0}, mbarrierCTALayout);
-      Attribute sharedMemorySpace = triton::gpu::SharedMemorySpaceAttr::get(op.getContext());
+      Attribute sharedMemorySpace =
+          triton::gpu::SharedMemorySpaceAttr::get(op.getContext());
 
       gpu::MemDescType mbarrierMemDescType =
           gpu::MemDescType::get({1}, rewriter.getI64Type(), mbarrierEncoding,
@@ -76,16 +83,16 @@ public:
       auto encoding = getEncodingFromDescriptor(op, tensorType, op.getSrc());
       auto shapePerCTA = getShapePerCTA(encoding, tensorType.getShape());
       int sizeInBytes = product(shapePerCTA) *
-                       tensorType.getElementType().getIntOrFloatBitWidth() / 8;
+                        tensorType.getElementType().getIntOrFloatBitWidth() / 8;
 
       Value pred = rewriter.create<arith::ConstantIntOp>(loc, 1, 1);
       rewriter.create<triton::nvidia_gpu::BarrierExpectOp>(loc, mbarrierAlloc,
                                                            sizeInBytes, pred);
 
       // Create TMA indices
-      auto indices = translateTMAIndices(
-          rewriter, op.getLoc(),
-          srcType.getBlockType().getEncoding(), op.getIndices());
+      auto indices = translateTMAIndices(rewriter, op.getLoc(),
+                                         srcType.getBlockType().getEncoding(),
+                                         op.getIndices());
 
       // Perform async TMA copy from global to existing shared memory
       rewriter.create<triton::nvidia_gpu::AsyncTMACopyGlobalToLocalOp>(
@@ -105,9 +112,9 @@ public:
       rewriter.create<triton::nvidia_gpu::FenceAsyncSharedOp>(loc, false);
 
       // Create TMA indices
-      auto indices = translateTMAIndices(
-          rewriter, op.getLoc(),
-          dstType.getBlockType().getEncoding(), op.getIndices());
+      auto indices = translateTMAIndices(rewriter, op.getLoc(),
+                                         dstType.getBlockType().getEncoding(),
+                                         op.getIndices());
 
       // Perform async TMA copy from shared to global memory
       rewriter.create<triton::nvidia_gpu::AsyncTMACopyLocalToGlobalOp>(

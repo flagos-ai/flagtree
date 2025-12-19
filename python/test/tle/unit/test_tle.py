@@ -1,5 +1,5 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
-
+# flagtree tle
 """
 TLE (Triton Language Extensions) Unit Tests
 
@@ -13,16 +13,9 @@ Tests core functionality of TLE module, including:
 
 import pytest
 import torch
-import triton
 import triton.language as tl
-from triton.language.extra.tle import (
-    alloc, copy, local_load, pipeline,
-    scope, buffered_tensor,
-    swizzled_shared_layout
-)
-from triton.language.extra.tle.nvidia.semantic import TLESemanticError, TLESemantic
-
-
+from triton.experimental.tle import (pipeline, buffered_tensor, swizzled_shared_layout)
+from triton.experimental.tle.nvidia.semantic import TLESemanticError, TLESemantic
 
 
 class TestLayoutEncoding:
@@ -81,6 +74,7 @@ class TestTLESemantic:
 
     def test_validate_alloc_shape_valid(self):
         """Test valid allocation shape validation"""
+
         # Create mock builder
         class MockBuilder:
             pass
@@ -89,10 +83,11 @@ class TestTLESemantic:
 
         # Test valid shapes
         assert semantic.validate_alloc_shape([16, 32]) == [16, 32]
-        assert semantic.validate_alloc_shape((8,)) == [8]
+        assert semantic.validate_alloc_shape((8, )) == [8]
 
     def test_validate_alloc_shape_invalid(self):
         """Test invalid allocation shape validation"""
+
         class MockBuilder:
             pass
 
@@ -108,6 +103,7 @@ class TestTLESemantic:
 
     def test_validate_alloc_dtype_valid(self):
         """Test valid data type validation"""
+
         class MockBuilder:
             pass
 
@@ -120,6 +116,7 @@ class TestTLESemantic:
 
     def test_validate_alloc_dtype_invalid(self):
         """Test invalid data type validation"""
+
         class MockBuilder:
             pass
 
@@ -155,7 +152,7 @@ class TestIntegration:
 
     def test_tle_module_import(self):
         """Test TLE module import"""
-        import triton.language.extra.tle as tle
+        import triton.experimental.tle as tle
 
         # Check if main functions are importable
         assert hasattr(tle, 'alloc')
@@ -167,7 +164,7 @@ class TestIntegration:
 
     def test_tle_functions_have_docstrings(self):
         """Test TLE functions have docstrings"""
-        import triton.language.extra.tle as tle
+        import triton.experimental.tle as tle
 
         # Check if main functions have documentation
         assert tle.alloc.__doc__ is not None
@@ -180,7 +177,7 @@ class TestIntegration:
         """Test TLE compatibility with CUDA (if GPU available)"""
         # This test should run in environments with GPU
         # Since TLE operations need specific hardware support, only basic import testing here
-        import triton.language.extra.tle as tle
+        import triton.experimental.tle as tle
 
         # Ensure TLE module can be imported normally in GPU environment
         assert tle is not None

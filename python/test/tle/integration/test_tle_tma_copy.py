@@ -1,5 +1,5 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
-
+# flagtree tle
 """
 TLE TMA Copy Integration Tests
 
@@ -14,21 +14,25 @@ import pytest
 import torch
 import triton
 import triton.language as tl
-import triton.language.extra.tle as tle
+import triton.experimental.tle as tle
 
 
 @triton.jit
 def elementwise_tma_add_kernel(
-    a_desc, b_desc, c_desc, xnumel, ynumel,
-    XBLOCK: tl.constexpr, YBLOCK: tl.constexpr,
+    a_desc,
+    b_desc,
+    c_desc,
+    xnumel,
+    ynumel,
+    XBLOCK: tl.constexpr,
+    YBLOCK: tl.constexpr,
 ):
     pid = tl.program_id(0)
 
     # Calculate row offset for current program
 
     # Define block shape and NVMMASharedLayout for TMA compatibility
-    block_shape = [XBLOCK, YBLOCK]
-    #layout = tle.nv_mma_shared_layout.make_default(block_shape, tl.float32)
+    #layout = tle.nv_mma_shared_layout.make_default([XBLOCK, YBLOCK], tl.float32)
 
     # Allocate shared memory buffers
     a_smem = tle.alloc([XBLOCK, YBLOCK], dtype=tl.float32, layout=None, scope=tle.smem)
@@ -39,16 +43,15 @@ def elementwise_tma_add_kernel(
     for yoff in range(0, ynumel, YBLOCK):
         # Calculate column offset for current block
         # copy data to shared memory
-        tle.copy(a_desc, a_smem,  [XBLOCK, YBLOCK], [pid * XBLOCK, yoff])
-        tle.copy(b_desc, b_smem,  [XBLOCK, YBLOCK], [pid * XBLOCK, yoff])
+        tle.copy(a_desc, a_smem, [XBLOCK, YBLOCK], [pid * XBLOCK, yoff])
+        tle.copy(b_desc, b_smem, [XBLOCK, YBLOCK], [pid * XBLOCK, yoff])
         # Load data from shared memory
         aval = tle.local_load(a_smem)
         bval = tle.local_load(b_smem)
 
         c_val = aval + bval
         tle.local_store(c_smem, c_val)
-        tle.copy(c_smem, c_desc, [XBLOCK, YBLOCK] , [pid * XBLOCK, yoff])
-    
+        tle.copy(c_smem, c_desc, [XBLOCK, YBLOCK], [pid * XBLOCK, yoff])
 
 
 def elementwise_add(A, B, C, XBLOCK=32, YBLOCK=64):
@@ -67,10 +70,7 @@ def elementwise_add(A, B, C, XBLOCK=32, YBLOCK=64):
     xnumel, ynumel = 512, 512  # Default test size
     grid = (triton.cdiv(xnumel, XBLOCK), )
 
-    return elementwise_tma_add_kernel[grid](
-        A, B, C, xnumel, ynumel,
-        XBLOCK, YBLOCK
-    )
+    return elementwise_tma_add_kernel[grid](A, B, C, xnumel, ynumel, XBLOCK, YBLOCK)
 
 
 class TestTLETmaCopy:
@@ -148,7 +148,8 @@ class TestTLETmaCopy:
 
             # Verify results
             expected = a + b
-            torch.testing.assert_close(c, expected, atol=1e-3 if dtype == torch.float16 else 1e-5, rtol=1e-3 if dtype == torch.float16 else 1e-5)
+            torch.testing.assert_close(c, expected, atol=1e-3 if dtype == torch.float16 else 1e-5,
+                                       rtol=1e-3 if dtype == torch.float16 else 1e-5)
 
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="Requires CUDA GPU")
     def test_tma_copy_large_tensor(self):
@@ -200,7 +201,6 @@ class TestTLETmaCopy:
         # Verify results (only check valid region)
         expected = a + b
         torch.testing.assert_close(c, expected, atol=1e-5, rtol=1e-5)
-
 
 
 if __name__ == "__main__":

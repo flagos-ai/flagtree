@@ -1,4 +1,5 @@
 // Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
+// flagtree tle
 
 // RUN: triton-opt %s -split-input-file -convert-triton-to-tritongpu='target=cuda:80 num-warps=4' | FileCheck %s
 

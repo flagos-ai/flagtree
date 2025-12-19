@@ -566,6 +566,7 @@ def TTG_WarpReturnOp : TTG_Op<"warp_return", [
   let assemblyFormat = "attr-dict";
 }
 
+// flagtree tle
 def TTG_TMACopyOp : TTG_Op<"tma_copy", [Pure, MemoryEffects<[MemWrite]>]> {
   let summary = "self-defined tma_copy operation";
   let description = [{

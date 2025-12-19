@@ -1,5 +1,5 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
-
+# flagtree tle
 """
 TLE Local Store Integration Tests
 
@@ -14,14 +14,24 @@ import pytest
 import torch
 import triton
 import triton.language as tl
-import triton.language.extra.tle as tle
+import triton.experimental.tle as tle
 
 
 @triton.jit
 def elementwise_add_kernel(
-    a_ptr, b_ptr, c_ptr, xnumel, ynumel,
-    xstride_a, ystride_a, xstride_b, ystride_b, xstride_c, ystride_c,
-    XBLOCK: tl.constexpr, YBLOCK: tl.constexpr,
+    a_ptr,
+    b_ptr,
+    c_ptr,
+    xnumel,
+    ynumel,
+    xstride_a,
+    ystride_a,
+    xstride_b,
+    ystride_b,
+    xstride_c,
+    ystride_c,
+    XBLOCK: tl.constexpr,
+    YBLOCK: tl.constexpr,
 ):
     """
     Element-wise addition kernel using TLE pipeline
@@ -52,7 +62,6 @@ def elementwise_add_kernel(
     for yoff in tle.pipeline(0, ynumel, YBLOCK, num_stages=2):
         # Calculate column offset for current block
         yoffs = tl.arange(0, YBLOCK) + yoff
-        mask = (xoffs < xnumel)[:, None] & (yoffs < ynumel)[None, :]
 
         # copy data to shared memory
         tle.copy(a_ptrs + ystride_a * yoffs[None, :], a_smem, [XBLOCK, YBLOCK])
@@ -83,11 +92,7 @@ def elementwise_add(A, B, C, XBLOCK=32, YBLOCK=64):
     xnumel, ynumel = A.shape
     grid = (triton.cdiv(xnumel, XBLOCK), )
 
-    return elementwise_add_kernel[grid](
-        A, B, C, xnumel, ynumel,
-        *A.stride(), *B.stride(), *C.stride(),
-        XBLOCK, YBLOCK
-    )
+    return elementwise_add_kernel[grid](A, B, C, xnumel, ynumel, *A.stride(), *B.stride(), *C.stride(), XBLOCK, YBLOCK)
 
 
 class TestTLELocalStore:
@@ -112,7 +117,6 @@ class TestTLELocalStore:
         # Verify results
         expected = a + b
         torch.testing.assert_close(c, expected, atol=1e-5, rtol=1e-5)
-
 
 
 if __name__ == "__main__":

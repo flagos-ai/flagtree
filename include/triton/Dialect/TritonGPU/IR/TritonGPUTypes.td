@@ -82,5 +82,6 @@ def TTG_MemDescType : TTG_TypeDef<"MemDesc", "memdesc", [ShapedTypeInterface]> {
   let hasCustomAssemblyFormat = 1;
   let genVerifyDecl = 1;
 }
+// flagtree tle
 def TTG_CopyOpType : AnyTypeOf<[TT_TensorDescType, TTG_MemDescType]>;
 #endif

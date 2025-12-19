@@ -1,5 +1,5 @@
 # Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
-
+# flagtree tle
 """
 TLE 测试运行器
 
@@ -12,6 +12,7 @@ import os
 # 添加TLE模块路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
+
 def run_tle_tests():
     """运行所有TLE测试"""
     import pytest
@@ -21,6 +22,7 @@ def run_tle_tests():
     result = pytest.main([test_file, "-v", "--tb=short"])
 
     return result == 0  # 返回是否全部通过
+
 
 if __name__ == "__main__":
     success = run_tle_tests()

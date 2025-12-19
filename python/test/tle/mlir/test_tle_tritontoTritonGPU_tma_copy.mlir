@@ -1,4 +1,5 @@
 // Copyright (c) 2025  XCoreSigma Inc. All rights reserved.
+// flagtree tle
 
 // RUN: triton-opt %s -split-input-file -triton-tle-lower-tma-copy | FileCheck %s
 
