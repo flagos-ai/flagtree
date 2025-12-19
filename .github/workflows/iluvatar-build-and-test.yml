@@ -60,6 +60,7 @@ jobs:
           export FLAGTREE_BACKEND=iluvatar
           source ~/env.sh
           cd python
+          echo $HOME
           MAX_JOBS=32 python3 -m pip install . --no-build-isolation
 
       - name: FlagTree Test on Iluvatar
