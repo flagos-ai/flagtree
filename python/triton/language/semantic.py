@@ -482,14 +482,10 @@ def xor_(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.tensor:
 def logical_and(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.tensor:
     # flagtree backend specialization
     from triton.runtime.driver import flagtree_backend_specialization
-    casted_input = flagtree_backend_specialization('cast_bool_to_specified_dtype', input, builder)
-    if casted_input is not None:
-        input = casted_input
+    input = flagtree_backend_specialization('cast_bool_to_specified_dtype', input, builder) or input
     if not input.type.is_int1():
         input = bitcast(input, tl.dtype("int1"), builder)
-    casted_other = flagtree_backend_specialization('cast_bool_to_specified_dtype', other, builder)
-    if casted_other is not None:
-        other = casted_other
+    other = flagtree_backend_specialization('cast_bool_to_specified_dtype', other, builder) or other
     if not other.type.is_int1():
         other = bitcast(other, tl.dtype("int1"), builder)
     return and_(input, other, builder)
@@ -498,14 +494,10 @@ def logical_and(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.t
 def logical_or(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.tensor:
     # flagtree backend specialization
     from triton.runtime.driver import flagtree_backend_specialization
-    casted_input = flagtree_backend_specialization('cast_bool_to_specified_dtype', input, builder)
-    if casted_input is not None:
-        input = casted_input
+    input = flagtree_backend_specialization('cast_bool_to_specified_dtype', input, builder) or input
     if not input.type.is_int1():
         input = bitcast(input, tl.dtype("int1"), builder)
-    casted_other = flagtree_backend_specialization('cast_bool_to_specified_dtype', other, builder)
-    if casted_other is not None:
-        other = casted_other
+    other = flagtree_backend_specialization('cast_bool_to_specified_dtype', other, builder) or other
     if not other.type.is_int1():
         other = bitcast(other, tl.dtype("int1"), builder)
     return or_(input, other, builder)
@@ -517,8 +509,7 @@ def not_(input: tl.tensor, builder: ir.builder):
     casted_input = flagtree_backend_specialization('cast_bool_to_specified_dtype', input, builder)
     if casted_input is not None:
         input = casted_input
-
-    if not input.type.is_int1():
+    elif not input.type.is_int1():
         input = bitcast(input, tl.dtype("int1"), builder)
     return invert(input, builder)
 

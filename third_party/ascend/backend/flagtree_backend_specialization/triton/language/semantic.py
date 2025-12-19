@@ -50,6 +50,9 @@ def cast_bool_to_specified_dtype(input, builder):
     if hasattr(input, 'was_bool_to_int8'):
         assert input.type.scalar.is_int8(), "input wat bool to int8. However, input.type is not int8."
         return cast(input, tl.int1, builder)
+    if input.type.scalar.is_floating():  # NOTE: Only in not_? What about logical_and/logical_or?
+        raise TypeError(f"unexpected type {input.type.scalar}")
+    return input
 
 def check_unexpected_dtype_float(input):
     if input.type.scalar.is_floating():
