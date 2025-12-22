@@ -10,10 +10,10 @@ def get_spec_default_Autotuner_configs():
 
 def ext_Autotuner_do_bench_MLIRCompilationError():
     from ..compiler.errors import MLIRCompilationError
-    return (MLIRCompilationError)
+    return (MLIRCompilationError,)
 
 def _profile(autotuner, *args, config, **meta):
-    from triton.testing import do_bench_npu
+    from triton.testing import do_bench
 
     # check for conflicts, i.e. meta-parameters both provided
     # as kwargs and by the autotuner
@@ -43,7 +43,7 @@ def _profile(autotuner, *args, config, **meta):
 
         autotuner.post_hook(full_nargs, exception=None)
 
-    do_bench_npu(
+    do_bench(
         kernel_call, prof_dir=autotuner.auto_profile_dir, keep_res=True
     )
 

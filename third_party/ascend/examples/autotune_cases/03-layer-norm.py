@@ -9,7 +9,6 @@ import torch
 import torch_npu
 import triton
 import triton.language as tl
-from triton.testing import do_bench_npu
 
 
 @triton.autotune(

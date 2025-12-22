@@ -9,7 +9,7 @@ import torch
 import torch_npu
 import triton
 import triton.language as tl
-from triton.testing import do_bench_npu
+from triton.testing import do_bench
 
 
 @triton.autotune(
@@ -90,8 +90,8 @@ def test_softmax(shape, dtype):
     y_triton = softmax_autotune(x)
     assert torch.allclose(y_triton, y_torch)
 
-    time_eager = do_bench_npu(lambda: softmax_torch(x))
-    time_triton = do_bench_npu(lambda: softmax_autotune(x))
+    time_eager = do_bench(lambda: softmax_torch(x))
+    time_triton = do_bench(lambda: softmax_autotune(x))
     assert (time_eager / time_triton) >= 0.8
     print(f"Fused Softmax {shape} {dtype} PASSED!")
 

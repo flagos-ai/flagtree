@@ -115,7 +115,7 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_m
     # flagtree backend specialization
     from triton.runtime.driver import flagtree_backend_specialization
     if flagtree_backend_specialization('is_do_bench_npu'):
-        return flagtree_backend_specialization('ext_do_bench_npu')
+        return flagtree_backend_specialization('ext_do_bench_npu', fn, warmup, rep, quantiles, return_mode)
 
     di = runtime.driver.active.get_device_interface()
 

@@ -9,7 +9,7 @@ import torch
 import torch_npu
 import triton
 import triton.language as tl
-from triton.testing import do_bench_npu
+from triton.testing import do_bench
 
 
 @triton.autotune(
@@ -73,8 +73,8 @@ def test_add(size: int):
     output_triton = add_autotune(x, y)
     assert torch.allclose(output_triton, output_torch)
 
-    time_eager = do_bench_npu(lambda: add_torch(x, y))
-    time_triton = do_bench_npu(lambda: add_autotune(x, y))
+    time_eager = do_bench(lambda: add_torch(x, y))
+    time_triton = do_bench(lambda: add_autotune(x, y))
     assert (time_eager / time_triton) >= 0.8
     print(f"Vector Add {size} PASSED!")
 
