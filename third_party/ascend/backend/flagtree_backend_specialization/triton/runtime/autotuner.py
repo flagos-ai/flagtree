@@ -13,7 +13,7 @@ def ext_Autotuner_do_bench_MLIRCompilationError():
     return (MLIRCompilationError,)
 
 def _profile(autotuner, *args, config, **meta):
-    from ..testing import do_bench_npu
+    from ..testing import do_bench
 
     # check for conflicts, i.e. meta-parameters both provided
     # as kwargs and by the autotuner
