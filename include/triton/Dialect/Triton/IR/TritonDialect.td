@@ -27,6 +27,7 @@ def Triton_Dialect : Dialect {
   let dependentDialects = [
     "arith::ArithDialect",
     "math::MathDialect",
+    "tensor::TensorDialect",
     "scf::SCFDialect",
     "cf::ControlFlowDialect",
     "ub::UBDialect"

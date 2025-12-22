@@ -86,6 +86,7 @@ TritonGPUConversionTarget::TritonGPUConversionTarget(
                scf::ReduceReturnOp>();
 
   addDynamicallyLegalDialect<arith::ArithDialect, math::MathDialect,
+                             tensor::TensorDialect,
                              triton::TritonDialect, cf::ControlFlowDialect,
                              scf::SCFDialect, ub::UBDialect>(
       [&](Operation *op) { return isDynamicallyLegal(op, typeConverter); });

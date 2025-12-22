@@ -126,6 +126,107 @@ void populateMathPatternsAndLegality(TritonGPUTypeConverter &typeConverter,
       typeConverter, context);
 }
 
+struct TensorExtractSlicePattern
+    : public OpConversionPattern<tensor::ExtractSliceOp> {
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(tensor::ExtractSliceOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto source = adaptor.getSource();
+    auto srcType = cast<RankedTensorType>(source.getType());
+    auto srcEncoding = srcType.getEncoding();
+    if (!srcEncoding)
+      return failure();
+    auto offsets = op.getMixedOffsets();
+    auto sizes = op.getMixedSizes();
+    auto strides = op.getMixedStrides();
+    auto retType = op.getType().cloneWithEncoding(srcEncoding);
+    Value localAlloc = createLocalAllocForValue(rewriter, source);
+    auto [res, memDescSubsliceOp] =
+        createMemDescSubsliceOp(rewriter, localAlloc, op);
+    if (failed(res))
+      return failure();
+    auto localLoadOp =
+        createLocalLoad(rewriter, memDescSubsliceOp,
+                        llvm::cast<RankedTensorType>(op.getType()));
+    addNamedAttrs(localLoadOp, adaptor.getAttributes());
+    rewriter.replaceOp(op, localLoadOp);
+    return success();
+  }
+
+private:
+  triton::gpu::LocalAllocOp createLocalAllocForValue(PatternRewriter &rewriter,
+                                                     Value value) const {
+    auto loc = value.getLoc();
+    auto type = llvm::cast<RankedTensorType>(value.getType());
+    auto order = triton::gpu::getOrder(type);
+    auto ctaLayout = triton::gpu::getCTALayout(type.getEncoding());
+    auto sharedEncoding = triton::gpu::SwizzledSharedEncodingAttr::get(
+        rewriter.getContext(), 1, 1, 1, order, ctaLayout);
+    auto sharedMemSpace =
+        triton::gpu::SharedMemorySpaceAttr::get(rewriter.getContext());
+    auto memDescType = triton::gpu::MemDescType::get(
+        type.getShape(), type.getElementType(), sharedEncoding, sharedMemSpace);
+
+    auto allocOp =
+        rewriter.create<triton::gpu::LocalAllocOp>(loc, memDescType, value);
+
+    return allocOp;
+  }
+
+  std::tuple<LogicalResult, triton::gpu::MemDescSubsliceOp>
+  createMemDescSubsliceOp(PatternRewriter &rewriter, Value allocOp,
+                          tensor::ExtractSliceOp extractOp) const {
+    auto loc = extractOp.getLoc();
+    auto srcType = llvm::cast<MemDescType>(allocOp.getType());
+    llvm::SmallVector<int32_t> offsets;
+    for (auto off : extractOp.getMixedOffsets()) {
+      if (auto val = llvm::cast_if_present<IntegerAttr>(off.dyn_cast<Attribute>())) {
+        offsets.push_back(static_cast<int32_t>(val.getInt()));
+      } else {
+        return {failure(), nullptr};
+      }
+    }
+
+    for (auto stride : extractOp.getMixedStrides()) {
+      if (auto val = cast<IntegerAttr>(stride.dyn_cast<Attribute>())) {
+        if (val.getInt() != 1) {
+          return {failure(), nullptr};
+        }
+      } else {
+        return {failure(), nullptr};
+      }
+    }
+
+    auto retType = triton::gpu::MemDescType::get(
+        extractOp.getType().getShape(), srcType.getElementType(),
+        srcType.getEncoding(), srcType.getMemorySpace(),
+        srcType.getMutableMemory(), srcType.getAllocShape());
+    auto memDescSubsliceOp = rewriter.create<triton::gpu::MemDescSubsliceOp>(
+        loc, retType, allocOp, offsets);
+    return {success(), memDescSubsliceOp};
+  }
+
+  triton::gpu::LocalLoadOp
+  createLocalLoad(PatternRewriter &rewriter, Value subsliceOp,
+                  RankedTensorType extractSliceType) const {
+    auto converter = getTypeConverter();
+    auto loc = subsliceOp.getLoc();
+    auto localLoadOp = rewriter.create<triton::gpu::LocalLoadOp>(
+        loc, extractSliceType, subsliceOp);
+    return localLoadOp;
+  }
+};
+
+void populateTensorPatternsAndLegality(TritonGPUTypeConverter &typeConverter,
+                                       RewritePatternSet &patterns,
+                                       TritonGPUConversionTarget &target) {
+  MLIRContext *context = patterns.getContext();
+  // Rewrite rule
+  patterns.add<TensorExtractSlicePattern>(typeConverter, context);
+}
+
 //
 // Triton patterns
 //
@@ -808,6 +909,7 @@ public:
     // add rules
     populateArithPatternsAndLegality(typeConverter, patterns, target);
     populateMathPatternsAndLegality(typeConverter, patterns, target);
+    populateTensorPatternsAndLegality(typeConverter, patterns, target);
     populateTritonPatterns(typeConverter, patterns, numCTAs);
     // TODO: can we use
     //    mlir::scf::populateSCFStructurealTypeConversionsAndLegality(...) here?

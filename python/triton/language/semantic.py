@@ -759,6 +759,21 @@ class TritonSemantic(Generic[TensorTy]):
                 rhs = self.tensor(self.builder.create_broadcast(rhs.handle, ret_shape), ret_ty)
         # (scalar, scalar) => returns original blocks
         return lhs, rhs
+    
+    def extract_slice(self, input: TensorTy, offsets: List[TensorTy], sizes: List[int], strides: List[int]) -> TensorTy:
+        input_ty = input.type
+        if not input_ty.is_block():
+            raise ValueError("slice() only supports block tensors")
+        input_shape = input_ty.get_block_shapes()
+        if len(offsets) != len(input_shape):
+            raise ValueError("Number of slices must match the number of dimensions")
+        if len(sizes) != len(input_shape):
+            raise ValueError("Number of sizes must match the number of dimensions")
+        if len(strides) != len(input_shape):
+            raise ValueError("Number of strides must match the number of dimensions")
+            
+        ret_ty = tl.block_type(input_ty.scalar, sizes)
+        return self.tensor(self.builder.create_extract_slice(input.handle, [o.handle for o in offsets], sizes, strides), ret_ty)
 
 #######
 # cast
@@ -1799,7 +1814,7 @@ class TritonSemantic(Generic[TensorTy]):
 # ===----------------------------------------------------------------------===
 
 
-    def assign_memory_space(self, x: TensorTy, memory_space: str) -> TensorTy:
+    def memory_space(self, x: TensorTy, memory_space: str) -> TensorTy:
         x.handle.set_attr("tt.memory_space", ir.make_str_attr(memory_space, x.handle.get_context()))
         return x
 

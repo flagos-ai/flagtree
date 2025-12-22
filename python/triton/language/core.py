@@ -360,6 +360,17 @@ def _normalize_tuple(t):
     return normalized_tuple
 
 
+def _slice_to_offsets_and_sizes(sl: slice, shape: constexpr) -> Tuple[constexpr, constexpr, constexpr]:
+    start = _unwrap_if_constexpr(sl.start) if sl.start is not None else 0
+    stop = _unwrap_if_constexpr(sl.stop) if sl.stop is not None else _unwrap_if_constexpr(shape)
+    step = _unwrap_if_constexpr(sl.step) if sl.step is not None else 1
+    size = (stop - start + step - 1) // step
+    assert (
+        start >= 0 and stop >= 0 and step >= 0 and size >= 0
+    ), f"slice should be greater than 0"
+    return constexpr(start), constexpr(size), constexpr(step)
+
+
 def check_bit_width(value, shift_value):
     if isinstance(value, tensor) and isinstance(shift_value, constexpr):
         bitwidth = value.type.scalar.primitive_bitwidth
@@ -1091,14 +1102,42 @@ class tensor(base_value):
         if isinstance(slices, tuple):
             slices = slices.values
         ret = self
+        make_slice = False
+        offsets = []
+        sizes = []
+        strides = []
         for dim, sl in enumerate(slices):
             if _unwrap_if_constexpr(sl) is None:
                 ret = _semantic.expand_dims(ret, dim)
+                offsets.append(constexpr(0))
+                sizes.append(constexpr(1))
+                strides.append(constexpr(1))
             elif isinstance(sl, (builtins.slice, slice)) and all(
                     _unwrap_if_constexpr(arg) is None for arg in (sl.start, sl.stop, sl.step)):
                 pass  # an unsqueeze
+            elif isinstance(sl, constexpr) and sl.value is not None:
+                offsets.append(sl)
+                sizes.append(constexpr(1))
+                strides.append(constexpr(1))
+                make_slice = True
+            elif isinstance(sl, tensor):
+                offsets.append(sl)
+                sizes.append(constexpr(1))
+                strides.append(constexpr(1))
+                make_slice = True
+            elif isinstance(sl, (slice, builtins.slice)):
+                start, size, step = _slice_to_offsets_and_sizes(sl, ret.shape[dim])
+                offsets.append(start)
+                strides.append(step)
+                sizes.append(size)
+                make_slice = True
             else:
                 raise ValueError(f"unsupported tensor index: {sl}")
+        if make_slice:
+            offsets_val = [
+                _semantic.to_tensor(o) if not isinstance(o, tensor) else o for o in offsets
+            ]
+            ret = _semantic.extract_slice(ret, offsets_val, sizes, strides)
         return ret
 
     @property
@@ -1949,6 +1988,29 @@ def expand_dims(input, axis, _semantic=None):
     for a in sorted(axes):
         ret = _semantic.expand_dims(ret, a)
     return ret
+
+
+@_tensor_member_fn
+@builtin
+def extract_slice(input, offsets: List[constexpr | tensor], shape: Sequence[constexpr], strides: List[constexpr],
+                  _semantic=None):
+    """
+    Extracts a slice from the input tensor.
+
+    :param input: The input tensor.
+    :type input: tl.tensor
+    :param offsets: The starting offsets of the slice.
+    :type offsets: List of constexpr or tensor
+    :param shape: The shape of the slice.
+    :type shape: List of constexpr
+    :param strides: The strides of the slice.
+    :type strides: List of constexpr
+    """
+    input = _semantic.to_tensor(input)
+    offsets_val = [
+        _semantic.to_tensor(o) if not isinstance(o, tensor) else o for o in offsets
+    ]
+    return _semantic.extract_slice(input, offsets_val, shape, strides)
 
 
 @_tensor_member_fn
@@ -2841,7 +2903,7 @@ def map_elementwise(
 # -----------------------
 
 @builtin
-def assign_memory_space(input, space: str, _semantic=None):
+def memory_space(input, space: str, _semantic=None):
     '''
     Assign a memory space to the tensor :code:`input`.
 
@@ -2851,7 +2913,7 @@ def assign_memory_space(input, space: str, _semantic=None):
     :type space: str
     '''
     space = _unwrap_if_constexpr(space)
-    return _semantic.assign_memory_space(input, space)
+    return _semantic.memory_space(input, space)
 
 
 @builtin
