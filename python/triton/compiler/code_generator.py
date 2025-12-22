@@ -510,6 +510,10 @@ class CodeGenerator(ast.NodeVisitor):
                 value = language.semantic.to_tensor(value, self.builder)
             self.set_value(name, value)
 
+        #flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        flagtree_backend_specialization("ext_CodeGenerator_visit_Assign_hint_anno", self, node, names, values)
+
     def visit_AugAssign(self, node):
         name = node.target.id
         lhs = ast.Name(id=name, ctx=ast.Load())
@@ -910,7 +914,13 @@ class CodeGenerator(ast.NodeVisitor):
             return
         num_stages = None
         loop_unroll_factor = None
-        if IteratorClass is language.range:
+
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        bind_sub_block = None
+        ext_it_class_support = flagtree_backend_specialization("visit_For_ext_support")
+        ext_it_class_support = [] if ext_it_class_support is None else ext_it_class_support
+        if IteratorClass in [language.range] + ext_it_class_support:
             iterator = IteratorClass(*iter_args, **iter_kwargs)
             # visit iterator arguments
             # note: only `range` iterator is supported now
@@ -920,6 +930,12 @@ class CodeGenerator(ast.NodeVisitor):
             step = iterator.step
             num_stages = iterator.num_stages
             loop_unroll_factor = iterator.loop_unroll_factor
+
+            # flagtree backend specialization
+            from triton.runtime.driver import flagtree_backend_specialization
+            new_bind_sub_block = flagtree_backend_specialization("set_bind_sub_block_when_parallel", IteratorClass, iterator, bind_sub_block)
+            if new_bind_sub_block is not None:
+                bind_sub_block = new_bind_sub_block
         elif IteratorClass is range:
             # visit iterator arguments
             # note: only `range` iterator is supported now
@@ -929,6 +945,13 @@ class CodeGenerator(ast.NodeVisitor):
             step = iter_args[2] if len(iter_args) > 2 else self.visit(ast.Num(1))
         else:
             raise RuntimeError('Only `range` and `static_range` iterators are currently supported')
+
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        new_bind_sub_block = flagtree_backend_specialization("check_override_bind_sub_block", self, node, bind_sub_block)
+        if new_bind_sub_block is not None:
+            bind_sub_block = new_bind_sub_block
+
         # handle negative constant step (not supported by scf.for in MLIR)
         negative_step = False
         if _is_constexpr(step) and step.value < 0:
@@ -992,6 +1015,10 @@ class CodeGenerator(ast.NodeVisitor):
                 for_op.set_attr("tt.num_stages", self.builder.get_int32_attr(num_stages))
             if loop_unroll_factor is not None:
                 for_op.set_attr("tt.loop_unroll_factor", self.builder.get_int32_attr(loop_unroll_factor))
+            # flagtree backend specialization
+            if bind_sub_block:
+                from triton.runtime.driver import flagtree_backend_specialization
+                flagtree_backend_specialization("forop_setattr_for_bind_sub_block", self, for_op, bind_sub_block)
 
             self.scf_stack.append(node)
             self.builder.set_insertion_point_to_start(for_op.get_body(0))
@@ -1075,6 +1102,11 @@ class CodeGenerator(ast.NodeVisitor):
                 generator.visit(fn.parse())
             except Exception as e:
                 # Wrap the error in the callee with the location of the call.
+
+                # flagtree backend specialization
+                from triton.runtime.driver import flagtree_backend_specialization
+                if flagtree_backend_specialization('need_repr_in_CodeGenerator_CompilationError'):
+                    raise CompilationError(self.jit_fn.src, self.cur_node, repr(e)) from e
                 raise CompilationError(self.jit_fn.src, self.cur_node, None) from e
 
             callee_ret_type = generator.ret_type
@@ -1119,6 +1151,11 @@ class CodeGenerator(ast.NodeVisitor):
                 # itself).  But when calling a function, we raise as `from e` to
                 # preserve the traceback of the original error, which may e.g.
                 # be in core.py.
+
+                #flagtree backend specialization
+                from triton.runtime.driver import flagtree_backend_specialization
+                if flagtree_backend_specialization('need_repr_in_CodeGenerator_CompilationError'):
+                    raise CompilationError(self.jit_fn.src, node, repr(e)) from e
                 raise CompilationError(self.jit_fn.src, node, None) from e
 
         if fn in self.builtin_namespace.values():

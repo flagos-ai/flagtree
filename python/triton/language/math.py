@@ -6,6 +6,28 @@ from typing import List
 T = core.TypeVar('T')
 
 
+# flagtree backend language.math func specialization
+def spec_math_func(spec):
+    import sys
+
+    current_module_name = __name__
+    parent_module_name = '.'.join(current_module_name.split('.')[:-1])
+
+    for spec_func_name in spec.math_ext_base_func_list:
+        if hasattr(spec, spec_func_name):
+            spec_func = getattr(spec, spec_func_name)
+            # triton.language
+            setattr(sys.modules[parent_module_name], spec_func.__name__, spec_func)
+            # triton.language.math
+            setattr(sys.modules[__name__], spec_func.__name__, spec_func)
+
+    for spec_func_name in spec.math_ext_spec_func_list:
+        if hasattr(spec, spec_func_name):
+            spec_func = getattr(spec, spec_func_name)
+            # triton.language.math
+            setattr(sys.modules[__name__], spec_func.__name__, spec_func)
+
+
 def _check_dtype(dtypes: List[str]) -> T:
     """
     We're following libdevice's convention to check accepted data types for math functions.

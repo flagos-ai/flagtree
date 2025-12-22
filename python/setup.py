@@ -49,6 +49,24 @@ class BackendInstaller:
     def prepare(backend_name: str, backend_src_dir: str = None, is_external: bool = False):
         dir_mapping = {"mlu": "cambricon"}
         actual_dir_name = dir_mapping.get(backend_name, backend_name)
+
+        if backend_name == "ascend":
+            from setup_tools.utils.ascend import submodules
+            import git
+
+            for module in submodules:
+                if os.path.exists(module.dst_path):
+                    shutil.rmtree(module.dst_path)
+
+                print(f"Clone {module.name} into {module.dst_path} ...")
+                repo = git.Repo.clone_from(module.url, module.dst_path)
+                if module.commit_id:
+                    repo.git.checkout(module.commit_id)
+                elif module.branch:
+                    repo.git.checkout(module.branch)
+                elif module.tag:
+                    repo.git.checkout(module.tag)
+    
         # Initialize submodule if there is one for in-tree backends.
         if not is_external:
             root_dir = os.path.join(os.pardir, "third_party")
@@ -56,8 +74,15 @@ class BackendInstaller:
                 root_dir), f"{actual_dir_name} is requested for install but not present in {root_dir}"
 
             try:
-                subprocess.run(["git", "submodule", "update", "--init", f"{actual_dir_name}"], check=True,
-                               stdout=subprocess.DEVNULL, cwd=root_dir)
+                # Check if the submodule is defined in .gitmodules
+                check_result = subprocess.run(
+                    ["git", "config", "-f", ".gitmodules", "--get-regexp", f"submodule.*{actual_dir_name}.path"],
+                    check=False, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=os.pardir
+                )
+                # Only execute git submodule update for actual git submodules
+                if check_result.returncode == 0:
+                    subprocess.run(["git", "submodule", "update", "--init", f"{actual_dir_name}"], check=True,
+                                   stdout=subprocess.DEVNULL, cwd=root_dir)
             except subprocess.CalledProcessError:
                 pass
             except FileNotFoundError:
@@ -562,7 +587,13 @@ download_and_copy(
      (*version.split('.'))))
 
 if helper.flagtree_backend:
-    backends = [*BackendInstaller.copy(helper.extend_backends), *BackendInstaller.copy_externals()]
+    if helper.flagtree_backend in ("ascend"):
+        backends = [
+            *BackendInstaller.copy(helper.default_backends + helper.extend_backends),
+            *BackendInstaller.copy_externals(),
+        ]
+    else:
+        backends = [*BackendInstaller.copy(helper.extend_backends), *BackendInstaller.copy_externals()]
 else:
     backends = [*BackendInstaller.copy(helper.default_backends), *BackendInstaller.copy_externals()]
 

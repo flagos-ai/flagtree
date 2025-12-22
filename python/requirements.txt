@@ -5,3 +5,6 @@ GitPython
 pytest
 scipy
 pybind11
+nanobind
+pandas
+einops

@@ -85,6 +85,9 @@ class ASTSource:
             for k in self.constants.keys():
                 if not isinstance(k, str):
                     raise TypeError("Constants keys must be string")
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        flagtree_backend_specialization("ext_ASTSource_attrs", self)
         if self.attrs is None:
             self.attrs = AttrsDescriptor()
 
@@ -250,6 +253,11 @@ def compile(src, target=None, options=None):
         # cache hit!
         metadata = json.loads(Path(metadata_path).read_text())
         return CompiledKernel(src, metadata_group, hash)
+
+    # flagtree backend specialization
+    from triton.runtime.driver import flagtree_backend_specialization
+    flagtree_backend_specialization("opt_ascend_compile_speed", file_name, metadata_path, fn_cache_manager)
+
     # initialize metadata
     metadata = {
         "hash": hash,
@@ -276,7 +284,13 @@ def compile(src, target=None, options=None):
         raise
     use_ir_loc = os.environ.get("USE_IR_LOC", None)
     for ext, compile_ir in list(stages.items())[first_stage:]:
-        next_module = compile_ir(module, metadata)
+        try:
+            next_module = compile_ir(module, metadata)
+        except Exception as e:
+            # flagtree backend specialization
+            from triton.runtime.driver import flagtree_backend_specialization
+            flagtree_backend_specialization("handle_compile_error", e, ext)
+
         ir_filename = f"{file_name}.{ext}"
         if (fn_override_manager is not None and (full_name := fn_override_manager.get_file(ir_filename)) is not None):
             print(f"\nOverriding kernel with file {full_name}")
@@ -391,7 +405,9 @@ class CompiledKernel:
             self.name, self.kernel, self.metadata.shared, device)
 
     def __getattribute__(self, name):
-        if name == 'run':
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        if name == 'run' and not flagtree_backend_specialization("compiledKernel_getattribute_disable_init_handles"):
             self._init_handles()
         return super().__getattribute__(name)
 
@@ -416,6 +432,11 @@ class CompiledKernel:
         self._init_handles()
 
         def runner(*args, stream=None):
+
+            # flagtree backend specialization
+            from triton.runtime.driver import flagtree_backend_specialization
+            flagtree_backend_specialization("set_CompiledKernel_metadata_stream", self, stream)
+
             if stream is None:
                 device = driver.active.get_current_device()
                 stream = driver.active.get_current_stream(device)

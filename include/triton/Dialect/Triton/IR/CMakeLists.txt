@@ -1,6 +1,6 @@
 set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
 
-set(LLVM_TARGET_DEFINITIONS TritonOps.td)
+set_flagtree_backend_td(LLVM_TARGET_DEFINITIONS TritonOps.td)
 mlir_tablegen(Ops.h.inc -gen-op-decls)
 mlir_tablegen(Ops.cpp.inc -gen-op-defs)
 mlir_tablegen(OpsEnums.h.inc -gen-enum-decls)
@@ -12,7 +12,7 @@ mlir_tablegen(Dialect.h.inc -gen-dialect-decls)
 mlir_tablegen(Dialect.cpp.inc -gen-dialect-defs)
 add_mlir_doc(TritonDialect TritonDialect dialects/ -gen-dialect-doc)
 
-set(LLVM_TARGET_DEFINITIONS TritonTypes.td)
+set_flagtree_backend_td(LLVM_TARGET_DEFINITIONS TritonTypes.td)
 mlir_tablegen(Types.h.inc -gen-typedef-decls)
 mlir_tablegen(Types.cpp.inc -gen-typedef-defs)
 
@@ -23,5 +23,12 @@ mlir_tablegen(AttrInterfaces.cpp.inc -gen-attr-interface-defs)
 set(LLVM_TARGET_DEFINITIONS TritonTypeInterfaces.td)
 mlir_tablegen(TritonTypeInterfaces.h.inc -gen-type-interface-decls)
 mlir_tablegen(TritonTypeInterfaces.cpp.inc -gen-type-interface-defs)
+
+set(BACKEND_SPEC_TD ${BACKEND_SPEC_INCLUDE_DIR}/triton/Dialect/Triton/IR/TritonOpInterfaces.td)
+if(EXISTS ${BACKEND_SPEC_TD})
+  set(LLVM_TARGET_DEFINITIONS ${BACKEND_SPEC_TD})
+  mlir_tablegen(OpInterfaces.h.inc -gen-op-interface-decls)
+  mlir_tablegen(OpInterfaces.cpp.inc -gen-op-interface-defs)
+endif()
 
 add_public_tablegen_target(TritonTableGen)

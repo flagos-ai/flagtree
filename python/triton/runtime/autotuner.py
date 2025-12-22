@@ -28,6 +28,8 @@ class Autotuner(KernelInterface):
         rep=None,
         use_cuda_graph=False,
         do_bench=None,
+        # flagtree backend specialization
+        auto_profile_dir=None,
     ):
         """
         :param prune_configs_by: a dict of functions that are used to prune configs, fields:
@@ -35,10 +37,15 @@ class Autotuner(KernelInterface):
             'top_k': number of configs to bench
             'prune_num_stages_by'(optional): a function used to prune num_stages. It takes configs:List[Config] as its input, and returns pruned configs.
         """
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+
         if not configs:
             self.configs = [
-                Config({}, num_warps=4, num_stages=2, num_ctas=1, num_buffers_warp_spec=0, num_consumer_groups=0,
-                       reg_dec_producer=0, reg_inc_consumer=0)
+                flagtree_backend_specialization('get_spec_default_Autotuner_configs')
+                if flagtree_backend_specialization('has_spec_default_Autotuner_configs')
+                else Config({}, num_warps=4, num_stages=2, num_ctas=1, num_buffers_warp_spec=0, num_consumer_groups=0,
+                            reg_dec_producer=0, reg_inc_consumer=0)
             ]
         else:
             self.configs = configs
@@ -101,6 +108,9 @@ class Autotuner(KernelInterface):
         self.num_reps = rep
         self.use_cuda_graph = use_cuda_graph
 
+        # flagtree backend specialization
+        flagtree_backend_specialization('set_Autotuner_auto_profile_dir', self, auto_profile_dir)
+
         # If we got explicitly called via the old interface, raise a warning
         # and proceed with the old behavior.
         if warmup is not None or rep is not None or use_cuda_graph:
@@ -162,9 +172,13 @@ class Autotuner(KernelInterface):
 
             self.post_hook(full_nargs, exception=None)
 
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        ext_do_bench_MLIRCompilationError = flagtree_backend_specialization("ext_Autotuner_do_bench_MLIRCompilationError") or ()
+
         try:
             return self.do_bench(kernel_call, quantiles=(0.5, 0.2, 0.8))
-        except (OutOfResources, CompileTimeAssertionFailure):
+        except (OutOfResources, CompileTimeAssertionFailure) + ext_do_bench_MLIRCompilationError as e:
             return [float("inf"), float("inf"), float("inf")]
 
     def run(self, *args, **kwargs):
@@ -197,6 +211,11 @@ class Autotuner(KernelInterface):
         if os.getenv("TRITON_PRINT_AUTOTUNING", None) == "1" and not used_cached_result:
             print(f"Triton autotuning for function {self.base_fn.__name__} finished after "
                   f"{self.bench_time:.2f}s; best config selected: {self.best_config};")
+
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        flagtree_backend_specialization('ext_Autotuner_profile', self, used_cached_result, args, kwargs)
+
         if config.pre_hook is not None:
             full_nargs = {**self.nargs, **kwargs, **config.all_kwargs()}
             config.pre_hook(full_nargs)
@@ -260,10 +279,23 @@ class Config:
                        to ptx .maxnreg directive.  Not supported on all platforms.
     :ivar pre_hook: a function that will be called before the kernel is called. Parameters of this
                     function are args.
+    :ivar extra_options: dict of extra options that pass to backend ir.  # flagtree backend specialization
     """
 
-    def __init__(self, kwargs, num_warps=4, num_stages=2, num_ctas=1, num_buffers_warp_spec=0, num_consumer_groups=0,
-                 reg_dec_producer=0, reg_inc_consumer=0, maxnreg=None, pre_hook=None):
+    # flagtree backend specialization add new params: "extra_options"
+    def __init__(self, kwargs, num_warps=None, num_stages=None, num_ctas=None, num_buffers_warp_spec=None, num_consumer_groups=None,
+                 reg_dec_producer=None, reg_inc_consumer=None, maxnreg=None, pre_hook=None, **extra_options):
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        if not flagtree_backend_specialization('default_Config_arg_is_none'):
+            num_warps = 4 if num_warps is None else num_warps
+            num_stages = 2 if num_stages is None else num_stages
+            num_ctas = 1 if num_ctas is None else num_ctas
+            num_buffers_warp_spec = 0 if num_buffers_warp_spec is None else num_buffers_warp_spec
+            num_consumer_groups = 0 if num_consumer_groups is None else num_consumer_groups
+            reg_dec_producer = 0 if reg_dec_producer is None else reg_dec_producer
+            reg_inc_consumer = 0 if reg_inc_consumer is None else reg_inc_consumer
+
         self.kwargs = kwargs
         self.num_warps = num_warps
         self.num_ctas = num_ctas
@@ -275,7 +307,15 @@ class Config:
         self.maxnreg = maxnreg
         self.pre_hook = pre_hook
 
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        flagtree_backend_specialization('set_Config_extra_options', self, extra_options)
+
     def all_kwargs(self):
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        ext_Config_all_kwargs = flagtree_backend_specialization('ext_Config_all_kwargs', self) or ()
+
         return {
             **self.kwargs, **{
                 k: v
@@ -288,7 +328,7 @@ class Config:
                     ("reg_dec_producer", self.reg_dec_producer),
                     ("reg_inc_consumer", self.reg_inc_consumer),
                     ("maxnreg", self.maxnreg),
-                ) if v is not None
+                ) + ext_Config_all_kwargs if v is not None
             }
         }
 
@@ -304,11 +344,19 @@ class Config:
         res.append(f"reg_dec_producer: {self.reg_dec_producer}")
         res.append(f"reg_inc_consumer: {self.reg_inc_consumer}")
         res.append(f"maxnreg: {self.maxnreg}")
+
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        flagtree_backend_specialization('ext_Config_to_str', res, self)
+
         return ", ".join(res)
 
 
-def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_value=None, pre_hook=None, post_hook=None,
-             warmup=None, rep=None, use_cuda_graph=False, do_bench=None):
+# flagtree backend specialization add new params: "auto_profile_dir", "split_params",
+#     "tiling_params", "low_dims", "dual_reduction", "persistent_reduction"
+def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_value=None,
+             pre_hook=None, post_hook=None, warmup=None, rep=None, use_cuda_graph=False, do_bench=None, auto_profile_dir=None,
+             split_params=None, tiling_params=None, low_dims=None, dual_reduction=False, persistent_reduction=False):
     """
     Decorator for auto-tuning a :code:`triton.jit`'d function.
 
@@ -362,12 +410,24 @@ def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_va
     :type rep: int
     :param do_bench: a benchmark function to measure the time of each run.
     :type do_bench: lambda fn, quantiles
+    :param auto_profile_dir: a directory for storing the profiling result of the best config.
+        It will automatically profile the best configuration when the value is not None.
+    :type auto_profile_dir: str
     """
 
     def decorator(fn):
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        if split_params or tiling_params:
+            return flagtree_backend_specialization('new_AutoTilingTuner', fn, configs, key, reset_to_zero, restore_value, pre_hook,
+                                                   post_hook, prune_configs_by, warmup, rep,
+                                                   use_cuda_graph, do_bench, auto_profile_dir,
+                                                   split_params, tiling_params, low_dims,
+                                                   dual_reduction, persistent_reduction)
+
         return Autotuner(fn, fn.arg_names, configs, key, reset_to_zero, restore_value, pre_hook=pre_hook,
                          post_hook=post_hook, prune_configs_by=prune_configs_by, warmup=warmup, rep=rep,
-                         use_cuda_graph=use_cuda_graph)
+                         use_cuda_graph=use_cuda_graph, do_bench=do_bench, auto_profile_dir=auto_profile_dir)
 
     return decorator
 

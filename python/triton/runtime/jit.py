@@ -566,7 +566,16 @@ class JITFunction(KernelInterface[T]):
         # parse options
         from ..compiler import make_backend
         device = driver.active.get_current_device()
+
+        # flagtree backend specialization
         stream = driver.active.get_current_stream(device)
+        from triton.runtime.driver import flagtree_backend_specialization
+        if flagtree_backend_specialization("enable_stream_in_kwargs", kwargs):
+            if "stream" not in kwargs.keys():
+                stream = driver.active.get_current_stream(device)
+            else:
+                stream = None
+
         target = driver.active.get_current_target()
         backend = make_backend(target)
 
@@ -590,10 +599,17 @@ class JITFunction(KernelInterface[T]):
             # deprecated arguments
             assert "device_type" not in kwargs, "device_type option is deprecated; current target will be used"
             assert "device" not in kwargs, "device option is deprecated; current device will be used"
-            assert "stream" not in kwargs, "stream option is deprecated; current stream will be used"
+
+            # flagtree backend specialization
+            from triton.runtime.driver import flagtree_backend_specialization
+            if not flagtree_backend_specialization("enable_stream_in_kwargs", kwargs):
+                assert "stream" not in kwargs, "stream option is deprecated; current stream will be used"
+
             for k in excess_kwargs:
                 if k not in options.__dict__:
                     raise KeyError("Keyword argument %s was specified but unrecognised" % k)
+
+            flagtree_backend_specialization("ignore_params_in_JITFunction_run", kwargs, excess_kwargs)
 
             bound_vals = tuple(bound_args.values())
 
@@ -648,8 +664,20 @@ class JITFunction(KernelInterface[T]):
             grid_1 = grid[1] if grid_size > 1 else 1
             grid_2 = grid[2] if grid_size > 2 else 1
 
+            # flagtree backend specialization
+            from triton.runtime.driver import flagtree_backend_specialization
+            flagtree_backend_specialization("check_grid_size", grid_0, grid_1, grid_2)
+            if flagtree_backend_specialization("enable_stream_in_kwargs", kwargs):
+                if ("stream" in kwargs.keys()):
+                    stream = kwargs["stream"]
+
             # launch kernel
             launch_metadata = kernel.launch_metadata(grid, stream, *non_constexpr_vals)
+
+            # flagtree backend specialization
+            from triton.runtime.driver import flagtree_backend_specialization
+            flagtree_backend_specialization("explicit_load_kernel_library", kernel)
+
             kernel.run(grid_0, grid_1, grid_2, stream, kernel.function, kernel.packed_metadata, launch_metadata,
                        self.CompiledKernel.launch_enter_hook, self.CompiledKernel.launch_exit_hook, *non_constexpr_vals)
         return kernel
@@ -742,7 +770,12 @@ class JITFunction(KernelInterface[T]):
             for key, value in deserialized_obj['constants'].items()
         }
         signature = dict(deserialized_obj['signature'].items())
-        src = ASTSource(self, signature, constants, AttrsDescriptor.from_dict(deserialized_obj['attrs']))
+
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        src = ASTSource(self, signature, constants,
+                        flagtree_backend_specialization('get_JITFunction_spec_attr', deserialized_obj)
+                        or AttrsDescriptor.from_dict(deserialized_obj['attrs']))
         options = {
             key: tuple(value) if isinstance(value, list) else value
             for key, value in deserialized_obj['options'].items()
@@ -756,10 +789,18 @@ class JITFunction(KernelInterface[T]):
     # the user might want to monkey-patch self.src dynamically.
     # Our unit tests do this, for example.
     def parse(self):
+        # flagtree backend specialization
+        from triton.runtime.driver import flagtree_backend_specialization
+        line_flagtree_hints = flagtree_backend_specialization('maps_line_numbers_to_comment_hints', self)
+
         tree = ast.parse(self.src)
         assert isinstance(tree, ast.Module)
         assert len(tree.body) == 1
         assert isinstance(tree.body[0], ast.FunctionDef)
+
+        # flagtree backend specialization
+        flagtree_backend_specialization('attach_line_number_to_comment_mapping', tree, line_flagtree_hints)
+
         return tree
 
     def __call__(self, *args, **kwargs):
