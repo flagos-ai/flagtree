@@ -61,7 +61,7 @@ jobs:
           else
             FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
           fi
-          echo "Changed files: $FILES 
+          echo "Changed files: $FILES"
 
           ONLY_DOCS_CONFIG=true
           for file in $FILES; do
