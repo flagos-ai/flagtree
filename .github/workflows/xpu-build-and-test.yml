@@ -56,8 +56,6 @@ jobs:
       - name: Check if only docs files changed
         id: check_files
         uses: ./.github/actions/check-docs-only
-        with:
-          current_workflow: .github/workflows/xpu-build-and-test.yml
 
       - name: FlagTree Build on Xpu
         if: steps.check_files.outputs.only_docs_changed != 'true'
