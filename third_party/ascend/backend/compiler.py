@@ -69,6 +69,8 @@ def ttir_to_linalg(mod, metadata, opt, *, named_ops=False):
     pm = ir.pass_manager(mod.context)
     pm.enable_debug()
     enable_nd2nz_on_vector = metadata["enable_nd2nz_on_vector"]
+    enable_select_analysis = metadata["enable_select_analysis"]
+    compile_on_910_95 = metadata["compile_on_910_95"]
     # Add pass here.
     # ascend.passes.convert.add_triton_to_linalg_pipeline(pm)
     ascend.passes.convert.add_triton_linearize(pm)
@@ -81,9 +83,11 @@ def ttir_to_linalg(mod, metadata, opt, *, named_ops=False):
     ascend.passes.convert.add_bubble_up_operation(pm)
     ascend.passes.convert.add_triton_to_linalg_incubated(
     pm,
-    global_kernel=False,
-    named_ops=named_ops,
-    enable_nd2nz_on_vector=enable_nd2nz_on_vector
+    global_kernel = False,
+    named_ops = named_ops,
+    enable_nd2nz_on_vector = enable_nd2nz_on_vector,
+    enable_select_analysis = enable_select_analysis,
+    compile_on_910_95 = compile_on_910_95,
     )
     pm.run(mod)
     return str(mod)

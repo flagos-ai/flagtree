@@ -43,14 +43,19 @@ void init_triton_ascend_passes_convert(py::module &&m) {
       [](mlir::PassManager &pm,
          bool global_kernel,
          bool named_ops,
-         bool enable_nd2nz_on_vector) {
+         bool enable_nd2nz_on_vector,
+	 bool enable_select_analysis,
+         bool compile_on_910_95) {
         pm.addPass(mlir::triton::Incubated::createTritonToLinalgIncubatedPass(
-            global_kernel, named_ops, enable_nd2nz_on_vector));
+            global_kernel, named_ops, enable_nd2nz_on_vector, enable_select_analysis, compile_on_910_95));
       },
       py::arg("pm"),
       py::arg("global_kernel"),
       py::arg("named_ops"),
-      py::arg("enable_nd2nz_on_vector"));
+      py::arg("enable_nd2nz_on_vector"),
+      py::arg("enable_select_analysis"),
+      py::arg("compile_on_910_95") 
+);
 }
 
 // register ascend passes to triton
