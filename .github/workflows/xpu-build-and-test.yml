@@ -65,12 +65,25 @@ jobs:
           echo "$FILES"
 
           ONLY_DOCS_CONFIG=true
-          for file in $FILES; do
-            if [[ ! "$file" =~ \.(md|yml)$ ]]; then
-              ONLY_DOCS_CONFIG=false
-              break
-            fi
-          done
+          if [ -z "$FILES" ]; then
+            echo "No files changed"
+            ONLY_DOCS_CONFIG=false
+          else
+            while IFS= read -r file; do
+              # Skip empty lines
+              if [ -z "$file" ]; then
+                continue
+              fi
+              echo "Checking file: '$file'"
+              if [[ ! "$file" =~ \.(md|yml)$ ]]; then
+                echo "  -> Not a docs/config file"
+                ONLY_DOCS_CONFIG=false
+                break
+              else
+                echo "  -> Is a docs/config file"
+              fi
+            done <<< "$FILES"
+          fi
 
           echo "only_docs_config=$ONLY_DOCS_CONFIG" >> $GITHUB_OUTPUT
           if [ "$ONLY_DOCS_CONFIG" == "true" ]; then
@@ -78,7 +91,7 @@ jobs:
             echo "Changed files are limited to: *.md, *.yml"
             exit 0
           fi
-          echo "only_docs_config=$ONLY_DOCS_CONFIG"
+          echo "Final result: only_docs_config=$ONLY_DOCS_CONFIG"
 
       - name: FlagTree Build on Xpu
         if: steps.check_files.outputs.only_docs_config != 'true'
