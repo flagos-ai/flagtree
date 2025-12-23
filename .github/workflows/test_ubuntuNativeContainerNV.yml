@@ -24,19 +24,19 @@ jobs:
     steps:
       - name: Set up Python and Install Dependencies
         run: |
-          # DEBIAN_FRONTEND=noninteractive apt-get update -y
-          # DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip python3-venv git autotools-dev wget gcc g++ build-essential cmake ninja-build
-          # DEBIAN_FRONTEND=noninteractive apt-get install -y python3.10-dev pybind11-dev python3-distutils
-          # pip3 install --upgrade pip setuptools wheel
-          # pip3 install pybind11
-
           DEBIAN_FRONTEND=noninteractive apt-get update -y
-          DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            python3 python3-pip python3-venv git \
-            build-essential cmake ninja-build \
-            python3.10-dev python3-distutils  
+          DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip python3-venv git autotools-dev wget gcc g++ build-essential cmake ninja-build
+          DEBIAN_FRONTEND=noninteractive apt-get install -y python3.10-dev python3-distutils
           pip3 install --upgrade pip setuptools wheel
           pip3 install pybind11
+
+          # DEBIAN_FRONTEND=noninteractive apt-get update -y
+          # DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          #   python3 python3-pip python3-venv git \
+          #   build-essential cmake ninja-build \
+          #   python3.10-dev python3-distutils  
+          # pip3 install --upgrade pip setuptools wheel
+          # pip3 install pybind11
 
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           dpkg -i cuda-keyring_1.1-1_all.deb
