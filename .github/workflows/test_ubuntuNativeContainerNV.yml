@@ -24,9 +24,17 @@ jobs:
     steps:
       - name: Set up Python and Install Dependencies
         run: |
+          # DEBIAN_FRONTEND=noninteractive apt-get update -y
+          # DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip python3-venv git autotools-dev wget gcc g++ build-essential cmake ninja-build
+          # DEBIAN_FRONTEND=noninteractive apt-get install -y python3.10-dev pybind11-dev python3-distutils
+          # pip3 install --upgrade pip setuptools wheel
+          # pip3 install pybind11
+
           DEBIAN_FRONTEND=noninteractive apt-get update -y
-          DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip python3-venv git autotools-dev wget gcc g++ build-essential cmake ninja-build
-          DEBIAN_FRONTEND=noninteractive apt-get install -y python3.10-dev pybind11-dev python3-distutils
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            python3 python3-pip python3-venv git \
+            build-essential cmake ninja-build \
+            python3.10-dev python3-distutils  
           pip3 install --upgrade pip setuptools wheel
           pip3 install pybind11
 
@@ -102,7 +110,7 @@ jobs:
           export CMAKE_MAKE_PROGRAM=$(which ninja)
           export PIP_NO_CACHE_DIR=1
           cd /__w/flagtree/flagtree/python
-          MAX_JOBS=4 python3 -m pip install . --no-build-isolation \
+          MAX_JOBS=32 python3 -m pip install . --no-build-isolation \
             -C="--cmake-args=-DPython3_EXECUTABLE=/usr/bin/python3" \
             -C="--cmake-args=-DPython3_INCLUDE_DIR=/usr/include/python3.10" \
             -C="--cmake-args=-DPython3_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.10.so" \
