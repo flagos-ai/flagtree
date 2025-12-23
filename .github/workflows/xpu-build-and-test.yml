@@ -61,7 +61,8 @@ jobs:
           else
             FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
           fi
-          echo "Changed files: $FILES"
+          echo "Changed files:"
+          echo "$FILES"
 
           ONLY_DOCS_CONFIG=true
           for file in $FILES; do
@@ -77,6 +78,7 @@ jobs:
             echo "Changed files are limited to: *.md, *.yml"
             exit 0
           fi
+          echo "only_docs_config=$ONLY_DOCS_CONFIG"
 
       - name: FlagTree Build on Xpu
         if: steps.check_files.outputs.only_docs_config != 'true'
