@@ -625,7 +625,6 @@ struct AtomicCASOpConversion
   LogicalResult
   matchAndRewrite(triton::AtomicCASOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // extract relevant info from Module
     auto loc = op.getLoc();
     MLIRContext *ctx = rewriter.getContext();
     Value ptr = op.getPtr();
@@ -634,7 +633,7 @@ struct AtomicCASOpConversion
     Value llCmp = adaptor.getCmp();
     Value llVal = adaptor.getVal();
 
-    // prep data by unpacking to get data ready
+    // prep data
     auto ptrElements = unpackLLElements(loc, llPtr, rewriter);
     auto cmpElements = unpackLLElements(loc, llCmp, rewriter);
     auto valElements = unpackLLElements(loc, llVal, rewriter);
@@ -642,27 +641,24 @@ struct AtomicCASOpConversion
     auto memOrdering = op.getSem();
     auto atomicMemOrdering = getMemoryOrdering(memOrdering);
 
-    // deal with tensor or scalar
     auto valueTy = op.getResult().getType();
     auto TensorTy = dyn_cast<RankedTensorType>(valueTy);
     Type valueElemTy =
         TensorTy ? getTypeConverter()->convertType(TensorTy.getElementType())
                  : valueTy;
-    auto valueElemNBits = valueElemTy.getIntOrFloatBitWidth();
+
     auto elemsPerThread = getTotalElemsPerThread(op.getVal().getType());
-    // vec = 1 for scalar
     auto vec = getVectorSize(op.getPtr());
-    // tensor
     if (TensorTy) {
       auto valTy = cast<RankedTensorType>(op.getVal().getType());
       vec = std::min<unsigned>(vec, valTy.getElementType().isF16() ? 2 : 1);
     }
 
     Value mask = redundantDataMask(valueTy, rewriter, loc, targetInfo);
+
     auto vecTy = vec_ty(valueElemTy, vec);
     SmallVector<Value> resultVals(elemsPerThread);
 
-    // atomic ops
     for (size_t i = 0; i < elemsPerThread; i += vec) {
       Value casVal = undef(vecTy);
       for (int ii = 0; ii < vec; ++ii) {
@@ -675,55 +671,100 @@ struct AtomicCASOpConversion
       Value casCmp = cmpElements[i];
       casVal = valElements[i];
 
-      // use op
-      if (TensorTy) { // for tensor
-        auto retType = vec == 1 ? valueElemTy : vecTy;
-        // TODO: USE ATOMIC CAS OP on Tensor
+      unsigned width = vec * valueElemTy.getIntOrFloatBitWidth();
+      Type opType = rewriter.getIntegerType(width);
+
+      Value casValToUse = rewriter.create<LLVM::BitcastOp>(loc, opType, casVal);
+      Value casCmpToUse = rewriter.create<LLVM::BitcastOp>(loc, opType, casCmp);
+
+      if (TensorTy) {
         auto successOrdering = atomicMemOrdering;
         auto failureOrdering = LLVM::AtomicOrdering::monotonic;
-        auto cmpxchg = rewriter.create<LLVM::AtomicCmpXchgOp>(
-            loc, casPtr, casCmp, casVal, successOrdering, failureOrdering,
-            StringRef("agent"));
 
-        // Extract the new_loaded value from the pair.
-        Value ret = extract_val(valueElemTy, cmpxchg, i);
+        Value currMask = mask;
+        if (auto maskVecTy = dyn_cast<VectorType>(mask.getType())) {
+          currMask = extract_element(rewriter.getI1Type(), mask, i32_val(i));
+        }
+
+        Block *currentBlock = rewriter.getInsertionBlock();
+        Block *endBlock =
+            currentBlock->splitBlock(rewriter.getInsertionPoint());
+
+        endBlock->addArgument(opType, loc);
+
+        Block *atomicBlock =
+            rewriter.createBlock(currentBlock->getParent(),
+                                 std::next(Region::iterator(currentBlock)));
+        Block *bypassBlock =
+            rewriter.createBlock(currentBlock->getParent(),
+                                 std::next(Region::iterator(atomicBlock)));
+
+        rewriter.setInsertionPointToEnd(currentBlock);
+        rewriter.create<LLVM::CondBrOp>(loc, currMask, atomicBlock,
+                                        bypassBlock);
+
+        rewriter.setInsertionPointToEnd(atomicBlock);
+        auto cmpxchg = rewriter.create<LLVM::AtomicCmpXchgOp>(
+            loc, casPtr, casCmpToUse, casValToUse, successOrdering,
+            failureOrdering, StringRef("agent"));
+
+        Value loaded = extract_val(opType, cmpxchg, 0);
+
+        rewriter.create<LLVM::BrOp>(loc, ValueRange{loaded}, endBlock);
+
+        rewriter.setInsertionPointToEnd(bypassBlock);
+        rewriter.create<LLVM::BrOp>(loc, ValueRange{casCmpToUse}, endBlock);
+        rewriter.setInsertionPointToStart(endBlock);
+        Value ret = endBlock->getArgument(0);
+        Type casType = casVal.getType();
+        if (isa<FloatType>(casType) ||
+            (isa<VectorType>(casType) &&
+             cast<VectorType>(casType).getElementType().isF16())) {
+          ret = rewriter.create<LLVM::BitcastOp>(loc, casType, ret);
+        } else if (casType != opType) {
+          ret = rewriter.create<LLVM::BitcastOp>(loc, casType, ret);
+        }
 
         for (int ii = 0; ii < vec; ++ii) {
           resultVals[i + ii] =
               vec == 1 ? ret : extract_element(valueElemTy, ret, i32_val(ii));
         }
-      } else { // for scalar
-        // Build blocks to bypass the atomic instruction for ~rmwMask.
+
+      } else { // Scalar Path
         auto *curBlock = rewriter.getInsertionBlock();
         auto *endBlock = curBlock->splitBlock(rewriter.getInsertionPoint());
         auto *atomicBlock = rewriter.createBlock(
             curBlock->getParent(), std::next(Region::iterator(curBlock)));
 
-        // Fill entry block with global memory barrier and conditional branch.
         rewriter.setInsertionPointToEnd(curBlock);
         auto tid = tid_val();
         Value pred = icmp_eq(tid, i32_val(i));
         rewriter.create<LLVM::CondBrOp>(loc, pred, atomicBlock, endBlock);
 
-        // Build main block with atomic_cmpxchg.
         rewriter.setInsertionPointToEnd(atomicBlock);
 
         auto successOrdering = LLVM::AtomicOrdering::acq_rel;
         auto failureOrdering = LLVM::AtomicOrdering::monotonic;
+
         auto cmpxchg = rewriter.create<LLVM::AtomicCmpXchgOp>(
-            loc, casPtr, casCmp, casVal, successOrdering, failureOrdering,
-            StringRef("agent"));
+            loc, casPtr, casCmpToUse, casValToUse, successOrdering,
+            failureOrdering, StringRef("agent"));
 
         if (atomicNeedsSharedMemory(op.getResult())) {
-          // Extract the new_loaded value from the pair.
-          Value newLoaded = extract_val(valueElemTy, cmpxchg, 0);
+          Value newLoaded = extract_val(opType, cmpxchg, 0);
+
+          Type casType = casVal.getType();
+          if (casType != opType) {
+            newLoaded =
+                rewriter.create<LLVM::BitcastOp>(loc, casType, newLoaded);
+          }
+
           Value atomPtr = getSharedMemoryBase(loc, rewriter, op.getOperation());
           store(newLoaded, atomPtr);
         }
 
         rewriter.create<LLVM::BrOp>(loc, ValueRange(), endBlock);
 
-        // Build the last block: synced load from shared memory, exit.
         rewriter.setInsertionPointToStart(endBlock);
 
         if (!atomicNeedsSharedMemory(op.getResult())) {
@@ -741,7 +782,6 @@ struct AtomicCASOpConversion
       }
     }
 
-    // replace op
     if (TensorTy) {
       Type structTy = getTypeConverter()->convertType(TensorTy);
       Value resultStruct = packLLElements(loc, getTypeConverter(), resultVals,
