@@ -75,7 +75,7 @@ jobs:
                 continue
               fi
               echo "Checking file: '$file'"
-              if [[ ! "$file" =~ \.(md|yml)$ ]]; then
+              if [[ ! "$file" =~ (\.(md|yml)$|CODEOWNERS$) ]]; then
                 echo "  -> Not a docs/config file"
                 ONLY_DOCS_CONFIG=false
                 break
@@ -88,7 +88,7 @@ jobs:
           echo "only_docs_config=$ONLY_DOCS_CONFIG" >> $GITHUB_OUTPUT
           if [ "$ONLY_DOCS_CONFIG" == "true" ]; then
             echo "✅ Only documentation and configuration files were modified. Skipping build and test."
-            echo "Changed files are limited to: *.md, *.yml"
+            echo "Changed files are limited to: *.md, *.yml, CODEOWNERS"
             exit 0
           fi
           echo "Final result: only_docs_config=$ONLY_DOCS_CONFIG"
