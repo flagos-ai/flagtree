@@ -48,14 +48,17 @@ jobs:
       - name: Verify Python and pybind11 paths
         shell: bash
         run: |
-          echo "Python3 version: $(python3 --version)"
-          echo "Python3 include: $(python3 -c 'import distutils.sysconfig; print(distutils.sysconfig.get_python_inc())')"
           PYBIND11_DIR=$(python3 -m pybind11 --cmakedir)
           echo "pybind11 CMake dir: $PYBIND11_DIR"
           if [ ! -d "$PYBIND11_DIR" ]; then
             echo "Error: pybind11 CMake directory not found at $PYBIND11_DIR"
             exit 1
           fi
+          if [ ! -f "$PYBIND11_DIR/pybind11-config.cmake" ]; then
+            echo "Error: pybind11-config.cmake not found at $PYBIND11_DIR"
+            exit 1
+          fi
+          echo "pybind11-config.cmake found at $PYBIND11_DIR"
 
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -124,14 +127,13 @@ jobs:
           export PIP_NO_CACHE_DIR=1
           cd /__w/flagtree/flagtree/python
 
-          PYBIND11_DIR=$(python3 -m pybind11 --cmakedir)
           MAX_JOBS=32 python3 -m pip install . --no-build-isolation \
             -C="--cmake-args=-DPython3_EXECUTABLE=/usr/bin/python3" \
             -C="--cmake-args=-DPython3_INCLUDE_DIR=/usr/include/python3.10" \
             -C="--cmake-args=-DPython3_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.10.so" \
             -C="--cmake-args=-Dpybind11_DIR=$PYBIND11_DIR" \
             -v
-
+            
       - name: FlagTree Build on NVidia (triton_v3.2.x branch)
         if: ${{ env.TARGET_BRANCH == 'triton_v3.2.x' }}
         shell: bash
