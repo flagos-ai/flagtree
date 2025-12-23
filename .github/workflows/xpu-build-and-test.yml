@@ -4,12 +4,8 @@ name: Xpu-Build-And-Test
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - "**/*.md"
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - "**/*.md"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -57,7 +53,33 @@ jobs:
         if: success()
         run: echo "Checkout completed successfully"
 
+      - name: Check if only docs/config files changed
+        id: check_files
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+          else
+            FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          fi
+          echo "Changed files: $FILES 
+
+          ONLY_DOCS_CONFIG=true
+          for file in $FILES; do
+            if [[ ! "$file" =~ \.(md|yml)$ ]]; then
+              ONLY_DOCS_CONFIG=false
+              break
+            fi
+          done
+
+          echo "only_docs_config=$ONLY_DOCS_CONFIG" >> $GITHUB_OUTPUT
+          if [ "$ONLY_DOCS_CONFIG" == "true" ]; then
+            echo "✅ Only documentation and configuration files were modified. Skipping build and test."
+            echo "Changed files are limited to: *.md, *.yml"
+            exit 0
+          fi
+
       - name: FlagTree Build on Xpu
+        if: steps.check_files.outputs.only_docs_config != 'true'
         shell: bash
         run: |
           set -x
@@ -67,6 +89,7 @@ jobs:
           MAX_JOBS=32 python3 -m pip install . --no-build-isolation
 
       - name: FlagTree Test on Xpu
+        if: steps.check_files.outputs.only_docs_config != 'true'
         shell: bash
         run: |
           set -x
