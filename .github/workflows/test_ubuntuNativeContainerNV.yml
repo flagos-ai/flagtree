@@ -1,0 +1,128 @@
+name: Run Container ubuntu-native
+
+on:
+  push:
+   branches:
+     - main
+  pull_request:
+   branches:
+     - main
+#   schedule:
+#     - cron: '0 21 * * *'
+#   workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-in-ubuntu-container:
+    runs-on: ubuntu-latest
+    container:
+      image:  ubuntu:22.04
+
+    steps:
+      - name: Set up Python and Install Dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update -y
+          DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip python3-venv git autotools-dev wget gcc g++ build-essential cmake
+          DEBIAN_FRONTEND=noninteractive apt-get install -y python3-dev pybind11-dev python3-distutils
+          pip3 install pybind11 -q
+
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          dpkg -i cuda-keyring_1.1-1_all.deb
+          DEBIAN_FRONTEND=noninteractive apt-get update -y
+          DEBIAN_FRONTEND=noninteractive apt-get install -y cuda-drivers cuda-toolkit
+          DEBIAN_FRONTEND=noninteractive apt-get install -y libnccl2 libnccl-dev
+
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          ssh-strict: true
+          ssh-user: git
+          persist-credentials: true
+          clean: true
+          sparse-checkout-cone-mode: true
+          fetch-tags: false
+          show-progress: true
+          lfs: false
+          submodules: true
+          set-safe-directory: true
+
+      - name: Detect Target Branch
+        shell: bash
+        run: |
+          set -x
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TARGET_BRANCH="${{ github.base_ref }}"
+          else
+            TARGET_BRANCH="${{ github.ref_name }}"
+          fi
+          echo "TARGET_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=$TARGET_BRANCH"
+
+      - name: Prepare LLVM for NVidia
+        shell: bash
+        run: |
+          case "${{ env.TARGET_BRANCH }}" in
+            "main")          LLVM_HASH="10dc3a8e" ;;
+            "triton_v3.2.x") LLVM_HASH="86b69c31" ;;
+            "triton_v3.3.x") LLVM_HASH="a66376b0" ;;
+            "triton_v3.4.x") LLVM_HASH="8957e64a" ;;
+            "triton_v3.5.x") LLVM_HASH="7d5de303" ;;
+            *)               LLVM_HASH="10dc3a8e" ;; 
+          esac
+          
+          LLVM_DIR="$HOME/.flagtree/llvm_builds"
+          LLVM_FILE="llvm-${LLVM_HASH}-ubuntu-x64"
+          mkdir -p "$LLVM_DIR"
+          cd "$LLVM_DIR"
+
+          if [ ! -d "${LLVM_FILE}" ]; then
+            echo "Downloading LLVM ${LLVM_HASH}..."
+            wget -q "https://oaitriton.blob.core.windows.net/public/llvm-builds/${LLVM_FILE}.tar.gz"
+            tar -zxf "${LLVM_FILE}.tar.gz"
+            rm "${LLVM_FILE}.tar.gz"
+          else
+            echo "LLVM ${LLVM_HASH} already exists, skipping download."
+          fi          
+          echo "LLVM_SYSPATH=$LLVM_DIR/${LLVM_FILE}" >> $GITHUB_ENV
+          echo "LLVM_LIBRARY_DIR=$LLVM_DIR/${LLVM_FILE}/lib" >> $GITHUB_ENV
+
+      - name: FlagTree Build on NVidia (Main branch)
+        if: ${{ env.TARGET_BRANCH == 'main' }}
+        shell: bash
+        run: |
+          set -x
+          pip uninstall -y triton
+          cd /__w/flagtree/flagtree/python
+          MAX_JOBS=32 python3 -m pip install . --no-build-isolation
+
+      - name: FlagTree Build on NVidia (triton_v3.2.x branch)
+        if: ${{ env.TARGET_BRANCH == 'triton_v3.2.x' }}
+        shell: bash
+        run: |
+          set -x
+          pip uninstall -y triton
+          cd /__w/flagtree/flagtree/python
+          MAX_JOBS=32 python3 -m pip install . --no-build-isolation
+
+      - name: FlagTree Build on NVidia (triton_v3.3.x branch)
+        if: ${{ env.TARGET_BRANCH == 'triton_v3.3.x' }}
+        shell: bash
+        run: |
+          set -x
+          pip uninstall -y triton
+          cd /__w/flagtree/flagtree/python
+          MAX_JOBS=32 python3 -m pip install . --no-build-isolation
+
+      - name: FlagTree Test on NVidia
+        shell: bash
+        run: |
+          set -x
+          python3 -m pytest -s python/test/unit
+          if [ -d "python/test/operators" ]; then
+            python3 -m pytest -s python/test/operators
+          fi
