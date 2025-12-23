@@ -1,0 +1,53 @@
+name: Run Container and Execute Tests ubuntu-native
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  #workflow_call:
+jobs:
+  test-in-ubuntu-container:
+    runs-on: ubuntu-latest
+    container:
+      image:  ubuntu:22.04
+
+    steps:
+      - name: Set up Install Dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update -y
+          DEBIAN_FRONTEND=noninteractive apt-get install -y git autotools-dev wget gcc g++ build-essential cmake
+          
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          dpkg -i cuda-keyring_1.1-1_all.deb
+          DEBIAN_FRONTEND=noninteractive apt-get update -y
+          DEBIAN_FRONTEND=noninteractive apt-get install -y cuda-drivers cuda-toolkit
+          DEBIAN_FRONTEND=noninteractive apt-get install -y libnccl2 libnccl-dev
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          ssh-strict: true
+          ssh-user: git
+          persist-credentials: true
+          clean: true
+          sparse-checkout-cone-mode: true
+          fetch-tags: false
+          show-progress: true
+          lfs: false
+          submodules: true
+          set-safe-directory: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11' 
+      - run: python my_script.py
+
+      - name: Run Auto Test Script in Container
+        run: |
+          cd python
+          MAX_JOBS=32 python3.11 -m pip install . --no-build-isolation
