@@ -53,7 +53,7 @@ jobs:
         if: success()
         run: echo "Checkout completed successfully"
 
-      - name: Check if only docs/config files changed
+      - name: Check if only docs files changed
         id: check_files
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
@@ -61,13 +61,11 @@ jobs:
           else
             FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
           fi
-          echo "Changed files:"
-          echo "$FILES"
 
-          ONLY_DOCS_CONFIG=true
+          ONLY_DOCS_CHANGED=true
           if [ -z "$FILES" ]; then
             echo "No files changed"
-            ONLY_DOCS_CONFIG=false
+            ONLY_DOCS_CHANGED=false
           else
             while IFS= read -r file; do
               # Skip empty lines
@@ -75,26 +73,23 @@ jobs:
                 continue
               fi
               echo "Checking file: '$file'"
-              if [[ ! "$file" =~ (\.(md|yml)$|CODEOWNERS$) ]]; then
-                echo "  -> Not a docs/config file"
-                ONLY_DOCS_CONFIG=false
+              if [[ ! "$file" =~ (\.(md|txt)$|CODEOWNERS$) ]]; then
+                echo "  -> Not a docs file"
+                ONLY_DOCS_CHANGED=false
                 break
-              else
-                echo "  -> Is a docs/config file"
               fi
             done <<< "$FILES"
           fi
 
-          echo "only_docs_config=$ONLY_DOCS_CONFIG" >> $GITHUB_OUTPUT
-          if [ "$ONLY_DOCS_CONFIG" == "true" ]; then
-            echo "✅ Only documentation and configuration files were modified. Skipping build and test."
-            echo "Changed files are limited to: *.md, *.yml, CODEOWNERS"
+          echo "only_docs_changed=$ONLY_DOCS_CHANGED" >> $GITHUB_OUTPUT
+          if [ "$ONLY_DOCS_CHANGED" == "true" ]; then
+            echo "✅ Only documentation files were modified. Skipping build and test."
+            echo "Changed files are limited to: *.md, *.txt, CODEOWNERS"
             exit 0
           fi
-          echo "Final result: only_docs_config=$ONLY_DOCS_CONFIG"
 
       - name: FlagTree Build on Xpu
-        if: steps.check_files.outputs.only_docs_config != 'true'
+        if: steps.check_files.outputs.only_docs_changed != 'true'
         shell: bash
         run: |
           set -x
@@ -104,7 +99,7 @@ jobs:
           MAX_JOBS=32 python3 -m pip install . --no-build-isolation
 
       - name: FlagTree Test on Xpu
-        if: steps.check_files.outputs.only_docs_config != 'true'
+        if: steps.check_files.outputs.only_docs_changed != 'true'
         shell: bash
         run: |
           set -x
