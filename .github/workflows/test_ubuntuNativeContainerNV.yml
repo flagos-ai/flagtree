@@ -99,13 +99,14 @@ jobs:
           set -x
           pip uninstall -y triton
           git config --global --add safe.directory /__w/flagtree/flagtree
-          export Python3_INCLUDE_DIRS=/usr/include/python3.10
-          export Python3_LIBRARIES=/usr/lib/x86_64-linux-gnu/libpython3.10.so
-          export pybind11_DIR=$(python3 -m pybind11 --cmakedir)
           export CMAKE_MAKE_PROGRAM=$(which ninja)
           export PIP_NO_CACHE_DIR=1
           cd /__w/flagtree/flagtree/python
-          MAX_JOBS=32 python3 -m pip install . --no-build-isolation
+          MAX_JOBS=4 python3 -m pip install . --no-build-isolation \
+            -C="--cmake-args=-DPython3_EXECUTABLE=/usr/bin/python3" \
+            -C="--cmake-args=-DPython3_INCLUDE_DIR=/usr/include/python3.10" \
+            -C="--cmake-args=-Dpybind11_DIR=$(python3 -m pybind11 --cmakedir)" \
+            -v
 
       - name: FlagTree Build on NVidia (triton_v3.2.x branch)
         if: ${{ env.TARGET_BRANCH == 'triton_v3.2.x' }}
