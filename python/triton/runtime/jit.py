@@ -834,6 +834,7 @@ def jit(fn: T) -> JITFunction[T]:
     ...
 
 
+# flagtree backend specialization add new params: "options"
 @overload
 def jit(
     *,
@@ -849,6 +850,7 @@ def jit(
     ...
 
 
+# flagtree backend specialization add new params: "options"
 def jit(
     fn: Optional[T] = None,
     *,
