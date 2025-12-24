@@ -1538,7 +1538,7 @@ def cast(input, dtype: dtype, fp_downcast_rounding: Optional[str] = None, bitcas
         return semantic.bitcast(input, dtype, _builder)
     # flagtree backend specialization
     ret = semantic.cast(input, dtype, _builder, fp_downcast_rounding)
-    flagtree_backend_specialization('ext_cast_check_overflow_mode', overflow_mode, overflow_modes, rett, _builder)
+    flagtree_backend_specialization('ext_cast_check_overflow_mode', overflow_mode, overflow_modes, ret, _builder)
     return ret
 
 
