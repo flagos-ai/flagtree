@@ -686,6 +686,7 @@ class JITFunction(KernelInterface[T]):
                        self.CompiledKernel.launch_enter_hook, self.CompiledKernel.launch_exit_hook, *non_constexpr_vals)
         return kernel
 
+    # flagtree backend specialization add new params: "extra_option"
     def __init__(self, fn, version=None, do_not_specialize=None, do_not_specialize_on_alignment=None, debug=None,
                  noinline=None, repr=None, launch_metadata=None, extra_option=None):
         do_not_specialize = do_not_specialize if do_not_specialize else []
