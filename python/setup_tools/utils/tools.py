@@ -15,7 +15,7 @@ def _get_flagtree_root() -> str:
     return str(Path(__file__).resolve().parents[4])
 
 
-@dataclass(slots=True)
+@dataclass
 class FlagtreeConfigs:
     default_backends: Final[tuple[str, ...]] = ("nvidia", "amd")
     plugin_backends: Final[tuple[str, ...]] = ("ascend", "aipu", "tsingmicro")
