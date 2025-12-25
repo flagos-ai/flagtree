@@ -6,6 +6,7 @@ import zipfile
 from io import BytesIO
 import urllib.request
 from typing import Final, Mapping
+from types import MappingProxyType
 import importlib.util
 from dataclasses import dataclass, field
 
@@ -25,14 +26,14 @@ class FlagtreeConfigs:
     flagtree_backend: str | None = field(default_factory=lambda: os.environ.get("FLAGTREE_BACKEND"))
     flagtree_plugin: str | None = field(default_factory=lambda: os.environ.get("FLAGTREE_PLUGIN"))
     extend_backends: list = field(default_factory=list)
-    activated_module: any
-    flagtree_submodule_dir: str
-    device_alias_map: Final[Mapping[str, str]] = {
+    activated_module: any = None
+    flagtree_submodule_dir: str = ''
+    device_alias_map: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({
         "xpu": "xpu",
         "mthreads": "musa",
         "ascend": "ascend",
         "cambricon": "mlu",
-    }
+    }))
 
     def __post_init__(self):
         object.__setattr__(
