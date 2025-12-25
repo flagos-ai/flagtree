@@ -9,6 +9,7 @@ from distutils.sysconfig import get_python_lib
 from . import utils
 from .utils.tools import flagtree_configs as configs
 
+configs = configs
 flagtree_backend = configs.flagtree_backend
 downloader = utils.tools.DownloadManager()
 set_llvm_env = lambda path: set_env({

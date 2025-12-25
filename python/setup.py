@@ -490,9 +490,9 @@ download_and_copy(
 )
 
 if helper.flagtree_backend:
-    backends = [*BackendInstaller.copy(helper.extend_backends), *BackendInstaller.copy_externals()]
+    backends = [*BackendInstaller.copy(helper.configs.extend_backends), *BackendInstaller.copy_externals()]
 else:
-    backends = [*BackendInstaller.copy(helper.default_backends), *BackendInstaller.copy_externals()]
+    backends = [*BackendInstaller.copy(helper.configs.default_backends), *BackendInstaller.copy_externals()]
 
 
 def add_link_to_backends():
@@ -603,7 +603,7 @@ def get_install_requires():
 
 packages = get_packages()
 package_dir = helper.CommonUtils.get_package_dir(get_packages())
-ext_modules = [CMakeExtension("triton", helper.ext_sourcedir)]
+ext_modules = [CMakeExtension("triton", helper.configs.ext_sourcedir)]
 cmdclass = {
     "build_ext": CMakeBuild,
     "build_py": CMakeBuildPy,

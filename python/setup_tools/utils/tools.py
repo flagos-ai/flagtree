@@ -17,7 +17,7 @@ def _get_flagtree_root() -> str:
 
 @dataclass(slots=True)
 class FlagtreeConfigs:
-    default_backend: Final[tuple[str, ...]] = ("nvidia", "amd")
+    default_backends: Final[tuple[str, ...]] = ("nvidia", "amd")
     plugin_backends: Final[tuple[str, ...]] = ("ascend", "aipu", "tsingmicro")
     use_cuda_toolkit_backends: Final[tuple[str, ...]] = ('aipu', )
     language_extra_backends: Final[tuple[str, ...]] = ('xpu', 'mthreads', "cambricon")
