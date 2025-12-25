@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 
 def _get_flagtree_root() -> str:
-    return str(Path(__file__).resolve().parents[4])
+    return str(Path(__file__).resolve().parents[3])
 
 
 @dataclass
@@ -57,6 +57,8 @@ class FlagtreeConfigs:
 
 
 flagtree_configs = FlagtreeConfigs()
+
+print(flagtree_configs.flagtree_root_dir)
 
 
 @dataclass
