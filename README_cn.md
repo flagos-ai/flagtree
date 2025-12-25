@@ -2,38 +2,39 @@
 
 ## <img width="30" height="30" alt="FlagTree-GitHub" src="https://github.com/user-attachments/assets/d8d24c81-6f46-4adc-94e2-b89b03afcb43" /> FlagTree
 
-FlagTree 是面向多种 AI 芯片的开源、统一编译器。FlagTree 致力于打造多元 AI 芯片编译器及相关工具平台，发展和壮大 Triton 上下游生态。项目当前处于初期，目标是兼容现有适配方案，统一代码仓库，快速实现单仓库多后端支持。对于上游模型用户，提供多后端的统一编译能力；对于下游芯片厂商，提供 Triton 生态接入范例。
+FlagTree 是面向多种 AI 芯片的开源、统一编译器。FlagTree 致力于打造多元 AI 芯片编译器及相关工具平台，发展和壮大 Triton 上下游生态。项目当前处于初期，目标是兼容现有适配方案，统一代码仓库，快速实现单仓库多后端支持。对于上游模型用户，提供多后端的统一编译能力；对于下游芯片厂商，提供 Triton 生态接入范例。<br>
+各后端基于不同版本的 triton 适配，因此位于不同的主干分支（[main](https://github.com/flagos-ai/flagtree/tree/main) for triton 3.1、[triton_v3.2.x](https://github.com/flagos-ai/flagtree/tree/triton_v3.2.x)、[triton_v3.3.x](https://github.com/flagos-ai/flagtree/tree/triton_v3.3.x)、[triton_v3.4.x](https://github.com/flagos-ai/flagtree/tree/triton_v3.4.x)、[triton_v3.5.x](https://github.com/flagos-ai/flagtree/tree/triton_v3.5.x)），各主干分支均为保护分支且地位相等。<br>
 
 ## 新特性
-* 2025/12/08 新增接入 enflame 后端，加入 CI/CD。
+* 2025/12/08 新增接入 [enflame](https://github.com/FlagTree/flagtree/tree/triton_v3.3.x/third_party/enflame/) 后端（对应 Triton 3.3），加入 CI/CD。
 * 2025/11/26 添加 FlagTree 后端特化统一设计文档 [FlagTree_Backend_Specialization](reports/decoupling/)。
 * 2025/10/28 提供离线构建支持（预下载依赖包），改善网络环境受限时的构建体验，使用方法见后文。
 * 2025/09/30 在 GPGPU 上支持编译指导 shared memory。
 * 2025/09/29 SDK 存储迁移至金山云，大幅提升下载稳定性。
 * 2025/09/25 支持编译指导 ascend 的后端编译能力。
-* 2025/09/16 新增接入 hcu 后端，加入 CI/CD。
-* 2025/09/09 Fork 并修改 llvm-project，承接 FLIR 的支撑。
+* 2025/09/16 新增接入 [hcu](https://github.com/FlagTree/flagtree/tree/main/third_party/hcu/) 后端（对应 Triton 3.0），加入 CI/CD。
+* 2025/09/09 Fork 并修改 [llvm-project](https://github.com/FlagTree/llvm-project)，承接 [FLIR](https://github.com/flagos-ai/flir) 的功能。
 * 2025/09/01 新增适配 Paddle 框架，加入 CI/CD。
 * 2025/08/16 新增适配北京超级云计算中心 AI 智算云。
-* 2025/08/04 新增接入 T*** 后端。
-* 2025/08/01 FLIR 支持编译指导 shared memory loading。
-* 2025/07/30 更新 cambricon 后端。
+* 2025/08/04 新增接入 T*** 后端（对应 Triton 3.1）。
+* 2025/08/01 [FLIR](https://github.com/flagos-ai/flir) 支持编译指导 shared memory loading。
+* 2025/07/30 更新 [cambricon](https://github.com/FlagTree/flagtree/tree/triton_v3.2.x/third_party/cambricon/) 后端（对应 Triton 3.2）。
 * 2025/07/25 浪潮团队新增适配 OpenAnolis 龙蜥操作系统。
-* 2025/07/09 FLIR 支持编译指导 Async DMA。
+* 2025/07/09 [FLIR](https://github.com/flagos-ai/flir) 支持编译指导 Async DMA。
 * 2025/07/08 新增多后端编译统一管理模块。
-* 2025/07/02 FlagGems LibTuner 适配 triton_v3.3.x 版本。
-* 2025/07/02 新增接入 S*** 后端。
-* 2025/06/20 FLIR 开始承接 MLIR 扩展功能。
-* 2025/06/06 新增接入 tsingmicro 后端，加入 CI/CD。
-* 2025/06/04 新增接入 ascend 后端，加入 CI/CD。
-* 2025/06/03 新增接入 metax 后端，加入 CI/CD。
-* 2025/05/22 FlagGems LibEntry 适配 triton_v3.3.x 版本。
-* 2025/05/21 FLIR 开始承接到中间层的转换功能。
-* 2025/04/09 新增接入 arm aipu 后端，提供 torch 标准扩展范例，加入 CI/CD。
+* 2025/07/02 [FlagGems](https://github.com/flagos-ai/FlagGems) LibTuner 适配 triton_v3.3.x 版本。
+* 2025/07/02 新增接入 S*** 后端（对应 Triton 3.3）。
+* 2025/06/20 [FLIR](https://github.com/flagos-ai/flir) 开始承接 MLIR 扩展功能。
+* 2025/06/06 新增接入 [tsingmicro](https://github.com/FlagTree/flagtree/tree/triton_v3.3.x/third_party/tsingmicro/) 后端（对应 Triton 3.3），加入 CI/CD。
+* 2025/06/04 新增接入 [ascend](https://github.com/FlagTree/flagtree/blob/triton_v3.2.x/third_party/ascend) 后端（对应 Triton 3.2），加入 CI/CD。
+* 2025/06/03 新增接入 [metax](https://github.com/FlagTree/flagtree/tree/main/third_party/metax/) 后端（对应 Triton 3.1），加入 CI/CD。
+* 2025/05/22 [FlagGems](https://github.com/flagos-ai/FlagGems) LibEntry 适配 triton_v3.3.x 版本。
+* 2025/05/21 [FLIR](https://github.com/flagos-ai/flir) 开始承接到中间层的转换功能。
+* 2025/04/09 新增接入 arm [aipu](https://github.com/FlagTree/flagtree/tree/triton_v3.3.x/third_party/aipu/) 后端（对应 Triton 3.3），提供 torch 标准扩展[范例](https://github.com/flagos-ai/flagtree/blob/triton_v3.3.x/third_party/aipu/backend/aipu_torch_dev.cpp)，加入 CI/CD。
 * 2025/03/26 接入安全合规扫描。
-* 2025/03/19 新增接入 klx xpu 后端，加入 CI/CD。
-* 2025/03/19 新增接入 mthreads 后端，加入 CI/CD。
-* 2025/03/12 新增接入 iluvatar 后端，加入 CI/CD。
+* 2025/03/19 新增接入 klx [xpu](https://github.com/FlagTree/flagtree/tree/main/third_party/xpu/) 后端（对应 Triton 3.0），加入 CI/CD。
+* 2025/03/19 新增接入 [mthreads](https://github.com/FlagTree/flagtree/tree/main/third_party/mthreads/) 后端（对应 Triton 3.1），加入 CI/CD。
+* 2025/03/12 新增接入 [iluvatar](https://github.com/FlagTree/flagtree/tree/main/third_party/iluvatar/) 后端（对应 Triton 3.1），加入 CI/CD。
 
 ## 从源代码安装
 安装依赖（注意使用正确的 python3.x 执行）：
@@ -56,7 +57,7 @@ cd; python3 -c 'import triton; print(triton.__path__)'
 各后端完整构建命令如下： <br>
 
 [iluvatar](https://github.com/FlagTree/flagtree/tree/main/third_party/iluvatar/) <br>
-对应的 Triton 版本为 3.1
+对应的 Triton 版本为 3.1，基于 x64 平台
 ```shell
 # 推荐使用镜像 Ubuntu 20.04
 mkdir -p ~/.flagtree/iluvatar; cd ~/.flagtree/iluvatar
@@ -68,8 +69,8 @@ cd ${YOUR_CODE_DIR}/flagtree/python
 export FLAGTREE_BACKEND=iluvatar
 python3 -m pip install . --no-build-isolation -v
 ```
-[xpu (klx)](https://github.com/FlagTree/flagtree/tree/main/third_party/xpu/) <br>
-对应的 Triton 版本为 3.0
+klx [xpu](https://github.com/FlagTree/flagtree/tree/main/third_party/xpu/) <br>
+对应的 Triton 版本为 3.0，基于 x64 平台
 ```shell
 # 推荐使用镜像（22GB）https://su.bcebos.com/klx-sdk-release-public/xpytorch/docker/ubuntu2004_v030/ubuntu_2004_x86_64_v30.tar
 # 联系 kunlunxin-support@baidu.com 可获取进一步支持
@@ -83,7 +84,7 @@ export FLAGTREE_BACKEND=xpu
 python3 -m pip install . --no-build-isolation -v
 ```
 [mthreads](https://github.com/FlagTree/flagtree/tree/main/third_party/mthreads/) <br>
-对应的 Triton 版本为 3.1
+对应的 Triton 版本为 3.1，基于 x64/aarch64 平台
 ```shell
 # 推荐使用镜像 flagtree/dockerfiles/Dockerfile-ubuntu22.04-python3.10-mthreads
 mkdir -p ~/.flagtree/mthreads; cd ~/.flagtree/mthreads
@@ -102,8 +103,8 @@ cd ${YOUR_CODE_DIR}/flagtree/python
 export FLAGTREE_BACKEND=mthreads
 python3 -m pip install . --no-build-isolation -v
 ```
-[aipu (arm npu)](https://github.com/FlagTree/flagtree/tree/triton_v3.3.x/third_party/aipu/) <br>
-对应的 Triton 版本为 3.3
+arm [aipu](https://github.com/FlagTree/flagtree/tree/triton_v3.3.x/third_party/aipu/) <br>
+对应的 Triton 版本为 3.3，基于 x64/arm64 平台
 ```shell
 # 推荐使用镜像 Ubuntu 22.04
 mkdir -p ~/.flagtree/aipu; cd ~/.flagtree/aipu
@@ -116,7 +117,7 @@ export FLAGTREE_BACKEND=aipu
 python3 -m pip install . --no-build-isolation -v
 ```
 [tsingmicro](https://github.com/FlagTree/flagtree/tree/triton_v3.3.x/third_party/tsingmicro/) <br>
-对应的 Triton 版本为 3.3
+对应的 Triton 版本为 3.3，基于 x64 平台
 ```shell
 # 推荐使用镜像 Ubuntu 20.04
 mkdir -p ~/.flagtree/tsingmicro; cd ~/.flagtree/tsingmicro
@@ -131,7 +132,7 @@ export FLAGTREE_BACKEND=tsingmicro
 python3 -m pip install . --no-build-isolation -v
 ```
 [ascend](https://github.com/FlagTree/flagtree/blob/triton_v3.2.x/third_party/ascend) <br>
-对应的 Triton 版本为 3.3，基于 aarch64 平台
+对应的 Triton 版本为 3.2，基于 aarch64 平台
 ```shell
 # 推荐使用镜像 flagtree/dockerfiles/Dockerfile-ubuntu22.04-python3.11-ascend
 # 在 https://www.hiascend.com/developer/download/community/result?module=cann
@@ -155,7 +156,7 @@ export FLAGTREE_BACKEND=ascend
 python3 -m pip install . --no-build-isolation -v
 ```
 [hcu](https://github.com/FlagTree/flagtree/tree/main/third_party/hcu/) <br>
-对应的 Triton 版本为 3.0
+对应的 Triton 版本为 3.0，基于 x64 平台
 ```shell
 # 推荐使用镜像 flagtree/dockerfiles/Dockerfile-ubuntu22.04-python3.10-hcu
 mkdir -p ~/.flagtree/hcu; cd ~/.flagtree/hcu
@@ -166,7 +167,7 @@ export FLAGTREE_BACKEND=hcu
 python3 -m pip install . --no-build-isolation -v
 ```
 [enflame](https://github.com/FlagTree/flagtree/tree/triton_v3.3.x/third_party/enflame/) <br>
-对应的 Triton 版本为 3.3
+对应的 Triton 版本为 3.3，基于 x64 平台
 ```shell
 # 推荐使用镜像: https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans/enflame-flagtree-0.3.1.tar.gz
 mkdir -p ~/.flagtree/enflame; cd ~/.flagtree/enflame
@@ -206,11 +207,11 @@ export LLVM_INCLUDE_DIRS=$LLVM_SYSPATH/include
 export LLVM_LIBRARY_DIR=$LLVM_SYSPATH/lib
 cd ${YOUR_CODE_DIR}/flagtree
 cd python  # 对应 Triton 3.1、3.2、3.3 时，需要进入 python 目录执行构建命令
-git checkout main              # 对应 Triton 3.1
-git checkout -b triton_v3.2.x  # 对应 Triton 3.2
-git checkout -b triton_v3.3.x  # 对应 Triton 3.3
-git checkout -b triton_v3.4.x  # 对应 Triton 3.4
-git checkout -b triton_v3.5.x  # 对应 Triton 3.5
+git checkout main                                   # 对应 Triton 3.1
+git checkout -b triton_v3.2.x origin/triton_v3.2.x  # 对应 Triton 3.2
+git checkout -b triton_v3.3.x origin/triton_v3.3.x  # 对应 Triton 3.3
+git checkout -b triton_v3.4.x origin/triton_v3.4.x  # 对应 Triton 3.4
+git checkout -b triton_v3.5.x origin/triton_v3.5.x  # 对应 Triton 3.5
 unset FLAGTREE_BACKEND
 python3 -m pip install . --no-build-isolation -v
 # 如果接下来需要构建安装其他后端，应清空 LLVM 相关环境变量
