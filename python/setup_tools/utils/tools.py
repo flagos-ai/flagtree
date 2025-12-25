@@ -24,7 +24,7 @@ class FlagtreeConfigs:
     flagtree_root_dir: str = field(default_factory=_get_flagtree_root)
     flagtree_backend: str | None = field(default_factory=lambda: os.environ.get("FLAGTREE_BACKEND"))
     flagtree_plugin: str | None = field(default_factory=lambda: os.environ.get("FLAGTREE_PLUGIN"))
-    extend_backends: list = []
+    extend_backends: list = field(default_factory=list)
     activated_module: any
     flagtree_submodule_dir: str
     device_alias_map: Final[Mapping[str, str]] = {

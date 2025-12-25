@@ -48,7 +48,7 @@ def get_offline_build_cmake_args(*args, **kargs):
 
 
 def get_device_name():
-    return configs.device_mapping[flagtree_backend]
+    return configs.device_alias_map[flagtree_backend]
 
 
 def get_extra_packages():
@@ -63,7 +63,7 @@ def get_extra_packages():
 def get_language_extra():
     packages = []
     if flagtree_backend in configs.language_extra_backends:
-        device_name = configs.device_mapping[flagtree_backend]
+        device_name = configs.device_alias_map[flagtree_backend]
         extra_path = f"triton/language/extra/{device_name}"
         packages.append(extra_path)
     return packages
