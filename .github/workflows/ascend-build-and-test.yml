@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Checkout code (attempt 1)
         id: checkout1
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         continue-on-error: true
 
       - name: Sleep before checkout2
@@ -28,7 +28,7 @@ jobs:
       - name: Checkout code (attempt 2)
         id: checkout2
         if: steps.checkout1.outcome == 'failure'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         continue-on-error: true
 
       - name: Sleep before final checkout
@@ -39,24 +39,29 @@ jobs:
 
       - name: Checkout code (final attempt)
         if: steps.checkout1.outcome == 'failure' && steps.checkout2.outcome == 'failure'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Verify checkout success
         if: success()
         run: echo "Checkout completed successfully"
 
+      - name: Check if only docs files changed
+        id: check_files
+        uses: ./.github/actions/check-docs-only
+
       - name: FlagTree Build on Ascend
+        if: steps.check_files.outputs.only_docs_changed != 'true'
         shell: bash
         run: |
           set -x
           pip uninstall -y triton
           export FLAGTREE_BACKEND=ascend
-          export NPUIR=af5499b3b9f3dbab50b2834bcfff5da5c2a1d920
           source ~/env.sh
           cd python
           MAX_JOBS=32 python3 -m pip install . --no-build-isolation
 
       - name: FlagTree Test on Ascend
+        if: steps.check_files.outputs.only_docs_changed != 'true'
         shell: bash
         run: |
           set -x
