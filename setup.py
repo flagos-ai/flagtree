@@ -14,7 +14,7 @@ import json
 from io import BytesIO
 from distutils.command.clean import clean
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
@@ -25,6 +25,8 @@ from setuptools.command.install import install
 from setuptools.command.sdist import sdist
 
 from dataclasses import dataclass
+import importlib.metadata
+import importlib.util
 
 import pybind11
 
@@ -192,9 +194,46 @@ def is_linux_os(id):
             return f'ID="{id}"' in os_release_content
     return False
 
+# related functions for llvm
+LLVM_ENV_VARS = [
+    # "LLVM_BUILD_DIR" # no matter which method, you have to set this env mannually to let triton know it should use your LLVM
+    "TRITON_LLVM_SYSTEM_SUFFIX",
+    "LLVM_INCLUDE_DIRS",
+    "LLVM_LIBRARY_DIR",
+    "LLVM_SYSPATH",
+]
+
+def has_llvm_env_vars() -> List[str]:
+    return [k for k in LLVM_ENV_VARS if k in os.environ]
+
+
+def is_llvm_wheel_installed(pkg_name: str) -> bool:
+    try:
+        importlib.metadata.version(pkg_name)
+        return True
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+
+def get_llvm_paths_from_wheel(pkg_name: str):
+    import_name = pkg_name.replace("-", "_")
+    spec = importlib.util.find_spec(import_name)
+    if spec.origin:
+        llvm_root = os.path.dirname(spec.origin)
+    elif spec.submodule_search_locations:
+        llvm_root = next(iter(spec.submodule_search_locations))
+    else:
+        raise RuntimeError(
+            f"LLVM wheel '{pkg_name}' is found but has no filesystem location"
+        )
+    include_dir = os.path.join(llvm_root, "include")
+    lib_dir = os.path.join(llvm_root, "lib")
+    return include_dir, lib_dir, llvm_root
 
 # llvm
-def get_llvm_package_info():
+# 原始的逻辑也是返回一个Package对象, 增加legacy 
+# 现在看上去没走legacy，但是只生成了package，没有确定已经存在
+def get_llvm_package_info_legacy():
     system = platform.system()
     try:
         arch = {"x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}[platform.machine()]
@@ -247,11 +286,51 @@ def get_llvm_package_info():
     return Package("llvm", name, url, "LLVM_INCLUDE_DIRS", "LLVM_LIBRARY_DIR", "LLVM_SYSPATH", sym_name=sym_name)
 
 
+def get_llvm_package_info():
+    LLVM_WHEEL_PKG = "llvm-wheel"  
+    llvm_installed = is_llvm_wheel_installed(LLVM_WHEEL_PKG)
+    llvm_envs = has_llvm_env_vars()
+    # rule1 : if both call erroe
+    if llvm_installed and llvm_envs:
+        raise RuntimeError(
+            "ERROR: LLVM wheel is installed, but LLVM-related environment variables are set:\n"
+            f"  {llvm_envs}\n"
+            "Please unset them to avoid conflicts."
+        )
+    # rule2：wheel installed & no env → use wheel
+    if llvm_installed:
+        include_dir, lib_dir, llvm_root = get_llvm_paths_from_wheel(LLVM_WHEEL_PKG)
+
+        print("[DECISION] Using LLVM from wheel package")
+        print("  include:", include_dir)
+        print("  lib:    ", lib_dir)
+        print("  root:   ", llvm_root)
+        
+        # will not appear out of python process
+        os.environ["LLVM_SYSPATH"] = llvm_root
+        os.environ["LLVM_INCLUDE_DIRS"] = include_dir
+        os.environ["LLVM_LIBRARY_DIR"] = lib_dir
+
+        return Package(
+            "llvm",
+            # this match the legacy naming convention
+            "llvm-C.lib",
+            "",
+            "LLVM_INCLUDE_DIRS",
+            "LLVM_LIBRARY_DIR",
+            "LLVM_SYSPATH"
+        )
+
+    # rule3: no wheel & env → use env
+    print("[DECISION] LLVM wheel not found, fallback to legacy logic")
+    return get_llvm_package_info_legacy()
+
 def open_url(url):
     user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0'
     headers = {
         'User-Agent': user_agent,
     }
+    print("[DEBUG] downloading url =", repr(url))
     request = urllib.request.Request(url, None, headers)
     # Set timeout to 300 seconds to prevent the request from hanging forever.
     return urllib.request.urlopen(request, timeout=300)
@@ -415,6 +494,7 @@ class CMakeBuild(build_ext):
             raise RuntimeError("CMake >= 3.20 is required")
 
         for ext in self.extensions:
+
             self.build_extension(ext)
 
     def get_pybind11_cmake_args(self):
