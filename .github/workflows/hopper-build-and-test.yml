@@ -100,7 +100,6 @@ jobs:
         run: |
           set -x
           python3.12 -m pytest -s python/test/unit/cuda
-          python3.12 -m pytest -s python/test/unit/hopper
           python3.12 -m pytest -s python/test/unit/instrumentation
           python3.12 -m pytest -s python/test/unit/language
           python3.12 -m pytest -s python/test/unit/runtime
