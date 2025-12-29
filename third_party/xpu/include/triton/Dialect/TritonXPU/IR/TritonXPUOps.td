@@ -323,6 +323,7 @@ def TTX_SvaddFOp : TTX_SVFloatBinaryOp<"svaddf">;
 def TTX_SvmulFOp : TTX_SVFloatBinaryOp<"svmulf">;
 def TTX_SvsubFOp : TTX_SVFloatBinaryOp<"svsubf">;
 def TTX_SvmaxFOp : TTX_SVFloatBinaryOp<"svmaxf">;
+def TTX_SvxorIOp : TTX_SVFloatBinaryOp<"svxori">;
 
 def TTX_VvorIOp : TTX_VVIntBinaryOp<"vvori">;
 def TTX_VvxorIOp : TTX_VVIntBinaryOp<"vvxori">;

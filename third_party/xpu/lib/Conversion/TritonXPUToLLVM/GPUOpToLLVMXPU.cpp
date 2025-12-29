@@ -86,6 +86,19 @@ public:
   }
 };
 
+struct GPUBarrierOpConversion
+    : public ConvertOpToLLVMPattern<mlir::gpu::BarrierOp> {
+  using ConvertOpToLLVMPattern<mlir::gpu::BarrierOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(mlir::gpu::BarrierOp op,
+                  mlir::gpu::BarrierOp::Adaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.create<mlir::LLVM::XPU::BarrierOp>(op->getLoc());
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 } // namespace mlir
 
 void mlir::triton::xpu::populateGPUToXPUConversionPatterns(
@@ -97,4 +110,5 @@ void mlir::triton::xpu::populateGPUToXPUConversionPatterns(
                XPULoadParamIntrinsicOpLowering<mlir::gpu::GridDimOp, 1>,
                XPULoadParamIntrinsicOpLowering<mlir::gpu::BlockDimOp, 2>>(
       typeConverter, targetInfo, benefit);
+  patterns.add<GPUBarrierOpConversion>(typeConverter, benefit);
 }

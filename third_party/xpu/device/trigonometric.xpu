@@ -886,6 +886,23 @@ __device__ inline float tanf(float input) {
     return res;
 }
 
+__device__ inline float32x16_t vtanf(float32x16_t input) {
+  __simd__ float sin_lm[16];
+  __simd__ float cos_lm[16];
+  __simd__ float tanh_lm[16];
+  float32x16_t sin_res = vsinf(input);
+  vstore_lm_float32x16(sin_lm, sin_res);
+  float32x16_t cos_res = vcosf(input);
+  vstore_lm_float32x16(cos_lm, cos_res);
+  mfence_lm();
+  for (int k = 0; k < 16; k++) {
+    *(tanh_lm + k) = *(sin_lm + k) / *(cos_lm + k);
+  }
+  mfence_lm();
+  float32x16_t res = vload_lm_float32x16(tanh_lm);
+  return res;
+}
+
 static __device__ inline void translation_arcsin(float *input) {
   float tmp;
   tmp = *input;
@@ -1903,6 +1920,17 @@ __device__ inline uint32_t vvnefp32(float32x16_t vx, float32x16_t vy) {
 
 __device__ inline uint32_t vvnefp16(float16x32_t vx, float16x32_t vy) {
   uint32_t mask = static_cast<uint32_t>(vvneq_float16x32(vy, vx));
+  return mask;
+}
+
+// eq
+__device__ inline uint32_t vveqfp32(float32x16_t vx, float32x16_t vy) {
+  uint32_t mask =
+      (static_cast<uint32_t>(vveq_float32x16(vy, vx)) & 0x0000FFFF);
+  return mask;
+}
+__device__ inline uint32_t vveqfp16(float16x32_t vx, float16x32_t vy) {
+  uint32_t mask = static_cast<uint32_t>(vveq_float16x32(vy, vx));
   return mask;
 }
 

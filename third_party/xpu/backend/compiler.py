@@ -429,6 +429,7 @@ class XPUBackend(BaseBackend):
         passes.common.add_symbol_dce(pm)
         if os.environ.get("TRITON_DISABLE_LINE_INFO", "0") == "0":
             passes.llvmir.add_di_scope(pm)
+        xpu.passes.llvmxpuir.insert_mfence_check(pm)
 
         pm.run(mod)
 

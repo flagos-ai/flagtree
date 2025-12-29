@@ -28,6 +28,7 @@ SVOp2ASMStr(triton::xpu::SvaddFOp, "vadd.f.mz.rn $0{mr1}, $1, $2");
 SVOp2ASMStr(triton::xpu::SvmulFOp, "vmul.f.mz.rn $0{mr1}, $1, $2");
 SVOp2ASMStr(triton::xpu::SvsubFOp, "vsub.f.mz.rn $0{mr1}, $1, $2");
 SVOp2ASMStr(triton::xpu::SvmaxFOp, "vmax.f.mz $0{mr1}, $1, $2");
+SVOp2ASMStr(triton::xpu::SvxorIOp, "vxor.s.mz $0{mr1}, $1, $2");
 
 template <typename OP> struct SVOp2StrFP16;
 
@@ -41,6 +42,7 @@ SVOp2ASMStrFP16(triton::xpu::SvaddFOp, "vadd.hf.mz.rn $0{mr1}, $1, $2");
 SVOp2ASMStrFP16(triton::xpu::SvmulFOp, "vmul.hf.mz.rn $0{mr1}, $1, $2");
 SVOp2ASMStrFP16(triton::xpu::SvsubFOp, "vsub.hf.mz.rn $0{mr1}, $1, $2");
 SVOp2ASMStrFP16(triton::xpu::SvmaxFOp, "vmax.hf.mz $0{mr1}, $1, $2");
+SVOp2ASMStrFP16(triton::xpu::SvxorIOp, "");
 
 template <typename OP> struct VLibOp;
 
@@ -248,12 +250,12 @@ struct SVBinOpsConversion : public ConvertOpToLLVMPattern<SrcOp>,
     Type vecTy = getElementTypeOrSelf(valueTy);
     Type elemTy = getElementTypeOrSelf(vecTy);
     StringRef asm_string;
-    if (elemTy.isF32()) {
+    if (elemTy.isF32() || elemTy.isSignlessInteger(32)) {
       asm_string = SVOp2Str<SrcOp>::value;
     } else if (elemTy.isF16()) {
       asm_string = SVOp2StrFP16<SrcOp>::value;
     } else {
-      llvm_unreachable("Only FP16 and FP32 are supported in SVBinary!");
+      llvm_unreachable("Only FP16/FP32/I32 are supported in SVBinary!");
     }
     StringRef constraints = "=v,r,v";
     for (int i = 0; i < rowNum; ++i) {
@@ -1018,6 +1020,7 @@ struct VCmpFOpConversion : public ConvertOpToLLVMPattern<triton::xpu::VCmpFOp>,
   case arith::CmpFPredicate::item__:                                           \
     return item1__
 
+      __VASM_FP32_PRED_ENUM(OEQ, "_ZN3xpu8vveqfp32EDv16_fS0_");
       __VASM_FP32_PRED_ENUM(UNE, "_ZN3xpu8vvnefp32EDv16_fS0_");
       __VASM_FP32_PRED_ENUM(OGT, "_ZN3xpu8vvgtfp32EDv16_fS0_");
       __VASM_FP32_PRED_ENUM(OGE, "_ZN3xpu8vvgefp32EDv16_fS0_");
@@ -1035,6 +1038,7 @@ struct VCmpFOpConversion : public ConvertOpToLLVMPattern<triton::xpu::VCmpFOp>,
   case arith::CmpFPredicate::item__:                                           \
     return item1__
 
+      __VASM_FP16_PRED_ENUM(OEQ, "_ZN3xpu8vveqfp16EDv32_DF16_S0_");
       __VASM_FP16_PRED_ENUM(UNE, "_ZN3xpu8vvnefp16EDv32_DF16_S0_");
       __VASM_FP16_PRED_ENUM(OGT, "_ZN3xpu8vvgtfp16EDv32_DF16_S0_");
       __VASM_FP16_PRED_ENUM(OGE, "_ZN3xpu8vvgefp16EDv32_DF16_S0_");
@@ -1070,7 +1074,8 @@ void mlir::triton::xpu::populateTTXPUVectorizedOpToLLVMConversionPatterns(
   patterns.add<SVBinOpsConversion<triton::xpu::SvaddFOp>,
                SVBinOpsConversion<triton::xpu::SvmulFOp>,
                SVBinOpsConversion<triton::xpu::SvsubFOp>,
-               SVBinOpsConversion<triton::xpu::SvmaxFOp>>(typeConverter,
+               SVBinOpsConversion<triton::xpu::SvmaxFOp>,
+               SVBinOpsConversion<triton::xpu::SvxorIOp>>(typeConverter,
                                                           benefit, targetInfo);
   patterns.add<UnaryOpConversion<triton::xpu::VExpFOp, LLVM::Exp2Op>,
                UnaryOpConversion<triton::xpu::VSqrtFOp, LLVM::SqrtOp>,

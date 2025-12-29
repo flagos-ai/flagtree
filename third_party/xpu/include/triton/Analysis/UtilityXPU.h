@@ -52,7 +52,7 @@ template <> struct is_xpu_memory_op<triton::xpu::SM2GMMaskOp> {
 
 #define XPU_VVECTORIZED_BINARY_OP                                              \
   triton::xpu::VvaddFOp, triton::xpu::VvmulFOp, triton::xpu::VvsubFOp,         \
-      triton::xpu::VvmaxFOp
+      triton::xpu::VvmaxFOp, triton::xpu::VvxorIOp
 
 #define XPU_SVECTORIZED_BINARY_OP                                              \
   triton::xpu::SvaddFOp, triton::xpu::SvmulFOp, triton::xpu::SvsubFOp,         \

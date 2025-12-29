@@ -28,6 +28,8 @@
 #include "triton/Conversion/TritonXPUToLLVM/Passes.h"      // mlir::triton::createConvertTritonXPUToLLVMPass
 #include "triton/Dialect/TritonXPU/IR/Dialect.h"           // mlir::triton::xpu::TritonXPUDialect
 #include "triton/Dialect/TritonXPU/Transforms/Passes.h"    // mlir::createTritonXPUGM2LMPass()
+#include "triton/Dialect/LLVMXPU/Transforms/Passes.h"
+
 
 #include "triton/Target/LLVMXPU/LLVMXPUToLLVMIRTranslation.h"  // registerLLVMXPUDialectTranslation
 // clang-format on
@@ -55,6 +57,13 @@ void init_triton_xpu_passes_conversion(py::module &&m) {
           self.addPass(mlir::triton::createConvertTritonXPUToLLVMPass(
               xpu_arch, buffer_size, isUseMaskZero));
         });
+}
+
+void init_llvm_xpu_passes_transform(py::module &&m) {
+  m.def("insert_mfence_check", [](mlir::PassManager &self) {
+    self.addNestedPass<mlir::LLVM::LLVMFuncOp>(
+        mlir::LLVM::XPU::createLLVMXPUMfenceCheck());
+  });
 }
 
 void init_triton_xpu_passes_transform(py::module &&m) {
@@ -351,6 +360,7 @@ void init_triton_xpu(py::module &&m) {
   init_triton_xpu_passes_transform(passes.def_submodule("ttxpuir"));
   init_triton_sdnn_passes_conversion(passes.def_submodule("ttsdnnir"));
   init_triton_sdnn_passes_transform(passes.def_submodule("ttsdnnir"));
+  init_llvm_xpu_passes_transform(passes.def_submodule("llvmxpuir"));
   init_triton_xpu_llvm(m.def_submodule("llvm"));
 
   // load dialects

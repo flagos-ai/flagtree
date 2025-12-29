@@ -11,6 +11,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "triton/Dialect/TritonXPU/IR/Dialect.h"
 #include "triton/Dialect/TritonXPU/Transforms/Passes.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 // clang-format on
 
 #define DEBUG_TYPE "tritonxpu-vectorize"
@@ -79,6 +80,7 @@ VV2SVOp(triton::xpu::VvaddFOp, triton::xpu::SvaddFOp);
 VV2SVOp(triton::xpu::VvmulFOp, triton::xpu::SvmulFOp);
 VV2SVOp(triton::xpu::VvsubFOp, triton::xpu::SvsubFOp);
 VV2SVOp(triton::xpu::VvmaxFOp, triton::xpu::SvmaxFOp);
+VV2SVOp(triton::xpu::VvxorIOp, triton::xpu::SvxorIOp);
 
 } // namespace xpu
 } // namespace triton
@@ -91,6 +93,123 @@ namespace xpu {
 
 #define GEN_PASS_DEF_TRITONXPUVECTORIZE
 #include "triton/Dialect/TritonXPU/Transforms/Passes.h.inc"
+
+// ext(logic_op(cmp ne(a, 0))) -> ext(locic_op(a))
+template <typename LOGIC_OP_TYPE>
+struct ConvertI1LogicOpToI8 : public OpRewritePattern<arith::ExtUIOp> {
+  using OpRewritePattern<arith::ExtUIOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(arith::ExtUIOp extOp,
+                                PatternRewriter &rewriter) const override {
+    auto i1TensorType = dyn_cast<RankedTensorType>(extOp.getIn().getType());
+    auto i8TensorType = dyn_cast<RankedTensorType>(extOp.getType());
+    if (!i1TensorType || !i8TensorType ||
+        i1TensorType.getElementTypeBitWidth() != 1)
+      return failure();
+
+    auto logicOp = extOp.getIn().getDefiningOp<LOGIC_OP_TYPE>();
+    if (!logicOp)
+      return failure();
+
+    auto getI8Source = [&](Value v) -> Value {
+      auto cmpi = v.getDefiningOp<arith::CmpIOp>();
+      if (!cmpi || cmpi.getPredicate() != arith::CmpIPredicate::ne)
+        return nullptr;
+
+      if (!getElementTypeOrSelf(cmpi.getLhs()).isInteger(8))
+        return nullptr;
+
+      if (isZeroConst(cmpi.getRhs()))
+        return cmpi.getLhs();
+
+      if (isZeroConst(cmpi.getLhs()))
+        return cmpi.getRhs();
+
+      return nullptr;
+    };
+
+    Value lhsSource = getI8Source(logicOp.getLhs());
+    Value rhsSource = getI8Source(logicOp.getRhs());
+
+    if (lhsSource && rhsSource) {
+      rewriter.replaceOpWithNewOp<LOGIC_OP_TYPE>(extOp, lhsSource, rhsSource);
+      return success();
+    }
+
+    return failure();
+  }
+};
+
+// fold extui
+struct BypassCmpIExtUI : public OpRewritePattern<arith::ExtUIOp> {
+  using OpRewritePattern<arith::ExtUIOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(arith::ExtUIOp extOp,
+                                PatternRewriter &rewriter) const override {
+    if (extOp.getIn().getType() == extOp.getOut().getType()) {
+      rewriter.replaceOp(extOp, extOp.getIn());
+      return success();
+    }
+    return failure();
+  }
+};
+
+template <typename OpTy>
+struct BitwiseCastToI32Pattern : public OpRewritePattern<OpTy> {
+  using OpRewritePattern<OpTy>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(OpTy op,
+                                PatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+
+    auto originalTy = dyn_cast<RankedTensorType>(op.getType());
+    if (!originalTy)
+      return failure();
+
+    auto innerVecTy = dyn_cast<VectorType>(originalTy.getElementType());
+    if (!innerVecTy)
+      return failure();
+
+    if (innerVecTy.getElementType().isInteger(32))
+      return failure();
+
+    int totalBits =
+        innerVecTy.getNumElements() * innerVecTy.getElementTypeBitWidth();
+    if (totalBits % 32 != 0)
+      return failure();
+
+    int newNumElements = totalBits / 32;
+    auto i32Ty = rewriter.getI32Type();
+    auto newVecTy = VectorType::get({newNumElements}, i32Ty);
+    auto newTensorTy = RankedTensorType::get(originalTy.getShape(), newVecTy,
+                                             originalTy.getEncoding());
+
+    SmallVector<Value, 2> newOperands;
+    for (Value operand : op->getOperands()) {
+      auto elemTy = getElementTypeOrSelf(operand);
+      if (isa<VectorType>(elemTy))
+        newOperands.push_back(
+            rewriter.create<triton::BitcastOp>(loc, newTensorTy, operand));
+      else if (auto rankedTy = dyn_cast<RankedTensorType>(operand.getType())) {
+        auto newType = RankedTensorType::get(rankedTy.getShape(), i32Ty,
+                                             rankedTy.getEncoding());
+        newOperands.push_back(
+            rewriter.create<arith::ExtSIOp>(loc, newType, operand));
+      } else {
+        newOperands.push_back(operand);
+      }
+    }
+
+    auto newOp =
+        rewriter.create<OpTy>(loc, newTensorTy, newOperands, op->getAttrs());
+
+    auto finalCast =
+        rewriter.create<triton::BitcastOp>(loc, originalTy, newOp.getResult());
+    rewriter.replaceOp(op, finalCast.getResult());
+
+    return success();
+  }
+};
 
 struct TritonXPUVectorizePass
     : public impl::TritonXPUVectorizeBase<TritonXPUVectorizePass> {
@@ -170,7 +289,11 @@ struct TritonXPUVectorizePass
                     getElementTypeOrSelf(rhs.getType()).isF16();
     bool isINT32Ty = getElementTypeOrSelf(lhs.getType()).isInteger(32) &&
                      getElementTypeOrSelf(rhs.getType()).isInteger(32);
-    if (!isFP32Ty && !isFP16Ty && !isINT32Ty) {
+    bool isINT16Ty = getElementTypeOrSelf(lhs.getType()).isInteger(16) &&
+                     getElementTypeOrSelf(rhs.getType()).isInteger(16);
+    bool isINT8Ty = getElementTypeOrSelf(lhs.getType()).isInteger(8) &&
+                    getElementTypeOrSelf(rhs.getType()).isInteger(8);
+    if (!isFP32Ty && !isFP16Ty && !isINT32Ty && !isINT16Ty && !isINT8Ty) {
       return false;
     }
 
@@ -338,7 +461,10 @@ struct TritonXPUVectorizePass
         .Case<arith::SelectOp>([&](auto selectOp) {
           auto tv = selectOp.getTrueValue();
           auto fv = selectOp.getFalseValue();
-          isVectorized = binLikeOpVectorize(tv, fv, visited, vectorizedOps);
+          auto tType = getElementTypeOrSelf(tv.getType());
+          auto fType = getElementTypeOrSelf(fv.getType());
+          isVectorized = (tType == fType && (tType.isF16() || tType.isF32()) &&
+                          binLikeOpVectorize(tv, fv, visited, vectorizedOps));
         })
         .Case<arith::CmpIOp>([&](auto cmpIOp) {
           isVectorized = false;
@@ -424,6 +550,12 @@ struct TritonXPUVectorizePass
           assert(extElemwiseOp.getOperands().size() > 0 &&
                  "Unexcepted ExternElementwiseOp Operand");
           if (symbol == "_ZN3xpu5tanhfEf") {
+            isVectorized = true;
+            for (auto operand : extElemwiseOp.getOperands()) {
+              isVectorized =
+                  isVectorized && vectorize(prevOp, visited, vectorizedOps);
+            }
+          } else if (symbol == "_ZN3xpu4tanfEf") {
             isVectorized = true;
             for (auto operand : extElemwiseOp.getOperands()) {
               isVectorized =
@@ -756,6 +888,11 @@ struct TritonXPUVectorizePass
                                     newVectorizedTensorTy);
               extElemwiseOp.replaceAllUsesWith(newExtElemwiseOp.getResult());
               extElemwiseOp.erase();
+            } else if (symbol == "_ZN3xpu4tanfEf") {
+              auto newExtElemwiseOp = createLibdeviceOp(
+                  extElemwiseOp, "_ZN3xpu5vtanfEDv16_f", newVectorizedTensorTy);
+              extElemwiseOp.replaceAllUsesWith(newExtElemwiseOp.getResult());
+              extElemwiseOp.erase();
             } else if (symbol == "_ZN3xpu3erfEf") {
               auto newExtElemwiseOp = createLibdeviceOp(
                   extElemwiseOp, "_ZN3xpu4verfEDv16_f", newVectorizedTensorTy);
@@ -1011,8 +1148,8 @@ struct TritonXPUVectorizePass
     if (numElems < vectorWidth || numElems % vectorWidth > 0 ||
         !vectorizedTyValid(elemTy))
       return;
-    // Fuse ExtElemwiseOp(i8) + TruncIOp(i8) + StoreOp = newExtElemwiseOp(i32) +
-    // StoreOp
+    // Fuse ExtElemwiseOp(i8) + TruncIOp(i8) + StoreOp = newExtElemwiseOp(i32)
+    // + StoreOp
     if (auto extElemwiseOp =
             truncIOp.getIn().getDefiningOp<triton::ExternElementwiseOp>()) {
       if (extElemwiseOp.getSymbol() == "_ZN3xpu5isnanEf" &&
@@ -1450,6 +1587,8 @@ struct TritonXPUVectorizePass
     context = &getContext();
     ModuleOp mod = getOperation();
 
+    LLVM_DEBUG(llvm::dbgs() << __FILE__ << " START\n" << mod << "\n");
+
     // Maximum Fusion Online
     // [cmpf, cmpf, ori, select] -> [fmax]
     if (maximumFusion) {
@@ -1465,6 +1604,16 @@ struct TritonXPUVectorizePass
         [&](arith::TruncIOp truncIOp) { doCompareTruncI8Fusion(truncIOp); });
     // llvm::errs() << "After doCompareTruncI8Fusion:\n";
     // mod.dump();
+
+    {
+      RewritePatternSet patterns(context);
+      patterns.add<ConvertI1LogicOpToI8<arith::AndIOp>,
+                   ConvertI1LogicOpToI8<arith::OrIOp>,
+                   ConvertI1LogicOpToI8<arith::XOrIOp>, BypassCmpIExtUI>(
+          context);
+      if (failed(applyPatternsAndFoldGreedily(mod, std::move(patterns))))
+        signalPassFailure();
+    }
 
     // Eliminate SelectOp For bufferSize X Col Size
     // TODO[dyq]: open isMultipleOfBank
@@ -1619,6 +1768,19 @@ struct TritonXPUVectorizePass
     if (BF16ToFP32VecOpt) {
       BF16ToFP32VecOptimize(mod);
     }
+
+    // Move BitWise Op From Other Type To int32x16
+    {
+      RewritePatternSet patterns(context);
+      patterns.add<BitwiseCastToI32Pattern<xpu::VvxorIOp>,
+                   BitwiseCastToI32Pattern<xpu::VvandIOp>,
+                   BitwiseCastToI32Pattern<xpu::VvorIOp>,
+                   BitwiseCastToI32Pattern<xpu::SvxorIOp>>(context);
+      if (failed(applyPatternsAndFoldGreedily(mod, std::move(patterns))))
+        signalPassFailure();
+    }
+
+    LLVM_DEBUG(llvm::dbgs() << __FILE__ << " END\n" << mod << "\n");
   }
 
 private:
