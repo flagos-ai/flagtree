@@ -326,7 +326,6 @@ def open_url(url):
     headers = {
         'User-Agent': user_agent,
     }
-    print("[DEBUG] downloading url =", repr(url))
     request = urllib.request.Request(url, None, headers)
     # Set timeout to 300 seconds to prevent the request from hanging forever.
     return urllib.request.urlopen(request, timeout=300)
