@@ -283,10 +283,10 @@ def get_llvm_package_info_legacy():
 
 
 def get_llvm_package_info():
-    LLVM_WHEEL_PKG = "llvm-wheel"  
+    LLVM_WHEEL_PKG = "llvm-wheel"
     llvm_installed = is_llvm_wheel_installed(LLVM_WHEEL_PKG)
     llvm_envs = has_llvm_env_vars()
-    # rule1 : if both call erroe
+    # rule1 : if both exist, fail
     if llvm_installed and llvm_envs and not os.environ.get("USE_LLVM_WHEEL_BUILD"):
         raise RuntimeError(
             "ERROR: LLVM wheel is installed, but LLVM-related environment variables are set:\n"
@@ -296,12 +296,6 @@ def get_llvm_package_info():
     # rule2：wheel installed & no env → use wheel
     if llvm_installed:
         include_dir, lib_dir, llvm_root = get_llvm_paths_from_wheel(LLVM_WHEEL_PKG)
-
-        print("[DECISION] Using LLVM from wheel package")
-        print("  include:", include_dir)
-        print("  lib:    ", lib_dir)
-        print("  root:   ", llvm_root)
-        
         # env variables will not appear out of python process
         os.environ["USE_LLVM_WHEEL_BUILD"] = "1"
         os.environ["LLVM_SYSPATH"] = llvm_root
@@ -489,7 +483,6 @@ class CMakeBuild(build_ext):
             raise RuntimeError("CMake >= 3.20 is required")
 
         for ext in self.extensions:
-
             self.build_extension(ext)
 
     def get_pybind11_cmake_args(self):
