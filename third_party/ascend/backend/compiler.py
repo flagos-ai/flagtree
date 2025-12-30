@@ -88,11 +88,17 @@ def ttir_to_linalg(mod, metadata, opt, *, named_ops=False):
     enable_select_analysis = metadata["enable_select_analysis"]
     compile_on_910_95 = metadata["compile_on_910_95"]
     force_simt_template = metadata["force_simt_template"]
+    enable_linearize = metadata["enable_linearize"]
 
     # Add pass here.
     # ascend.passes.convert.add_triton_to_linalg_pipeline(pm)
-    ascend.passes.convert.add_triton_linearize(pm)
-    ascend.passes.convert.add_triton_discretemaskaccessconversion(pm)
+    if enable_linearize:
+        ascend.passes.convert.add_triton_linearize(pm)
+    ascend.passes.convert.add_triton_discretemaskaccessconversion(
+    pm,
+    compile_on_910_95 = compile_on_910_95,
+    force_simt_template = force_simt_template,
+    )
     ascend.passes.convert.add_triton_to_annotation(pm)
     ascend.passes.convert.add_triton_to_unstructure_incubated(
     pm,
