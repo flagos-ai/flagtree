@@ -122,7 +122,8 @@ void init_triton_tle_ir(py::module &&m) {
 }
 
 void init_triton_tle_passes(py::module &&m) {
-  ADD_PASS_WRAPPER_0("add_lowering_tma_copy", tle::createTritonTleLowerTmaCopy);
+  ADD_PASS_WRAPPER_0("add_lower_async_load", tle::createTritonTleLowerAsyncLoad);
+  ADD_PASS_WRAPPER_0("add_lower_tma_copy", tle::createTritonTleLowerTmaCopy);
 }
 
 void init_triton_tle(py::module &&m) {
@@ -135,6 +136,6 @@ void init_triton_tle(py::module &&m) {
     context.loadAllAvailableDialects();
   });
 
-  init_triton_tle_ir(m.def_submodule("tle_ir"));
-  init_triton_tle_passes(m.def_submodule("tle_passes"));
+  init_triton_tle_ir(m.def_submodule("ir"));
+  init_triton_tle_passes(m.def_submodule("passes"));
 }
