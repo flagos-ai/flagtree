@@ -6,8 +6,9 @@ import triton.language as tl
 from triton.experimental import flagtree
 from triton.experimental.flagtree.edsl import dialect, InOut, Input
 import triton.experimental.flagtree.language as fl
-import os
+
 DEVICE = triton.runtime.driver.active.get_active_torch_device()
+
 
 def get_autotune_config():
     return [
@@ -26,7 +27,7 @@ def get_autotune_config():
         triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=5,
                       num_warps=2),
         triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=5,
-                      num_warps=1),
+                      num_warps=2),
         triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=3,
                       num_warps=8),
         triton.Config({'BLOCK_SIZE_M': 256, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=3,
@@ -45,8 +46,9 @@ def get_autotune_config():
                       num_warps=4)
     ]
 
+
 @dialect(name="mlir")
-def edsl(c: InOut["memref<?x?xf32, 3>"], a: Input["memref<?x?xf16, 3>"], b: Input["memref<?x?xf16, 3>"]):
+def edsl(c: InOut["memref<?x?xf32,3>"], a: Input["memref<?x?xf16,3>"], b: Input["memref<?x?xf16,3>"]):  # noqa: F722
     tidx = nvvm.read_ptx_sreg_tid_x(ir.IntegerType.get_signless(32))
     bdimx = nvvm.read_ptx_sreg_ntid_x(ir.IntegerType.get_signless(32))
     tidx = arith.index_cast(ir.IndexType.get(), tidx)
@@ -66,8 +68,6 @@ def edsl(c: InOut["memref<?x?xf32, 3>"], a: Input["memref<?x?xf16, 3>"], b: Inpu
             scf.yield_([c_val])
         init = memref.load(c, [row, col])
         memref.store(arith.addf(result, init), c, [row, col])
-        
-        memref.store(arith.sitofp(ir.F32Type.get(), arith.index_cast(ir.IntegerType.get_signless(32), tidx)), c, [row, col])
         scf.yield_([])
 
 
@@ -138,8 +138,8 @@ def matmul(a, b, activation=""):
 
 if __name__ == "__main__":
     torch.manual_seed(0)
-    a = torch.rand((32, 32), device=DEVICE, dtype=torch.float16) - 0.5
-    b = torch.rand((32, 64), device=DEVICE, dtype=torch.float16) - 0.5
+    a = torch.rand((512, 512), device=DEVICE, dtype=torch.float16) - 0.5
+    b = torch.rand((512, 512), device=DEVICE, dtype=torch.float16) - 0.5
     triton_output = matmul(a, b)
     torch_output = torch.matmul(a, b)
     print(f"triton_output_with_fp16_inputs={triton_output}")
