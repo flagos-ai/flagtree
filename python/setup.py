@@ -53,8 +53,7 @@ class BackendInstaller:
                 # flagtree: check if the submodule is defined in .gitmodules
                 check_result = subprocess.run(
                     ["git", "config", "-f", ".gitmodules", "--get-regexp", f"submodule.*{actual_dir_name}.path"],
-                    check=False, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=os.pardir
-                )
+                    check=False, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=os.pardir)
                 # flagtree: only execute git submodule update for actual git submodules
                 if check_result.returncode == 0:
                     subprocess.run(["git", "submodule", "update", "--init", f"{actual_dir_name}"], check=True,
