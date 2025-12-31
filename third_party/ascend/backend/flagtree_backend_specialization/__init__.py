@@ -40,6 +40,7 @@ __all__  = [
     'has_spec_default_Autotuner_configs',
     'get_spec_default_Autotuner_configs',
     'ext_Autotuner_do_bench_MLIRCompilationError',
+    'ext_Autotuner_batch_bench',
     'ext_Autotuner_profile',
     'default_Config_arg_is_none',
     'set_Config_extra_options',
