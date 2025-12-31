@@ -992,7 +992,8 @@ class TritonSemantic(Generic[TensorTy]):
             return sorted(boundary_check)
         return ()
 
-    def _load_block_pointer(self, ptr, mask, other, boundary_check, padding, cache, eviction, is_volatile, flagtree_hints):
+    def _load_block_pointer(self, ptr, mask, other, boundary_check, padding, cache, eviction, is_volatile,
+                            flagtree_hints):
         # Load by a block pointer: `pointer_type<block_type<>>`
         # Block pointer can not have `mask` and `other` arguments
         if mask is not None or other is not None:
@@ -1065,7 +1066,8 @@ class TritonSemantic(Generic[TensorTy]):
 
         # Build IR
         if mask is None:
-            ret = self.tensor(self.builder.create_load(ptr.handle, cache, eviction, is_volatile, flagtree_hints), dst_ty)
+            ret = self.tensor(self.builder.create_load(ptr.handle, cache, eviction, is_volatile, flagtree_hints),
+                              dst_ty)
         else:
             ret = self.tensor(
                 self.builder.create_masked_load(ptr.handle, mask.handle, other.handle if other else None, cache,
@@ -1075,7 +1077,8 @@ class TritonSemantic(Generic[TensorTy]):
         return ret
 
     def load(self, ptr: TensorTy, mask: Optional[TensorTy], other: Optional[TensorTy], boundary_check: Tuple,
-             padding_option: str, cache_modifier: str, eviction_policy: str, is_volatile: bool, flagtree_hints: str) -> TensorTy:
+             padding_option: str, cache_modifier: str, eviction_policy: str, is_volatile: bool,
+             flagtree_hints: str) -> TensorTy:
         # Cache, eviction and padding options
         cache = self._str_to_load_cache_modifier(cache_modifier)
         eviction = self._str_to_eviction_policy(eviction_policy)
@@ -1083,10 +1086,12 @@ class TritonSemantic(Generic[TensorTy]):
 
         if ptr.type.is_ptr() and ptr.type.element_ty.is_block():
             # Load by a block pointer: `pointer_type<block_type<>>`
-            return self._load_block_pointer(ptr, mask, other, boundary_check, padding, cache, eviction, is_volatile, flagtree_hints)
+            return self._load_block_pointer(ptr, mask, other, boundary_check, padding, cache, eviction, is_volatile,
+                                            flagtree_hints)
         else:
             # Load by a tensor of pointers or a pointer of scalar: `block_type<pointer_type<>>` or `pointer_type<>`
-            return self._load_legacy(ptr, mask, other, boundary_check, padding, cache, eviction, is_volatile, flagtree_hints)
+            return self._load_legacy(ptr, mask, other, boundary_check, padding, cache, eviction, is_volatile,
+                                     flagtree_hints)
 
     def descriptor_load(self, desc: tl.tensor_descriptor_base, offsets, cache_modifier: str,
                         eviction_policy: str) -> TensorTy:
