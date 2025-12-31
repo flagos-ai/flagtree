@@ -54,8 +54,5 @@ PYBIND11_MODULE(libtriton, m) {
   init_triton_interpreter(m.def_submodule("interpreter"));
   init_triton_llvm(m.def_submodule("llvm"));
   init_gluon_ir(m.def_submodule("gluon_ir"));
-  // flagtree tle
-  init_triton_tle(
-      m.def_submodule("tle")); // Initialize TLE module after IR module
   FOR_EACH_P(INIT_BACKEND, TRITON_BACKENDS_TUPLE)
 }
