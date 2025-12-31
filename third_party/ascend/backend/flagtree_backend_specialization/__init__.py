@@ -207,5 +207,8 @@ __all__  = [
     # testing
     'is_do_bench_npu',
     'ext_do_bench_npu',
-    'patch_triton_language'
+    'patch_triton_language',
+    'do_bench_npu',
+    'do_bench_multiple_kernel_npu',
+    'testing_ext_spec_func_list'
 ]
