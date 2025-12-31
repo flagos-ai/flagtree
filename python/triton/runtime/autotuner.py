@@ -42,10 +42,8 @@ class Autotuner(KernelInterface):
 
         if not configs:
             self.configs = [
-                flagtree_backend_specialization('get_spec_default_Autotuner_configs')
-                if flagtree_backend_specialization('has_spec_default_Autotuner_configs')
-                else Config({}, num_warps=4, num_stages=2, num_ctas=1, num_buffers_warp_spec=0, num_consumer_groups=0,
-                            reg_dec_producer=0, reg_inc_consumer=0)
+                Config({}, num_warps=4, num_stages=2, num_ctas=1, num_buffers_warp_spec=0, num_consumer_groups=0,
+                       reg_dec_producer=0, reg_inc_consumer=0)
             ]
         else:
             self.configs = configs
@@ -197,7 +195,13 @@ class Autotuner(KernelInterface):
                 used_cached_result = False
                 pruned_configs = self.prune_configs(kwargs)
                 bench_start = time.time()
-                timings = {config: self._bench(*args, config=config, **kwargs) for config in pruned_configs}
+                # flagtree backend specialization
+                from triton.runtime.driver import flagtree_backend_specialization
+                spec_timings = flagtree_backend_specialization("ext_Autotuner_batch_bench", self, *args, configs=pruned_configs, **kwargs)
+                if spec_timings is not None:
+                    timings = spec_timings
+                else:
+                    timings = {config: self._bench(*args, config=config, **kwargs) for config in pruned_configs}
                 bench_end = time.time()
                 self.bench_time = bench_end - bench_start
                 self.cache[key] = builtins.min(timings, key=timings.get)
@@ -282,9 +286,23 @@ class Config:
     :ivar extra_options: dict of extra options that pass to backend ir.  # flagtree backend specialization
     """
 
-    # flagtree backend specialization add new params: "extra_options"
-    def __init__(self, kwargs, num_warps=None, num_stages=None, num_ctas=None, num_buffers_warp_spec=None, num_consumer_groups=None,
-                 reg_dec_producer=None, reg_inc_consumer=None, maxnreg=None, pre_hook=None, **extra_options):
+    # flagtree backend specialization add new params: "force_simt_template", "enable_linearize", "extra_options"
+    def __init__(
+        self,
+        kwargs,
+        num_warps=4,
+        num_stages=2,
+        num_ctas=1,
+        num_buffers_warp_spec=0,
+        num_consumer_groups=0,
+        reg_dec_producer=0,
+        reg_inc_consumer=0,
+        maxnreg=None,
+        pre_hook=None,
+        force_simt_template=False,
+        enable_linearize=False,
+        **extra_options
+    ):
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
         if not flagtree_backend_specialization('default_Config_arg_is_none'):
@@ -306,6 +324,9 @@ class Config:
         self.reg_inc_consumer = reg_inc_consumer
         self.maxnreg = maxnreg
         self.pre_hook = pre_hook
+        # flagtree backend specialization
+        self.force_simt_template = force_simt_template
+        self.enable_linearize = enable_linearize
 
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
@@ -352,11 +373,9 @@ class Config:
         return ", ".join(res)
 
 
-# flagtree backend specialization add new params: "auto_profile_dir", "split_params",
-#     "tiling_params", "low_dims", "dual_reduction", "persistent_reduction"
-def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_value=None,
-             pre_hook=None, post_hook=None, warmup=None, rep=None, use_cuda_graph=False, do_bench=None, auto_profile_dir=None,
-             split_params=None, tiling_params=None, low_dims=None, dual_reduction=False, persistent_reduction=False):
+# flagtree backend specialization add new params: "hints", "auto_profile_dir"
+def autotune(configs, key, hints=None, prune_configs_by=None, reset_to_zero=None, restore_value=None,
+             pre_hook=None, post_hook=None, warmup=None, rep=None, use_cuda_graph=False, do_bench=None, auto_profile_dir=None):
     """
     Decorator for auto-tuning a :code:`triton.jit`'d function.
 
@@ -418,12 +437,10 @@ def autotune(configs, key, prune_configs_by=None, reset_to_zero=None, restore_va
     def decorator(fn):
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
-        if split_params or tiling_params:
+        if hints is not None and hints.get("enable_ascend_autotune"):
             return flagtree_backend_specialization('new_AutoTilingTuner', fn, configs, key, reset_to_zero, restore_value, pre_hook,
                                                    post_hook, prune_configs_by, warmup, rep,
-                                                   use_cuda_graph, do_bench, auto_profile_dir,
-                                                   split_params, tiling_params, low_dims,
-                                                   dual_reduction, persistent_reduction)
+                                                   use_cuda_graph, do_bench, auto_profile_dir)
 
         return Autotuner(fn, fn.arg_names, configs, key, reset_to_zero, restore_value, pre_hook=pre_hook,
                          post_hook=post_hook, prune_configs_by=prune_configs_by, warmup=warmup, rep=rep,
