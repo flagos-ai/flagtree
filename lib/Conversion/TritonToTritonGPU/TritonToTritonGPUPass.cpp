@@ -820,6 +820,7 @@ void populateFlagTreePatterns(TritonGPUTypeConverter &typeConverter,
                GenericOpPattern<flagtree::ExtractOffsetOp>,
                GenericOpPattern<flagtree::ExtractSizesOp>,
                GenericOpPattern<flagtree::ExtractStridesOp>,
+               GenericOpPattern<flagtree::ExtractPtrOp>,
                GenericOpPattern<flagtree::PackOp>>(typeConverter, context);
 }
 
