@@ -107,7 +107,7 @@ jobs:
           if [ -d "python/test/operators" ]; then
             python3.12 -m pytest -s python/test/operators
           fi
-
+          # flagtree tle
           python3.12 -m pytest -s python/test/tle/integration
           python3.12 -m pytest -s python/test/tle/mlir
           python3.12 -m pytest -s python/test/tle/unit

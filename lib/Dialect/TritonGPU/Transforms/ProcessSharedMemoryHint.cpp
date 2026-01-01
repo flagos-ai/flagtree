@@ -14,6 +14,7 @@ namespace gpu {
 #define GEN_PASS_DEF_TRITONGPUPROCESSSHAREDMEMORYHINT
 #include "triton/Dialect/TritonGPU/Transforms/Passes.h.inc"
 
+// flagtree hints # @hint: shared_memory
 struct ProcessSharedMemoryHintPass
     : public impl::TritonGPUProcessSharedMemoryHintBase<
           ProcessSharedMemoryHintPass> {
