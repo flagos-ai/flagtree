@@ -389,6 +389,10 @@ if TORCH_HAS_FP8 and is_cuda():
     else:
         print("❌ Triton and Torch differ")
 
+import sys
+if '--only_unit_test' in sys.argv:
+    sys.exit(0)
+
 # %%
 # Benchmark
 # ---------

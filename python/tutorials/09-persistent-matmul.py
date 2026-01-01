@@ -719,6 +719,7 @@ if __name__ == "__main__":
     parser.add_argument("--K_range", type=int, nargs=2)
     parser.add_argument("--K_step", type=int, default=512)
     parser.add_argument("--prec", type=str, choices=["fp8", "fp16"], default="fp16")
+    parser.add_argument("--only_unit_test", action="store_true", default=False)
     args = parser.parse_args()
 
     if args.prec == 'fp8' and (not hasattr(torch, "float8_e4m3fn") or not is_cuda()):
@@ -731,6 +732,11 @@ if __name__ == "__main__":
             args.K_step = 1  # doesn't matter as long as it's not 0
 
         torch.manual_seed(0)
+
+        if args.only_unit_test:
+            validate(16, 16, 16, dtype)
+            import sys
+            sys.exit(0)
 
         validate(32, 32, 32, dtype)
         validate(8192, 8192, args.K_range[0], dtype)

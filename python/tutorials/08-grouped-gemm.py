@@ -399,6 +399,10 @@ if supports_tma():
     for i in range(group_size):
         assert torch.allclose(ref_out[i], tri_tma_out[i], atol=1e-2, rtol=1e-2)
 
+import sys
+if '--only_unit_test' in sys.argv:
+    sys.exit(0)
+
 
 # only launch the kernel, no tensor preparation here to remove all overhead
 def triton_perf_fn(a_ptrs, b_ptrs, c_ptrs, sizes, lds, group_size):
