@@ -7,13 +7,6 @@ from typing import Any, Dict, List
 from . import language as tl
 from . import runtime
 
-# flagtree backend specialization
-try:
-    import acl
-    is_compile_on_910_95 = acl.get_soc_name().startswith("Ascend910_95")
-except Exception as e:
-    is_compile_on_910_95 = False
-
 # flagtree backend testing func specialization
 def spec_testing_func(spec):
     testing_spec_func_list = spec.testing_ext_spec_func_list
