@@ -5,6 +5,7 @@ include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 include "triton/Dialect/TritonGPU/IR/TritonGPUDialect.td"
 include "triton/Dialect/Triton/IR/TritonTypes.td"
+
 class TTG_TypeDef<string name, string _mnemonic, list<Trait> traits = []>
     : TypeDef<TritonGPU_Dialect, name, traits> {
     let mnemonic = _mnemonic;

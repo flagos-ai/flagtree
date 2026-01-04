@@ -262,6 +262,7 @@ def TritonGPUOptimizeDotOperands : Pass<"tritongpu-optimize-dot-operands", "mlir
   ];
 }
 
+// flagtree hints # @hint: shared_memory
 def TritonGPUProcessSharedMemoryHint : Pass<"tritongpu-process-shared-memory-hint", "mlir::ModuleOp"> {
   let summary = "process shared memory hint";
 

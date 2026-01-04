@@ -189,6 +189,10 @@ y_triton = softmax(x)
 y_torch = torch.softmax(x, axis=1)
 assert torch.allclose(y_triton, y_torch), (y_triton, y_torch)
 
+import sys
+if '--only_unit_test' in sys.argv:
+    sys.exit(0)
+
 # %%
 # As expected, the results are identical.
 

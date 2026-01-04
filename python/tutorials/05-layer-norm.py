@@ -372,6 +372,11 @@ def bench_layer_norm(M, N, dtype, provider, mode='backward', eps=1e-5, device=DE
 
 
 test_layer_norm(1151, 8192, torch.float16)
+
+import sys
+if '--only_unit_test' in sys.argv:
+    sys.exit(0)
+
 bench_layer_norm.run(save_path='.', print_data=True)
 
 # %%
