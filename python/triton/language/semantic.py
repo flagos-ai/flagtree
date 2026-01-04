@@ -1686,8 +1686,8 @@ def _str_to_fp_type(float_format: Optional[str]):
 
 # flagtree backend specialization add new params: lhs_k_pack, rhs_k_pack
 def dot_scaled(lhs: tl.tensor, lhs_scale: tl.tensor, lhs_format, rhs: tl.tensor, rhs_scale: Optional[tl.tensor],
-               rhs_format, acc: tl.tensor | None, out_dtype: tl.dtype, lhs_k_pack, rhs_k_pack,
-               builder: ir.builder) -> tl.tensor:
+               rhs_format, acc: tl.tensor | None, out_dtype: tl.dtype, 
+               builder: ir.builder, lhs_k_pack=False, rhs_k_pack=False) -> tl.tensor:
     assert lhs.type.is_block() and rhs.type.is_block()
 
     # flagtree backend specialization

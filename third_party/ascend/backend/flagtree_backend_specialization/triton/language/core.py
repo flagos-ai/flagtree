@@ -400,7 +400,7 @@ def dtype_to_ir(self, builder: ir.builder) -> ir.type:
     raise ValueError(f'fail to convert {self} to ir type')
 
 @builtin
-def dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc=None, out_dtype=float32, lhs_k_pack=True, rhs_k_pack=True, _builder=None):
+def dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc=None, out_dtype=float32, _builder=None, lhs_k_pack=True, rhs_k_pack=True):
     """
     Returns the matrix product of two blocks in microscaling format.
     lhs and rhs use microscaling formats described here:
@@ -419,7 +419,7 @@ def dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc=None,
     """
     out_dtype = _constexpr_to_value(out_dtype)
     assert out_dtype == float32, "Only float32 is supported for out_dtype at the moment"
-    return semantic.dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc, out_dtype, lhs_k_pack, rhs_k_pack, _builder)
+    return semantic.dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc, out_dtype, _builder, lhs_k_pack, rhs_k_pack)
 
 class range():
     """
