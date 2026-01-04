@@ -1,8 +1,15 @@
-def ext_CodeGenerator_builder_with_compile_mode():
-    return True
+def ext_CodeGenerator_builder_with_compile_mode(options):
+    return "simt" if options.force_simt_only else "simd"
 
-def has_for_op_ext_attr():
-    return True
+def for_op_ext_attr(for_op, builder, disallow_acc_multi_buffer, flatten, warp_specialize, disable_licm):
+    if disallow_acc_multi_buffer:
+        for_op.set_attr("tt.disallow_acc_multi_buffer", builder.get_unit_attr())
+    if flatten:
+        for_op.set_attr("tt.flatten", builder.get_unit_attr())
+    if warp_specialize:
+        for_op.set_attr("tt.warp_specialize", builder.get_unit_attr())
+    if disable_licm:
+        for_op.set_attr("tt.disable_licm", builder.get_unit_attr())
 
 def ext_CodeGenerator_visit_Assign_hint_anno(code_generator, node, names, values):
     import ast

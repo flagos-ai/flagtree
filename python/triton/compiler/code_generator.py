@@ -197,11 +197,9 @@ class CodeGenerator(ast.NodeVisitor):
         self.context = context
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
-        if flagtree_backend_specialization("ext_CodeGenerator_builder_with_compile_mode"):
-            if options.force_simt_only:
-                self.builder = ir.builder(context, compile_mode="simt")
-            else:
-                self.builder = ir.builder(context, compile_mode="simd")
+        opt_compile_mode = flagtree_backend_specialization("ext_CodeGenerator_builder_with_compile_mode", options)
+        if opt_compile_mode:
+            self.builder = ir.builder(context, compile_mode=opt_compile_mode)
         else:
             self.builder = ir.builder(context)
         self.file_name = file_name
@@ -950,7 +948,6 @@ class CodeGenerator(ast.NodeVisitor):
                 flatten = iterator.flatten
                 warp_specialize = iterator.warp_specialize
                 disable_licm = iterator.disable_licm
-
             # flagtree backend specialization
             new_bind_sub_block = flagtree_backend_specialization("set_bind_sub_block_when_parallel", IteratorClass, iterator, bind_sub_block)
             if new_bind_sub_block is not None:
@@ -1036,15 +1033,8 @@ class CodeGenerator(ast.NodeVisitor):
                 for_op.set_attr("tt.loop_unroll_factor", self.builder.get_int32_attr(loop_unroll_factor))
             # flagtree backend specialization
             from triton.runtime.driver import flagtree_backend_specialization
-            if flagtree_backend_specialization("has_for_op_ext_attr"):
-                if disallow_acc_multi_buffer:
-                    for_op.set_attr("tt.disallow_acc_multi_buffer", self.builder.get_unit_attr())
-                if flatten:
-                    for_op.set_attr("tt.flatten", self.builder.get_unit_attr())
-                if warp_specialize:
-                    for_op.set_attr("tt.warp_specialize", self.builder.get_unit_attr())
-                if disable_licm:
-                    for_op.set_attr("tt.disable_licm", self.builder.get_unit_attr())
+            flagtree_backend_specialization("for_op_ext_attr",
+                                            for_op, self.builder, disallow_acc_multi_buffer, flatten, warp_specialize, disable_licm)
             # flagtree backend specialization
             if bind_sub_block:
                 from triton.runtime.driver import flagtree_backend_specialization

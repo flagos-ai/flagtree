@@ -19,7 +19,7 @@ __all__  = [
     'compiledKernel_getattribute_disable_init_handles',
     # compiler.code_generator
     'ext_CodeGenerator_builder_with_compile_mode',
-    'has_for_op_ext_attr',
+    'for_op_ext_attr',
     'ext_CodeGenerator_visit_Assign_hint_anno',
     'visit_For_ext_support',
     'set_bind_sub_block_when_parallel',
