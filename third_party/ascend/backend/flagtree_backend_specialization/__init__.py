@@ -37,8 +37,6 @@ __all__  = [
     'enable_extra_option',
     # runtime.autotuner
     'set_Autotuner_auto_profile_dir',
-    'has_spec_default_Autotuner_configs',
-    'get_spec_default_Autotuner_configs',
     'ext_Autotuner_do_bench_MLIRCompilationError',
     'ext_Autotuner_batch_bench',
     'ext_Autotuner_profile',
