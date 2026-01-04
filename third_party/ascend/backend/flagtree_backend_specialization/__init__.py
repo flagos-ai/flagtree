@@ -92,7 +92,7 @@ __all__  = [
     "core_tensor_ext_spec_func_list",
     # language.semantic
     "check_is_compile_on_910_95",
-    "is_arange_check_compile_mode",
+    "check_arange_range_power_of_two",
     "arange_disable_check_power_of_two",
     "check_arange_less_than_max_numel",
     "is_cast_src_dst_scalar_type_equal",

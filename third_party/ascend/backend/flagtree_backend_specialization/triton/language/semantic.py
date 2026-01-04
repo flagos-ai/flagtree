@@ -29,8 +29,11 @@ except Exception as e:
 def check_is_compile_on_910_95():
     return not is_compile_on_910_95
 
-def is_arange_check_compile_mode():
-    return True
+def check_arange_range_power_of_two(range, builder):
+    if builder.is_simt_mode():
+        # Check if range is a power of 2
+        if (range & (range - 1)) != 0:
+            raise ValueError("arange's range must be a power of 2")
 
 def arange_disable_check_power_of_two():
     return True
@@ -59,7 +62,7 @@ def dot_check_hf32_input_precision(input_precision, ir, lhs, rhs, ret_scalar_ty)
             raise ValueError("input_precision = 'hf32' must be used with f32 * f32 = f32 on Ascend")
 
 def dot_disable_check_max_num_imprecise_acc():
-    return True
+    print("max_num_imprecise_acc in tl.dot is not supported on Ascend yet. Thus it is ignored.")
 
 def reset_dot_max_num_imprecise_acc():
     return 0

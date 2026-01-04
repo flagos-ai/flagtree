@@ -484,7 +484,7 @@ def logical_and(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.t
     if not input.type.is_int1():
         # flagtree backend specialization
         spec_input = flagtree_backend_specialization('logical_check_int1_bitcast', input, dst_bits, dst_sca_ty, builder)
-        if spec_input:
+        if spec_input is not None:
             input = spec_input
 
         input = bitcast(input, tl.dtype("int1"), builder)
@@ -707,13 +707,7 @@ def arange(start: int, end: int, builder: ir.builder) -> tl.tensor:
 
     # flagtree backend specialization
     # Check if compile_mode is simt, then range must be a power of 2
-    if flagtree_backend_specialization("is_arange_check_compile_mode"):
-        if builder.is_simt_mode():
-            # Check if range is a power of 2
-            if (range & (range - 1)) != 0:
-                raise ValueError("arange's range must be a power of 2")
-
-
+    flagtree_backend_specialization("check_arange_range_power_of_two", range, builder)
 
     shape = [range]
     ret_ty = tl.block_type(tl.int32, shape)
@@ -1666,8 +1660,7 @@ def dot(lhs: tl.tensor, rhs: tl.tensor, acc: tl.tensor, input_precision: Optiona
             max_num_imprecise_acc = 0
     else:
         # flagtree backend specialization
-        if flagtree_backend_specialization('dot_disable_check_max_num_imprecise_acc'):
-            print("max_num_imprecise_acc in tl.dot is not supported on Ascend yet. Thus it is ignored.")
+        flagtree_backend_specialization('dot_disable_check_max_num_imprecise_acc')
         if not flagtree_backend_specialization('dot_disable_check_max_num_imprecise_acc') and lhs.dtype.is_fp8() and rhs.dtype.is_fp8() and max_num_imprecise_acc > K:
             raise ValueError(f"max_num_imprecise_acc ({max_num_imprecise_acc}) must be <= K ({K})")
 
