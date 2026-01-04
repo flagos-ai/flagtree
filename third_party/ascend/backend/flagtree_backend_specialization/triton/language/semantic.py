@@ -26,10 +26,15 @@ try:
 except Exception as e:
     is_compile_on_910_95 = False
 
-def check_is_compile_on_910_95():
-    return not is_compile_on_910_95
+def ret_if_not_create_int_cast(src_sca_ty, dst_sca_ty, input, builder):
+    if not is_compile_on_910_95 and \
+        (src_sca_ty.is_int_unsigned() or dst_sca_ty.is_int_unsigned()) and \
+        src_sca_ty.int_bitwidth >= dst_sca_ty.int_bitwidth:
+        return cast(cast(input, tl.float32, builder), dst_sca_ty, builder)
+    return None
 
 def check_arange_range_power_of_two(range, builder):
+    # Check if compile_mode is simt, then range must be a power of 2
     if builder.is_simt_mode():
         # Check if range is a power of 2
         if (range & (range - 1)) != 0:
@@ -134,7 +139,7 @@ def is_float_format_support_fp16():
 def floating_mod_returning_tensor(builder, input, other):
     return tl.tensor(builder.create_mod(input.handle, other.handle), input.type)
 
-def logical_check_int1_bitcast(input, dst_bits, dst_sca_ty, builder):
+def logical_check_int1_bitcast(input, dst_sca_ty, dst_bits, builder):
     src_sca_ty = input.type.scalar
     src_bits = src_sca_ty.primitive_bitwidth
     if src_bits == dst_bits or src_sca_ty.is_ptr() or dst_sca_ty.is_ptr():

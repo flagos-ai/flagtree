@@ -77,10 +77,7 @@ def do_bench_cudagraph(fn, rep=20, grad_to_none=None, quantiles=None, return_mod
         start_event.record()
         # flagtree backend specialization
         from triton.runtime.driver import flagtree_backend_specialization
-        range_call_fn = flagtree_backend_specialization('testing_spec_range', 5)
-        if range_call_fn is None:
-            range_call_fn = range(5)
-        for _ in range_call_fn:
+        for _ in flagtree_backend_specialization('testing_spec_range', 5) or range(5):
             fn()
         end_event.record()
         torch.cuda.synchronize()
@@ -91,10 +88,7 @@ def do_bench_cudagraph(fn, rep=20, grad_to_none=None, quantiles=None, return_mod
         g = torch.cuda.CUDAGraph()
         with torch.cuda.graph(g):
             # flagtree backend specialization
-            range_n_repeat = flagtree_backend_specialization('testing_spec_range', n_repeat)
-            if range_n_repeat is None:
-                range_n_repeat = range(n_repeat)
-            for _ in range_n_repeat:
+            for _ in flagtree_backend_specialization('testing_spec_range', n_repeat) or range(n_repeat):
                 if grad_to_none is not None:
                     for x in grad_to_none:
                         x.grad = None
@@ -104,10 +98,7 @@ def do_bench_cudagraph(fn, rep=20, grad_to_none=None, quantiles=None, return_mod
         ret = []
         n_retries = 10
         # flagtree backend specialization
-        range_n_retries = flagtree_backend_specialization('testing_spec_range', n_retries)
-        if range_n_retries is None:
-            range_n_retries = range(n_retries)
-        for _ in range_n_retries:
+        for _ in flagtree_backend_specialization('testing_spec_range', n_retries) or range(n_retries):
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
             start_event.record()
@@ -156,10 +147,7 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_m
     start_event.record()
     # flagtree backend specialization
     from triton.runtime.driver import flagtree_backend_specialization
-    range_call_fn = flagtree_backend_specialization('testing_spec_range', 5)
-    if range_call_fn is None:
-        range_call_fn = range(5)
-    for _ in range_call_fn:
+    for _ in flagtree_backend_specialization('testing_spec_range', 5) or range(5):
         cache.zero_()
         fn()
     end_event.record()
@@ -170,24 +158,16 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_m
     n_warmup = max(1, int(warmup / estimate_ms))
     n_repeat = max(1, int(rep / estimate_ms))
     # flagtree backend specialization
-    range_n_repeat = flagtree_backend_specialization('testing_spec_range', n_repeat)
-    if range_n_repeat is None:
-        range_n_repeat = range(n_repeat)
+    range_n_repeat = flagtree_backend_specialization('testing_spec_range', n_repeat) or range(n_repeat)
     start_event = [di.Event(enable_timing=True) for i in range_n_repeat]
     end_event = [di.Event(enable_timing=True) for i in range_n_repeat]
     # Warm-up
     # flagtree backend specialization
-    range_n_warmup = flagtree_backend_specialization('testing_spec_range', n_warmup)
-    if range_n_warmup is None:
-        range_n_warmup = range(n_warmup)
-    for _ in range_n_warmup:
+    for _ in flagtree_backend_specialization('testing_spec_range', n_warmup) or range(n_warmup):
         fn()
     # Benchmark
     # flagtree backend specialization
-    range_n_repeat = flagtree_backend_specialization('testing_spec_range', n_repeat)
-    if range_n_repeat is None:
-        range_n_repeat = range(n_repeat)
-    for i in range_n_repeat:
+    for i in flagtree_backend_specialization('testing_spec_range', n_repeat) or range(n_repeat):
         # we don't want `fn` to accumulate gradient values
         # if it contains a backward pass. So we clear the
         # provided gradients

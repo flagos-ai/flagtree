@@ -474,7 +474,7 @@ def xor_(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.tensor:
 
 
 def logical_and(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.tensor:
-    # flagtree backend specialization: set dst_bits
+    # flagtree backend specialization: set dst_sca_ty and dst_bits
     dst_sca_ty = tl.dtype("int1")
     dst_bits = dst_sca_ty.primitive_bitwidth
 
@@ -483,24 +483,20 @@ def logical_and(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.t
     input = flagtree_backend_specialization('cast_bool_to_specified_dtype', input, builder) or input
     if not input.type.is_int1():
         # flagtree backend specialization
-        spec_input = flagtree_backend_specialization('logical_check_int1_bitcast', input, dst_bits, dst_sca_ty, builder)
-        if spec_input is not None:
-            input = spec_input
-
+        spec_input = flagtree_backend_specialization('logical_check_int1_bitcast', input, dst_sca_ty, dst_bits, builder)
+        input = spec_input if spec_input is not None else input
         input = bitcast(input, tl.dtype("int1"), builder)
     other = flagtree_backend_specialization('cast_bool_to_specified_dtype', other, builder) or other
     if not other.type.is_int1():
         # flagtree backend specialization
-        spec_other = flagtree_backend_specialization('logical_check_int1_bitcast', other, dst_bits, dst_sca_ty, builder)
-        if spec_other:
-            other = spec_other
-
+        spec_other = flagtree_backend_specialization('logical_check_int1_bitcast', other, dst_sca_ty, dst_bits, builder)
+        other = spec_other if spec_other is not None else other
         other = bitcast(other, tl.dtype("int1"), builder)
     return and_(input, other, builder)
 
 
 def logical_or(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.tensor:
-    # flagtree backend specialization: set dst_bits
+    # flagtree backend specialization: set dst_sca_ty and dst_bits
     dst_sca_ty = tl.dtype("int1")
     dst_bits = dst_sca_ty.primitive_bitwidth
 
@@ -509,18 +505,14 @@ def logical_or(input: tl.tensor, other: tl.tensor, builder: ir.builder) -> tl.te
     input = flagtree_backend_specialization('cast_bool_to_specified_dtype', input, builder) or input
     if not input.type.is_int1():
         # flagtree backend specialization
-        spec_input = flagtree_backend_specialization('logical_check_int1_bitcast', input, dst_bits, dst_sca_ty, builder)
-        if spec_input:
-            input = spec_input
-
+        spec_input = flagtree_backend_specialization('logical_check_int1_bitcast', input, dst_sca_ty, dst_bits, builder)
+        input = spec_input if spec_input is not None else input
         input = bitcast(input, tl.dtype("int1"), builder)
     other = flagtree_backend_specialization('cast_bool_to_specified_dtype', other, builder) or other
     if not other.type.is_int1():
         # flagtree backend specialization
-        spec_other = flagtree_backend_specialization('logical_check_int1_bitcast', other, dst_bits, dst_sca_ty, builder)
-        if spec_other:
-            other = spec_other
-
+        spec_other = flagtree_backend_specialization('logical_check_int1_bitcast', other, dst_sca_ty, dst_bits, builder)
+        other = spec_other if spec_other is not None else other
         other = bitcast(other, tl.dtype("int1"), builder)
     return or_(input, other, builder)
 
@@ -706,7 +698,6 @@ def arange(start: int, end: int, builder: ir.builder) -> tl.tensor:
     flagtree_backend_specialization('check_arange_less_than_max_numel', range)
 
     # flagtree backend specialization
-    # Check if compile_mode is simt, then range must be a power of 2
     flagtree_backend_specialization("check_arange_range_power_of_two", range, builder)
 
     shape = [range]
@@ -1005,11 +996,11 @@ def cast(input: tl.tensor, dst_ty: tl.dtype, builder: ir.builder,
             ty = input.dtype.to_ir(builder)
             _0 = tl.tensor(builder.get_null_value(ty), input.dtype)
             return not_equal(input, _0, builder)
-        # flagtree backend specialization
-        elif flagtree_backend_specialization("check_is_not_compile_on_910_95") and \
-             (src_sca_ty.is_int_unsigned() or dst_sca_ty.is_int_unsigned()) and \
-             src_sca_ty.int_bitwidth >= dst_sca_ty.int_bitwidth:
-            return cast(cast(input, tl.float32, builder), dst_sca_ty, builder)
+        else:
+            # flagtree backend specialization
+            ret = flagtree_backend_specialization("ret_if_not_create_int_cast", src_sca_ty, dst_sca_ty, input, builder)
+            if ret:
+                return ret
         return tl.tensor(builder.create_int_cast(input.handle, dst_ty.to_ir(builder), sign_extend), dst_ty)
 
     # Casting standard floating types to integer types
@@ -1660,7 +1651,6 @@ def dot(lhs: tl.tensor, rhs: tl.tensor, acc: tl.tensor, input_precision: Optiona
             max_num_imprecise_acc = 0
     else:
         # flagtree backend specialization
-        flagtree_backend_specialization('dot_disable_check_max_num_imprecise_acc')
         if not flagtree_backend_specialization('dot_disable_check_max_num_imprecise_acc') and lhs.dtype.is_fp8() and rhs.dtype.is_fp8() and max_num_imprecise_acc > K:
             raise ValueError(f"max_num_imprecise_acc ({max_num_imprecise_acc}) must be <= K ({K})")
 

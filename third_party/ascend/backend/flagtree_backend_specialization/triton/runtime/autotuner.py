@@ -6,13 +6,6 @@ import logging
 def set_Autotuner_auto_profile_dir(autotuner, auto_profile_dir):
     autotuner.auto_profile_dir = auto_profile_dir
 
-def has_spec_default_Autotuner_configs():
-    return True
-
-def get_spec_default_Autotuner_configs():
-    from triton.runtime.autotuner import Config
-    return Config({})
-
 def ext_Autotuner_do_bench_MLIRCompilationError():
     from ..compiler.errors import MLIRCompilationError
     return (MLIRCompilationError,)
@@ -172,10 +165,12 @@ def ext_Config_to_str(res, config):
     res.append(f"tile_mix_cube_loop: {config.tile_mix_cube_loop}")
     res.append(f"force_simt_template: {config.force_simt_template}")
 
-def new_AutoTilingTuner(fn, configs, key, reset_to_zero, restore_value, pre_hook,
+def new_AutoTilingTuner(hints, fn, configs, key, reset_to_zero, restore_value, pre_hook,
                         post_hook, prune_configs_by, warmup, rep,
                         use_cuda_graph, do_bench, auto_profile_dir):
-    from triton.runtime.autotiling_tuner import AutoTilingTuner
-    return AutoTilingTuner(fn, fn.arg_names, configs, key, reset_to_zero, restore_value, pre_hook=pre_hook,
-                           post_hook=post_hook, prune_configs_by=prune_configs_by, warmup=warmup, rep=rep,
-                           use_cuda_graph=use_cuda_graph, do_bench=do_bench, auto_profile_dir=auto_profile_dir)
+    if hints is not None and hints.get("enable_ascend_autotune"):
+        from triton.runtime.autotiling_tuner import AutoTilingTuner
+        return AutoTilingTuner(fn, fn.arg_names, configs, key, reset_to_zero, restore_value, pre_hook=pre_hook,
+                               post_hook=post_hook, prune_configs_by=prune_configs_by, warmup=warmup, rep=rep,
+                               use_cuda_graph=use_cuda_graph, do_bench=do_bench, auto_profile_dir=auto_profile_dir)
+    return None

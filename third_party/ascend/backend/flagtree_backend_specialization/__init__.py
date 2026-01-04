@@ -91,7 +91,7 @@ __all__  = [
     "core_ext_spec_func_list",
     "core_tensor_ext_spec_func_list",
     # language.semantic
-    "check_is_compile_on_910_95",
+    "ret_if_not_create_int_cast",
     "check_arange_range_power_of_two",
     "arange_disable_check_power_of_two",
     "check_arange_less_than_max_numel",
