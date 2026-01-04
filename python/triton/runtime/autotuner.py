@@ -197,7 +197,7 @@ class Autotuner(KernelInterface):
                 bench_start = time.time()
                 # flagtree backend specialization
                 from triton.runtime.driver import flagtree_backend_specialization
-                timings = flagtree_backend_specialization("ext_Autotuner_batch_bench", self, *args, configs=pruned_configs, **kwargs) or \
+                timings = flagtree_backend_specialization("ext_Autotuner_batch_bench", *args, configs=pruned_configs, **kwargs) or \
                     {config: self._bench(*args, config=config, **kwargs) for config in pruned_configs}
                 bench_end = time.time()
                 self.bench_time = bench_end - bench_start
