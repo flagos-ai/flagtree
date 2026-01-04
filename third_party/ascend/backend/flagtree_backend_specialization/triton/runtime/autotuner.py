@@ -115,7 +115,7 @@ def _batch_bench(*args, configs, **kwargs):
     return _batch_benchmark(kernel_dict=kernel_dict, quantiles=(0.5, 0.2, 0.8))
 
 def ext_Autotuner_batch_bench(*args, configs, **kwargs):
-    return _batch_bench(autotuner, *args, configs=configs, **kwargs)
+    return _batch_bench(*args, configs=configs, **kwargs)
 
 def ext_Autotuner_profile(autotuner, used_cached_result, args, kwargs):
     if not used_cached_result and autotuner.auto_profile_dir is not None:
