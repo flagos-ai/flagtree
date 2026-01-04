@@ -89,6 +89,7 @@ __all__  = [
     "dot_scaled",
     "range",
     "core_ext_spec_func_list",
+    "core_tensor_ext_spec_func_list",
     # language.semantic
     "check_is_compile_on_910_95",
     "is_arange_check_compile_mode",
